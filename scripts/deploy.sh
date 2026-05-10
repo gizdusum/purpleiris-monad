@@ -5,12 +5,6 @@ REPO_DIR="/opt/purpleiris"
 COMPOSE_FILE="$REPO_DIR/docker/docker-compose.prod.yml"
 ENV_FILE="$REPO_DIR/.env.local"
 
-echo "→ Pulling latest code..."
-cd "$REPO_DIR"
-git fetch origin
-git reset --hard origin/main
-git clean -fd
-
 echo "→ Building containers..."
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --no-cache web indexer
 
@@ -22,7 +16,7 @@ echo "→ Running database migrations..."
 set -a; source "$ENV_FILE"; set +a
 npx prisma migrate deploy
 
-echo "→ Rolling restart (zero-downtime)..."
+echo "→ Rolling restart..."
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --remove-orphans
 
 echo "→ Cleaning old images..."
