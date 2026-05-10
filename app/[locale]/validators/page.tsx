@@ -1,120 +1,146 @@
+"use server";
+
 import { Link } from "@/i18n/navigation";
-import { getValidatorsFromChain } from "@/lib/monad/validators";
-import type { OnChainValidator } from "@/lib/monad/validators";
+import { getWatchtowerOverview } from "@/lib/monad/watchtower";
+import type { WatchtowerValidator } from "@/lib/monad/watchtower";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Validators" };
 export const dynamic = "force-dynamic";
 
-function fmtCommission(bps: number) {
-  return `${(bps / 100).toFixed(1)}%`;
+function computeScore(v: WatchtowerValidator): number {
+  const uptime = v.uptime_percentage;
+  const vdpPenalty = Math.min(v.vdp_flagged_weeks * 2, 20);
+  const alertPenalty = v.alert_level * 5;
+  const skipPenalty = Math.min(v.consecutive_skipped * 2, 10);
+  return Math.round(Math.max(50, Math.min(99, uptime - vdpPenalty - alertPenalty - skipPenalty)));
 }
 
-function fmtStake(wei: bigint) {
-  const mon = Number(wei / 10n ** 18n);
-  if (mon >= 1_000_000) return `${(mon / 1_000_000).toFixed(1)}M`;
-  if (mon >= 1_000) return `${(mon / 1_000).toFixed(0)}K`;
-  return mon.toString();
-}
-
-function computeScore(commissionBps: number, stakedAmount: bigint, maxStake: bigint): number {
-  const commScore = Math.max(20, 100 - (commissionBps / 100) * 3.5);
-  const stakeScore = maxStake > 0n ? Number((stakedAmount * 100n) / maxStake) : 0;
-  return Math.round(Math.min(99, 55 + (commScore * 0.4 + stakeScore * 0.6) * 0.44));
-}
-
-function getTier(score: number): "ELITE" | "PRO" | "RELIABLE" | "STANDARD" {
-  if (score >= 90) return "ELITE";
-  if (score >= 80) return "PRO";
-  if (score >= 70) return "RELIABLE";
-  return "STANDARD";
+function getTier(score: number) {
+  if (score >= 95) return "ELITE" as const;
+  if (score >= 85) return "PRO" as const;
+  if (score >= 75) return "RELIABLE" as const;
+  return "STANDARD" as const;
 }
 
 export default async function ValidatorsPage() {
-  let validators = await getValidatorsFromChain().catch(() => []);
-  const active = validators.filter((v) => v.active && !v.jailed);
-  const jailed = validators.filter((v) => v.jailed);
+  let overview;
+  try {
+    overview = await getWatchtowerOverview();
+  } catch {
+    return (
+      <div className="mx-auto max-w-7xl px-6 py-24 text-center">
+        <p className="text-muted-foreground">Could not reach Watchtower API. Try again shortly.</p>
+      </div>
+    );
+  }
 
-  active.sort((a, b) => (b.stakedAmount > a.stakedAmount ? 1 : -1));
-  const maxStake = active[0]?.stakedAmount ?? 1n;
+  const active = overview.validators
+    .filter((v) => v.active_now)
+    .map((v, idx) => ({ ...v, rank: idx + 1, score: computeScore(v) }))
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
 
-  const scored = active.map((v, idx) => ({
-    ...v,
-    rank: idx + 1,
-    score: computeScore(v.commissionBps, v.stakedAmount, maxStake),
-  }));
-
-  const elite = scored.filter((v) => getTier(v.score) === "ELITE").length;
-  const avgComm =
-    active.length > 0
-      ? Math.round(active.reduce((s, v) => s + v.commissionBps, 0) / active.length)
-      : 0;
+  const inactive = overview.validators.filter((v) => !v.active_now);
+  const elite = active.filter((v) => getTier(v.score) === "ELITE").length;
+  const perfect = active.filter((v) => v.uptime_percentage === 100).length;
+  const networkUptime = overview.global_stats.network_uptime.toFixed(2);
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-12">
       {/* Header */}
-      <div className="mb-10">
+      <div className="mb-8">
         <p className="text-primary mb-2 text-xs font-semibold tracking-wider uppercase">
-          Monad Mainnet
+          Monad Mainnet · Epoch {overview.current_epoch}
         </p>
         <h1 className="font-heading text-foreground text-4xl font-bold">Validator Network</h1>
         <p className="text-muted-foreground mt-2">
-          {active.length} active validators — pick yours like a pro
+          {active.length} active validators · data from{" "}
+          <span className="text-foreground font-medium">monad-watchtower.xyz</span>
+          {" · "}updated live
         </p>
       </div>
 
       {/* Summary cards */}
-      <div className="mb-10 grid gap-4 sm:grid-cols-4">
+      <div className="mb-8 grid gap-4 sm:grid-cols-4">
         <SummaryCard
+          icon="✅"
           label="Active"
           value={active.length.toString()}
           color="text-emerald-400"
-          icon="✅"
         />
-        <SummaryCard label="Elite Tier" value={elite.toString()} color="text-amber-400" icon="⭐" />
+        <SummaryCard icon="⭐" label="Elite Tier" value={elite.toString()} color="text-amber-400" />
         <SummaryCard
-          label="Jailed"
-          value={jailed.length.toString()}
-          color="text-red-400"
-          icon="🔴"
+          icon="💎"
+          label="100% Uptime"
+          value={perfect.toString()}
+          color="text-violet-400"
         />
         <SummaryCard
-          label="Avg Commission"
-          value={fmtCommission(avgComm)}
+          icon="📶"
+          label="Network Uptime"
+          value={`${networkUptime}%`}
           color="text-foreground"
-          icon="💰"
         />
       </div>
 
+      {/* User Tips */}
+      <div className="mb-8">
+        <p className="text-foreground mb-3 text-sm font-semibold">
+          💡 How to pick the right validator for you
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <TipCard
+            icon="🔰"
+            title="New to staking?"
+            tip="Pick any ELITE tier — they have near-perfect uptime and zero flags."
+          />
+          <TipCard
+            icon="💰"
+            title="Maximize rewards"
+            tip="Lower commission = more MON goes to you. Check the fee column."
+          />
+          <TipCard
+            icon="🌍"
+            title="Support decentralization"
+            tip="Choose a validator ranked #20 or below — smaller validators need delegations."
+          />
+          <TipCard
+            icon="🛡️"
+            title="Extra safety"
+            tip="Check VDP flags. 0 flags means the validator has never been penalized by Monad."
+          />
+        </div>
+      </div>
+
       {/* Tier legend */}
-      <div className="mb-8 flex flex-wrap gap-3">
+      <div className="mb-6 flex flex-wrap gap-3">
         {(
           [
             {
               tier: "ELITE",
-              color: "border-amber-500/30 bg-amber-500/10 text-amber-400",
-              desc: "Score 90+",
+              style: "border-amber-500/30 bg-amber-500/10 text-amber-400",
+              desc: "Score 95+",
             },
             {
               tier: "PRO",
-              color: "border-slate-400/30 bg-slate-400/10 text-slate-300",
-              desc: "Score 80–89",
+              style: "border-slate-400/30 bg-slate-400/10 text-slate-300",
+              desc: "85–94",
             },
             {
               tier: "RELIABLE",
-              color: "border-orange-600/30 bg-orange-700/10 text-orange-400",
-              desc: "Score 70–79",
+              style: "border-orange-600/30 bg-orange-700/10 text-orange-400",
+              desc: "75–84",
             },
             {
               tier: "STANDARD",
-              color: "border-border/40 bg-muted/20 text-muted-foreground",
-              desc: "Score <70",
+              style: "border-border/40 bg-muted/20 text-muted-foreground",
+              desc: "<75",
             },
           ] as const
         ).map((t) => (
           <div
             key={t.tier}
-            className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${t.color}`}
+            className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${t.style}`}
           >
             <span>{t.tier}</span>
             <span className="opacity-60">{t.desc}</span>
@@ -124,19 +150,38 @@ export default async function ValidatorsPage() {
 
       {/* Card grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {scored.map((v) => (
-          <ValidatorCard key={v.address} v={v} maxStake={maxStake} />
+        {active.map((v, idx) => (
+          <ValidatorCard key={v.node_id} v={v} rank={idx + 1} />
         ))}
       </div>
 
+      {/* Inactive */}
+      {inactive.length > 0 && (
+        <div className="border-border/40 bg-card/30 mt-10 rounded-2xl border p-5">
+          <p className="text-muted-foreground text-sm font-medium">
+            🔴 {inactive.length} validators currently inactive
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {inactive.map((v) => (
+              <span
+                key={v.node_id}
+                className="bg-muted/40 text-muted-foreground rounded-full px-3 py-1 text-xs"
+              >
+                {v.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* CTA */}
       <div className="mt-12 text-center">
-        <p className="text-muted-foreground mb-4 text-sm">Not sure which validator to choose?</p>
+        <p className="text-muted-foreground mb-4 text-sm">Not sure which to pick?</p>
         <Link
           href="/find"
           className="bg-primary text-primary-foreground shadow-primary/20 inline-flex h-11 items-center justify-center rounded-full px-8 text-sm font-semibold shadow-lg transition-all hover:opacity-90"
         >
-          Find My Perfect Match →
+          Find My Perfect Validator →
         </Link>
       </div>
     </div>
@@ -144,15 +189,15 @@ export default async function ValidatorsPage() {
 }
 
 function SummaryCard({
+  icon,
   label,
   value,
   color,
-  icon,
 }: {
+  icon: string;
   label: string;
   value: string;
   color: string;
-  icon: string;
 }) {
   return (
     <div className="border-border/40 bg-card flex items-center gap-4 rounded-2xl border p-5">
@@ -167,13 +212,19 @@ function SummaryCard({
   );
 }
 
-function ValidatorCard({
-  v,
-  maxStake,
-}: {
-  v: OnChainValidator & { rank: number; score: number };
-  maxStake: bigint;
-}) {
+function TipCard({ icon, title, tip }: { icon: string; title: string; tip: string }) {
+  return (
+    <div className="border-border/40 bg-card/60 rounded-xl border p-4">
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-xl">{icon}</span>
+        <span className="text-foreground text-sm font-semibold">{title}</span>
+      </div>
+      <p className="text-muted-foreground text-xs leading-relaxed">{tip}</p>
+    </div>
+  );
+}
+
+function ValidatorCard({ v, rank }: { v: WatchtowerValidator & { score: number }; rank: number }) {
   const tier = getTier(v.score);
 
   const tierStyles = {
@@ -200,28 +251,41 @@ function ValidatorCard({
   };
 
   const s = tierStyles[tier];
-  const commScore = Math.max(0, Math.round(100 - (v.commissionBps / 100) * 3.5));
-  const stakeScore = maxStake > 0n ? Math.round(Number((v.stakedAmount * 100n) / maxStake)) : 0;
-  const uptime = Math.max(97.5, 100 - v.rank * 0.013);
+  const uptimePct = Math.round(v.uptime_percentage);
+  const reliabilityPct = Math.round(
+    v.vdp_weeks_analyzed > 0
+      ? ((v.vdp_weeks_analyzed - v.vdp_flagged_weeks) / v.vdp_weeks_analyzed) * 100
+      : 100
+  );
+  const epochPct = Math.round(v.current_epoch_success_rate);
 
   return (
     <div
       className={`relative flex flex-col gap-4 rounded-2xl border bg-gradient-to-br p-5 transition-all hover:scale-[1.02] hover:shadow-lg ${s.card}`}
     >
-      {/* Country + tier badge */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <span className="text-lg leading-none">{v.flag ?? "🌐"}</span>
-          <span className="text-muted-foreground text-xs">{v.country ?? "Global"}</span>
+      {/* Logo + name + tier */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={v.logo}
+            alt={v.name}
+            className="size-8 flex-shrink-0 rounded-lg bg-white/5 object-contain"
+            onError={undefined}
+          />
+          <div className="min-w-0">
+            <h3 className="text-foreground truncate text-sm leading-tight font-bold">{v.name}</h3>
+            <p className="text-muted-foreground font-mono text-[10px]">#{rank}</p>
+          </div>
         </div>
         <span
-          className={`rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase ${s.badge}`}
+          className={`flex-shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase ${s.badge}`}
         >
           {tier}
         </span>
       </div>
 
-      {/* OVR + Name */}
+      {/* OVR score */}
       <div className="flex items-center gap-3">
         <div className="min-w-[52px] text-center">
           <div className={`font-heading text-5xl leading-none font-black ${s.score}`}>
@@ -231,41 +295,66 @@ function ValidatorCard({
             OVR
           </div>
         </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-foreground truncate text-base leading-tight font-bold">
-            {v.moniker}
-          </h3>
-          <p className="text-muted-foreground mt-0.5 text-xs">
-            #{v.rank} · {v.provider ?? "Independent"}
-          </p>
+        <div className="flex-1 space-y-2">
+          <MiniBar label="PERF" value={uptimePct} barClass="bg-emerald-400" />
+          <MiniBar label="TRUST" value={reliabilityPct} barClass="bg-violet-400" />
+          <MiniBar label="EPOCH" value={epochPct} barClass="bg-blue-400" />
         </div>
       </div>
 
-      {/* Stat bars */}
-      <div className="space-y-2">
-        <MiniBar label="PERF" value={Math.round(uptime)} max={100} barClass="bg-emerald-400" />
-        <MiniBar label="COMM" value={commScore} max={100} barClass="bg-violet-400" />
-        <MiniBar label="STAKE" value={stakeScore} max={100} barClass="bg-blue-400" />
+      {/* Key stats */}
+      <div className="grid grid-cols-3 gap-1 rounded-xl bg-black/10 p-3 text-center">
+        <div>
+          <div className="text-foreground text-xs font-bold tabular-nums">
+            {v.uptime_percentage.toFixed(1)}%
+          </div>
+          <div className="text-muted-foreground text-[10px]">Uptime</div>
+        </div>
+        <div>
+          <div
+            className={`text-xs font-bold tabular-nums ${v.vdp_flagged_weeks > 0 ? "text-red-400" : "text-emerald-400"}`}
+          >
+            {v.vdp_flagged_weeks} / {v.vdp_weeks_analyzed}
+          </div>
+          <div className="text-muted-foreground text-[10px]">VDP Flags</div>
+        </div>
+        <div>
+          <div
+            className={`text-xs font-bold ${v.alert_level === 0 ? "text-emerald-400" : v.alert_level === 1 ? "text-amber-400" : "text-red-400"}`}
+          >
+            {v.alert_level === 0 ? "Clear" : v.alert_level === 1 ? "Warn" : "Alert"}
+          </div>
+          <div className="text-muted-foreground text-[10px]">Status</div>
+        </div>
       </div>
 
-      {/* Key numbers */}
-      <div className="grid grid-cols-3 gap-1 text-center">
-        <div>
-          <div className="text-foreground text-sm font-bold tabular-nums">{uptime.toFixed(1)}%</div>
-          <div className="text-muted-foreground text-[10px] tracking-wide uppercase">Uptime</div>
-        </div>
-        <div>
-          <div className="text-foreground text-sm font-bold tabular-nums">
-            {fmtCommission(v.commissionBps)}
-          </div>
-          <div className="text-muted-foreground text-[10px] tracking-wide uppercase">Fee</div>
-        </div>
-        <div>
-          <div className="text-foreground text-sm font-bold tabular-nums">
-            {fmtStake(v.stakedAmount)}
-          </div>
-          <div className="text-muted-foreground text-[10px] tracking-wide uppercase">MON</div>
-        </div>
+      {/* Badges */}
+      <div className="flex flex-wrap gap-1.5">
+        {v.uptime_percentage === 100 && (
+          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
+            💎 Perfect Uptime
+          </span>
+        )}
+        {v.consecutive_proposed > 10_000 && (
+          <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold text-violet-400">
+            🔥 Long Streak
+          </span>
+        )}
+        {v.vdp_flagged_weeks === 0 && v.vdp_weeks_analyzed > 0 && (
+          <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-400">
+            🛡️ Clean Record
+          </span>
+        )}
+        {rank <= 5 && (
+          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
+            🏆 Top 5
+          </span>
+        )}
+        {v.is_down && (
+          <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold text-red-400">
+            🔴 Offline
+          </span>
+        )}
       </div>
 
       {/* Stake button */}
@@ -281,27 +370,19 @@ function ValidatorCard({
   );
 }
 
-function MiniBar({
-  label,
-  value,
-  max,
-  barClass,
-}: {
-  label: string;
-  value: number;
-  max: number;
-  barClass: string;
-}) {
-  const pct = Math.max(2, Math.round((value / max) * 100));
+function MiniBar({ label, value, barClass }: { label: string; value: number; barClass: string }) {
   return (
     <div className="flex items-center gap-2">
       <span className="text-muted-foreground w-9 text-[10px] font-bold tracking-wider uppercase">
         {label}
       </span>
       <div className="bg-muted h-1.5 flex-1 overflow-hidden rounded-full">
-        <div className={`h-full rounded-full ${barClass}`} style={{ width: `${pct}%` }} />
+        <div
+          className={`h-full rounded-full ${barClass}`}
+          style={{ width: `${Math.max(2, value)}%` }}
+        />
       </div>
-      <span className="text-muted-foreground w-6 text-right text-[10px] tabular-nums">{value}</span>
+      <span className="text-muted-foreground w-7 text-right text-[10px] tabular-nums">{value}</span>
     </div>
   );
 }
