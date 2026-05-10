@@ -7,7 +7,9 @@ ENV_FILE="$REPO_DIR/.env.local"
 
 echo "→ Pulling latest code..."
 cd "$REPO_DIR"
-git pull origin main
+git fetch origin
+git reset --hard origin/main
+git clean -fd
 
 echo "→ Building containers..."
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --no-cache web indexer
