@@ -11,6 +11,9 @@ export type OnChainValidator = {
   jailed: boolean;
   active: boolean;
   stakedAmount: bigint;
+  flag?: string;
+  country?: string;
+  provider?: string;
 };
 
 export type NetworkStats = {
@@ -158,14 +161,101 @@ function computeNakamoto(providers: Map<string, number>, total: number): number 
   return sorted.length;
 }
 
+const NAMED_VALIDATORS: [string, string, string, string][] = [
+  ["Chorus One", "🇨🇭", "Switzerland", "Equinix"],
+  ["Figment", "🇨🇦", "Canada", "AWS"],
+  ["P2P.org", "🇩🇪", "Germany", "Hetzner"],
+  ["Everstake", "🇺🇦", "Ukraine", "OVH"],
+  ["InfStones", "🇺🇸", "United States", "AWS"],
+  ["Cosmostation", "🇰🇷", "South Korea", "AWS"],
+  ["Blockscape", "🇩🇪", "Germany", "Hetzner"],
+  ["Stakin", "🇫🇷", "France", "OVH"],
+  ["HashKey Cloud", "🇭🇰", "Hong Kong", "Alibaba Cloud"],
+  ["Stakefish", "🇰🇷", "South Korea", "Google Cloud"],
+  ["B-Harvest", "🇰🇷", "South Korea", "Kakao Cloud"],
+  ["Forbole", "🇭🇰", "Hong Kong", "AWS"],
+  ["Lavender Five", "🇺🇸", "United States", "Hetzner"],
+  ["NodeStake", "🇸🇬", "Singapore", "Google Cloud"],
+  ["Bware Labs", "🇷🇴", "Romania", "OVH"],
+  ["01node", "🇷🇴", "Romania", "Hetzner"],
+  ["Stakely", "🇪🇸", "Spain", "Hetzner"],
+  ["Allnodes", "🇺🇸", "United States", "Google Cloud"],
+  ["Noderunners", "🇳🇱", "Netherlands", "Hetzner"],
+  ["Imperator.co", "🇫🇷", "France", "OVH"],
+  ["StakeWithUs", "🇸🇬", "Singapore", "AWS"],
+  ["Ubik Capital", "🇺🇸", "United States", "AWS"],
+  ["Blockdaemon", "🇬🇧", "United Kingdom", "AWS"],
+  ["Kiln", "🇫🇷", "France", "OVH"],
+  ["Luganodes", "🇨🇭", "Switzerland", "Equinix"],
+  ["Pier Two", "🇦🇺", "Australia", "AWS"],
+  ["DragonStake", "🇸🇰", "Slovakia", "Hetzner"],
+  ["Galaxy Digital", "🇺🇸", "United States", "Equinix"],
+  ["Coinbase Cloud", "🇺🇸", "United States", "AWS"],
+  ["Jump Crypto", "🇺🇸", "United States", "Equinix"],
+  ["Polychain Labs", "🇺🇸", "United States", "AWS"],
+  ["Binance Node", "🇲🇹", "Malta", "AWS"],
+  ["OKX Validator", "🇲🇹", "Malta", "AWS"],
+  ["Kraken Node", "🇺🇸", "United States", "AWS"],
+  ["DWF Labs", "🇦🇪", "UAE", "AWS"],
+  ["HashQuark", "🇨🇳", "China", "Alibaba Cloud"],
+  ["Ryabina", "🇬🇧", "United Kingdom", "Hetzner"],
+  ["DSRV", "🇰🇷", "South Korea", "Naver Cloud"],
+  ["Chainflow", "🇺🇸", "United States", "Hetzner"],
+  ["SG-1", "🇩🇪", "Germany", "Hetzner"],
+  ["Notional", "🇺🇸", "United States", "Hetzner"],
+  ["IceCreamNode", "🇫🇮", "Finland", "Hetzner"],
+  ["Moonlet", "🇷🇴", "Romania", "OVH"],
+  ["AUDIT.one", "🇫🇷", "France", "OVH"],
+  ["Stargaze", "🇺🇸", "United States", "AWS"],
+  ["Anonstake", "🇩🇪", "Germany", "Hetzner"],
+  ["Covalent Node", "🇺🇸", "United States", "GCP"],
+  ["Mechanism Cap.", "🇺🇸", "United States", "AWS"],
+  ["Monad Labs", "🇺🇸", "United States", "AWS"],
+  ["Nakamoto Pool", "🇯🇵", "Japan", "AWS"],
+];
+
+const COUNTRY_POOL: [string, string, string][] = [
+  ["🇺🇸", "United States", "AWS"],
+  ["🇩🇪", "Germany", "Hetzner"],
+  ["🇸🇬", "Singapore", "Google Cloud"],
+  ["🇰🇷", "South Korea", "AWS"],
+  ["🇬🇧", "United Kingdom", "OVH"],
+  ["🇫🇷", "France", "OVH"],
+  ["🇯🇵", "Japan", "AWS"],
+  ["🇦🇺", "Australia", "AWS"],
+  ["🇳🇱", "Netherlands", "Hetzner"],
+  ["🇧🇷", "Brazil", "AWS"],
+  ["🇨🇦", "Canada", "AWS"],
+  ["🇺🇦", "Ukraine", "OVH"],
+  ["🇷🇴", "Romania", "Hetzner"],
+  ["🇮🇳", "India", "AWS"],
+  ["🇦🇪", "UAE", "AWS"],
+  ["🇨🇭", "Switzerland", "Equinix"],
+  ["🇦🇹", "Austria", "Hetzner"],
+  ["🇵🇱", "Poland", "OVH"],
+  ["🇸🇪", "Sweden", "AWS"],
+  ["🇮🇹", "Italy", "OVH"],
+];
+
 function getMockValidators(): OnChainValidator[] {
-  return Array.from({ length: 212 }, (_, i) => ({
-    address: `0x${String(i + 1).padStart(40, "0")}`,
-    moniker: `Validator ${i + 1}`,
-    website: "",
-    commissionBps: 300 + (i % 20) * 100,
-    jailed: i >= 205,
-    active: i < 200,
-    stakedAmount: BigInt(5_000_000 - i * 20_000) * 10n ** 18n,
-  }));
+  return Array.from({ length: 212 }, (_, i) => {
+    const named = NAMED_VALIDATORS[i];
+    const pool = COUNTRY_POOL[(i - NAMED_VALIDATORS.length) % COUNTRY_POOL.length]!;
+    const flag = named ? named[1] : pool[0];
+    const country = named ? named[2] : pool[1];
+    const provider = named ? named[3] : pool[2];
+    const moniker = named ? named[0] : `Node-${String(i + 1).padStart(3, "0")}`;
+    return {
+      address: `0x${String(i + 1).padStart(40, "0")}`,
+      moniker,
+      website: "",
+      commissionBps: 300 + (i % 20) * 100,
+      jailed: i >= 205,
+      active: i < 200,
+      stakedAmount: BigInt(5_000_000 - i * 20_000) * 10n ** 18n,
+      flag,
+      country,
+      provider,
+    };
+  });
 }

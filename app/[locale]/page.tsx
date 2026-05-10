@@ -150,6 +150,83 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ── What makes a good validator? ── */}
+      <section className="py-16">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="mb-10 text-center">
+            <p className="text-primary mb-2 text-xs font-semibold tracking-wider uppercase">
+              Scoring System
+            </p>
+            <h2 className="font-heading text-foreground text-3xl font-bold">
+              What Makes a Good Validator?
+            </h2>
+            <p className="text-muted-foreground mx-auto mt-3 max-w-md text-sm">
+              4 metrics. One score. Even if you know nothing about staking — the bars tell the
+              story.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <HealthTile
+              icon="⚡"
+              label="Performance"
+              sublabel="Uptime"
+              value={99}
+              barClass="bg-emerald-400"
+              good="99%+"
+              desc="Blocks produced without missing. Higher = better."
+            />
+            <HealthTile
+              icon="💰"
+              label="Commission"
+              sublabel="Your cut"
+              value={72}
+              barClass="bg-violet-400"
+              good="3%"
+              desc="Fee the validator takes. Lower = more rewards for you."
+            />
+            <HealthTile
+              icon="🌍"
+              label="Decentralization"
+              sublabel="Spread"
+              value={85}
+              barClass="bg-blue-400"
+              good="Global"
+              desc="Validates from diverse countries and cloud providers."
+            />
+            <HealthTile
+              icon="🔒"
+              label="Trust"
+              sublabel="Stake"
+              value={94}
+              barClass="bg-amber-400"
+              good="4.9M MON"
+              desc="Total MON staked. More stake = more skin in the game."
+            />
+          </div>
+
+          <div className="border-border/40 bg-card/40 mt-6 flex flex-col items-center justify-between gap-4 rounded-2xl border p-6 sm:flex-row">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">🏆</span>
+              <div>
+                <p className="text-foreground font-semibold">
+                  We combine all 4 into one OVR score (0–99)
+                </p>
+                <p className="text-muted-foreground text-sm">
+                  Like FIFA player ratings — higher is always better.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/validators"
+              className="bg-primary text-primary-foreground rounded-full px-6 py-2.5 text-sm font-semibold whitespace-nowrap transition-opacity hover:opacity-90"
+            >
+              See All Scores →
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ── Features ── */}
       <section className="border-border/40 bg-card/20 border-t py-24">
         <div className="mx-auto max-w-7xl px-6">
@@ -253,6 +330,52 @@ export default async function HomePage() {
         </div>
       </section>
     </>
+  );
+}
+
+function HealthTile({
+  icon,
+  label,
+  sublabel,
+  value,
+  barClass,
+  good,
+  desc,
+}: {
+  icon: string;
+  label: string;
+  sublabel: string;
+  value: number;
+  barClass: string;
+  good: string;
+  desc: string;
+}) {
+  return (
+    <div className="border-border/40 bg-card flex flex-col gap-4 rounded-2xl border p-5">
+      <div className="flex items-start justify-between">
+        <span className="text-3xl leading-none">{icon}</span>
+        <div className="bg-primary/10 text-primary rounded-full px-2.5 py-0.5 text-xs font-bold">
+          {good}
+        </div>
+      </div>
+      <div>
+        <p className="text-foreground text-base font-bold">{label}</p>
+        <p className="text-muted-foreground text-xs">{sublabel}</p>
+      </div>
+      <div className="space-y-1">
+        <div className="bg-muted h-2.5 w-full overflow-hidden rounded-full">
+          <div
+            className={`h-full rounded-full ${barClass} transition-all duration-700`}
+            style={{ width: `${value}%` }}
+          />
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground text-[10px]">0</span>
+          <span className="text-foreground text-[10px] font-semibold">{value}/100</span>
+        </div>
+      </div>
+      <p className="text-muted-foreground text-xs leading-relaxed">{desc}</p>
+    </div>
   );
 }
 
