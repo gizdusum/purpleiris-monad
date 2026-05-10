@@ -159,13 +159,13 @@ function computeNakamoto(providers: Map<string, number>, total: number): number 
 }
 
 function getMockValidators(): OnChainValidator[] {
-  return Array.from({ length: 20 }, (_, i) => ({
+  return Array.from({ length: 212 }, (_, i) => ({
     address: `0x${String(i + 1).padStart(40, "0")}`,
     moniker: `Validator ${i + 1}`,
     website: "",
-    commissionBps: 500 + i * 100,
-    jailed: false,
-    active: i < 18,
-    stakedAmount: BigInt(1_000_000 - i * 40_000) * 10n ** 18n,
+    commissionBps: 300 + (i % 20) * 100,
+    jailed: i >= 205,
+    active: i < 200,
+    stakedAmount: BigInt(5_000_000 - i * 20_000) * 10n ** 18n,
   }));
 }

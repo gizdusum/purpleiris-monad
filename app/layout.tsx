@@ -39,7 +39,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html suppressHydrationWarning className="h-full">
+    <html suppressHydrationWarning className="dark h-full">
       <body className={`${inter.variable} ${fraunces.variable} flex min-h-full flex-col`}>
         {children}
       </body>
