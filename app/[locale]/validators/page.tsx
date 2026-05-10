@@ -6,6 +6,125 @@ import type { Metadata } from "next";
 export const metadata: Metadata = { title: "Validators" };
 export const dynamic = "force-dynamic";
 
+type Region = "NA" | "EU" | "AS" | "OC";
+
+const REGION_MAP: Record<string, Region> = {
+  // North America
+  "1XP": "NA",
+  "Galaxy Digital": "NA",
+  "Jump Crypto": "NA",
+  "Coinbase Cloud": "NA",
+  "Polychain Labs": "NA",
+  Allnodes: "NA",
+  Chainflow: "NA",
+  "Ubik Capital": "NA",
+  InfStones: "NA",
+  "Lavender Five": "NA",
+  "Monad Labs": "NA",
+  Stargaze: "NA",
+  "Covalent Node": "NA",
+  "CoinList Node": "NA",
+  "Kraken Node": "NA",
+  // Europe
+  "01node": "EU",
+  "[NODERS]": "EU",
+  "Chorus One": "EU",
+  "P2P.org": "EU",
+  Everstake: "EU",
+  Kiln: "EU",
+  Luganodes: "EU",
+  Blockdaemon: "EU",
+  Blockscape: "EU",
+  Stakin: "EU",
+  "Bware Labs": "EU",
+  Moonlet: "EU",
+  "AUDIT.one": "EU",
+  "Imperator.co": "EU",
+  "SG-1": "EU",
+  Noderunners: "EU",
+  Stakely: "EU",
+  Ryabina: "EU",
+  DragonStake: "EU",
+  IceCreamNode: "EU",
+  Anonstake: "EU",
+  Figment: "EU",
+  "Binance Node": "EU",
+  "OKX Validator": "EU",
+  "DWF Labs": "EU",
+  // Asia Pacific
+  Cosmostation: "AS",
+  Stakefish: "AS",
+  "B-Harvest": "AS",
+  NodeStake: "AS",
+  "HashKey Cloud": "AS",
+  DSRV: "AS",
+  StakeWithUs: "AS",
+  HashQuark: "AS",
+  Forbole: "AS",
+  "Nakamoto Pool": "AS",
+  // Oceania
+  "Pier Two": "OC",
+};
+
+const REGION_STYLE: Record<
+  Region | "OTHER",
+  {
+    gradient: string;
+    border: string;
+    label: string;
+    dot: string;
+  }
+> = {
+  NA: {
+    gradient: "from-blue-500/12 via-blue-600/4 to-transparent",
+    border: "border-blue-500/22",
+    label: "🇺🇸 Americas",
+    dot: "bg-blue-400",
+  },
+  EU: {
+    gradient: "from-violet-500/12 via-violet-600/4 to-transparent",
+    border: "border-violet-500/22",
+    label: "🇪🇺 Europe",
+    dot: "bg-violet-400",
+  },
+  AS: {
+    gradient: "from-teal-500/12 via-teal-600/4 to-transparent",
+    border: "border-teal-500/22",
+    label: "🌏 Asia",
+    dot: "bg-teal-400",
+  },
+  OC: {
+    gradient: "from-emerald-500/12 via-emerald-600/4 to-transparent",
+    border: "border-emerald-500/22",
+    label: "🌊 Oceania",
+    dot: "bg-emerald-400",
+  },
+  OTHER: {
+    gradient: "from-slate-500/8 via-slate-600/3 to-transparent",
+    border: "border-slate-500/15",
+    label: "🌐 Global",
+    dot: "bg-slate-400",
+  },
+};
+
+const TIER_SCORE_COLOR = {
+  ELITE: "text-amber-400",
+  PRO: "text-slate-300",
+  RELIABLE: "text-orange-400",
+  STANDARD: "text-muted-foreground",
+};
+
+const TIER_BADGE = {
+  ELITE: "border-amber-500/30 bg-amber-500/15 text-amber-400",
+  PRO: "border-slate-400/30 bg-slate-400/10 text-slate-300",
+  RELIABLE: "border-orange-600/30 bg-orange-700/10 text-orange-400",
+  STANDARD: "border-border/40 bg-muted/20 text-muted-foreground",
+};
+
+function getRegion(name: string): Region | "OTHER" {
+  return REGION_MAP[name] ?? "OTHER";
+}
+
 function computeScore(v: WatchtowerValidator): number {
   const uptime = v.uptime_percentage;
   const vdpPenalty = Math.min(v.vdp_flagged_weeks * 2, 20);
@@ -224,31 +343,8 @@ function TipCard({ icon, title, tip }: { icon: string; title: string; tip: strin
 
 function ValidatorCard({ v, rank }: { v: WatchtowerValidator & { score: number }; rank: number }) {
   const tier = getTier(v.score);
-
-  const tierStyles = {
-    ELITE: {
-      card: "from-amber-500/15 via-amber-600/5 to-transparent border-amber-500/25",
-      score: "text-amber-400",
-      badge: "border-amber-500/30 bg-amber-500/15 text-amber-400",
-    },
-    PRO: {
-      card: "from-slate-300/10 via-slate-400/5 to-transparent border-slate-400/20",
-      score: "text-slate-300",
-      badge: "border-slate-400/30 bg-slate-400/10 text-slate-300",
-    },
-    RELIABLE: {
-      card: "from-orange-600/12 via-orange-700/5 to-transparent border-orange-600/20",
-      score: "text-orange-400",
-      badge: "border-orange-600/30 bg-orange-700/10 text-orange-400",
-    },
-    STANDARD: {
-      card: "from-card to-card border-border/40",
-      score: "text-muted-foreground",
-      badge: "border-border/40 bg-muted/20 text-muted-foreground",
-    },
-  };
-
-  const s = tierStyles[tier];
+  const region = getRegion(v.name);
+  const rs = REGION_STYLE[region];
   const uptimePct = Math.round(v.uptime_percentage);
   const reliabilityPct = Math.round(
     v.vdp_weeks_analyzed > 0
@@ -259,49 +355,56 @@ function ValidatorCard({ v, rank }: { v: WatchtowerValidator & { score: number }
 
   return (
     <div
-      className={`relative flex flex-col gap-4 rounded-2xl border bg-gradient-to-br p-5 transition-all hover:scale-[1.02] hover:shadow-lg ${s.card}`}
+      className={`relative flex flex-col gap-3.5 rounded-2xl border bg-gradient-to-br p-5 transition-all hover:scale-[1.02] hover:shadow-xl ${rs.gradient} ${rs.border}`}
     >
-      {/* Logo + name + tier */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2.5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={v.logo}
-            alt={v.name}
-            className="size-8 flex-shrink-0 rounded-lg bg-white/5 object-contain"
-            onError={undefined}
-          />
-          <div className="min-w-0">
-            <h3 className="text-foreground truncate text-sm leading-tight font-bold">{v.name}</h3>
-            <p className="text-muted-foreground font-mono text-[10px]">#{rank}</p>
-          </div>
+      {/* Region + tier */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className={`size-1.5 rounded-full ${rs.dot}`} />
+          <span className="text-muted-foreground text-[10px] font-semibold tracking-wide uppercase">
+            {rs.label}
+          </span>
         </div>
         <span
-          className={`flex-shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase ${s.badge}`}
+          className={`rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase ${TIER_BADGE[tier]}`}
         >
           {tier}
         </span>
       </div>
 
-      {/* OVR score */}
+      {/* Logo + name + OVR */}
       <div className="flex items-center gap-3">
-        <div className="min-w-[52px] text-center">
-          <div className={`font-heading text-5xl leading-none font-black ${s.score}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={v.logo}
+          alt={v.name}
+          className="size-10 flex-shrink-0 rounded-xl bg-white/8 object-contain p-0.5"
+        />
+        <div className="min-w-0 flex-1">
+          <h3 className="text-foreground truncate text-sm leading-tight font-bold">{v.name}</h3>
+          <p className="text-muted-foreground mt-0.5 font-mono text-[10px]">Rank #{rank}</p>
+        </div>
+        <div className="text-center">
+          <div
+            className={`font-heading text-4xl leading-none font-black ${TIER_SCORE_COLOR[tier]}`}
+          >
             {v.score}
           </div>
-          <div className="text-muted-foreground mt-1 text-[10px] font-bold tracking-widest uppercase">
+          <div className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">
             OVR
           </div>
         </div>
-        <div className="flex-1 space-y-2">
-          <MiniBar label="PERF" value={uptimePct} barClass="bg-emerald-400" />
-          <MiniBar label="TRUST" value={reliabilityPct} barClass="bg-violet-400" />
-          <MiniBar label="EPOCH" value={epochPct} barClass="bg-blue-400" />
-        </div>
+      </div>
+
+      {/* Stat bars */}
+      <div className="space-y-1.5">
+        <MiniBar label="PERF" value={uptimePct} barClass="bg-emerald-400" />
+        <MiniBar label="TRUST" value={reliabilityPct} barClass={rs.dot} />
+        <MiniBar label="EPOCH" value={epochPct} barClass="bg-blue-400" />
       </div>
 
       {/* Key stats */}
-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-black/10 p-3 text-center">
+      <div className="grid grid-cols-3 gap-1 rounded-xl bg-black/15 p-3 text-center">
         <div>
           <div className="text-foreground text-xs font-bold tabular-nums">
             {v.uptime_percentage.toFixed(1)}%
@@ -312,15 +415,15 @@ function ValidatorCard({ v, rank }: { v: WatchtowerValidator & { score: number }
           <div
             className={`text-xs font-bold tabular-nums ${v.vdp_flagged_weeks > 0 ? "text-red-400" : "text-emerald-400"}`}
           >
-            {v.vdp_flagged_weeks} / {v.vdp_weeks_analyzed}
+            {v.vdp_flagged_weeks}/{v.vdp_weeks_analyzed}
           </div>
-          <div className="text-muted-foreground text-[10px]">VDP Flags</div>
+          <div className="text-muted-foreground text-[10px]">VDP</div>
         </div>
         <div>
           <div
             className={`text-xs font-bold ${v.alert_level === 0 ? "text-emerald-400" : v.alert_level === 1 ? "text-amber-400" : "text-red-400"}`}
           >
-            {v.alert_level === 0 ? "Clear" : v.alert_level === 1 ? "Warn" : "Alert"}
+            {v.alert_level === 0 ? "✓ OK" : v.alert_level === 1 ? "⚠ Warn" : "✗ Alert"}
           </div>
           <div className="text-muted-foreground text-[10px]">Status</div>
         </div>
@@ -330,17 +433,17 @@ function ValidatorCard({ v, rank }: { v: WatchtowerValidator & { score: number }
       <div className="flex flex-wrap gap-1.5">
         {v.uptime_percentage === 100 && (
           <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
-            💎 Perfect Uptime
+            💎 Perfect
           </span>
         )}
         {v.consecutive_proposed > 10_000 && (
           <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold text-violet-400">
-            🔥 Long Streak
+            🔥 Streak
           </span>
         )}
         {v.vdp_flagged_weeks === 0 && v.vdp_weeks_analyzed > 0 && (
           <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-400">
-            🛡️ Clean Record
+            🛡️ Clean
           </span>
         )}
         {rank <= 5 && (

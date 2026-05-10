@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 
 // 85 validator nodes distributed globally [lat, lng]
@@ -105,6 +105,7 @@ const VALIDATORS: [number, number][] = [
 
 // Arc connections [fromIdx, toIdx]
 const ARCS: [number, number][] = [
+  // Original backbone
   [0, 20],
   [1, 46],
   [3, 25],
@@ -117,6 +118,43 @@ const ARCS: [number, number][] = [
   [46, 65],
   [25, 46],
   [20, 46],
+  // Extended — trans-Atlantic
+  [0, 30],
+  [1, 22],
+  [5, 21],
+  [8, 31],
+  [11, 23],
+  [19, 34],
+  // Trans-Pacific
+  [2, 56],
+  [4, 58],
+  [6, 59],
+  [16, 57],
+  [18, 63],
+  // Europe ↔ Asia
+  [21, 56],
+  [23, 55],
+  [27, 57],
+  [33, 59],
+  [35, 64],
+  // Intra-region
+  [20, 23],
+  [30, 34],
+  [55, 58],
+  [56, 59],
+  [65, 70],
+  // South links
+  [75, 20],
+  [76, 46],
+  [79, 55],
+  [81, 65],
+  [82, 46],
+  // Extra density
+  [0, 46],
+  [1, 25],
+  [20, 50],
+  [25, 55],
+  [46, 70],
 ];
 
 function toRad(d: number) {
@@ -160,6 +198,33 @@ export function GlobeAnimation() {
   const angle = useRef(0.4);
   const pulses = useRef<number[]>(VALIDATORS.map((_, i) => (i * 43) % 90));
   const arcProgress = useRef<number[]>(ARCS.map((_, i) => i * (1 / ARCS.length)));
+  const [blockNum, setBlockNum] = useState(0);
+
+  useEffect(() => {
+    let base = 0;
+    let ticks = 0;
+    async function fetchBlock() {
+      try {
+        const res = await fetch("https://rpc.monad.xyz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 }),
+          signal: AbortSignal.timeout(4000),
+        });
+        const d = (await res.json()) as { result: string };
+        base = parseInt(d.result, 16);
+        ticks = 0;
+        setBlockNum(base);
+      } catch {}
+    }
+    fetchBlock();
+    const iv = setInterval(() => {
+      ticks++;
+      setBlockNum(base + ticks);
+      if (ticks % 8 === 0) fetchBlock();
+    }, 500);
+    return () => clearInterval(iv);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -315,7 +380,7 @@ export function GlobeAnimation() {
   }, []);
 
   return (
-    <div ref={containerRef} className="w-full max-w-[560px]">
+    <div ref={containerRef} className="relative w-full max-w-[560px]">
       <motion.canvas
         ref={canvasRef}
         initial={{ opacity: 0, scale: 0.85 }}
@@ -324,6 +389,22 @@ export function GlobeAnimation() {
         className="pointer-events-none select-none"
         aria-hidden="true"
       />
+      {blockNum > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 2.5, duration: 1.5 }}
+          className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 text-center select-none"
+          aria-hidden="true"
+        >
+          <div className="text-primary/[0.13] font-mono text-4xl font-black tracking-tight sm:text-5xl">
+            {blockNum.toLocaleString()}
+          </div>
+          <div className="text-foreground/[0.07] mt-1 text-[10px] font-semibold tracking-[0.3em] uppercase">
+            Monad Block
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }
