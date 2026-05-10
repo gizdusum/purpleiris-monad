@@ -1,14 +1,14 @@
-FROM node:23-alpine AS base
+FROM node:22-alpine AS base
 WORKDIR /app
 
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev --ignore-scripts
 
 FROM base AS builder
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm install --ignore-scripts
 COPY . .
 RUN npx prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1
