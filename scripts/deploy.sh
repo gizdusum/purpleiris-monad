@@ -5,6 +5,14 @@ REPO_DIR="/opt/purpleiris"
 COMPOSE_FILE="$REPO_DIR/docker/docker-compose.prod.yml"
 ENV_FILE="$REPO_DIR/.env.local"
 
+echo "→ Starting database..."
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d postgres redis
+
+echo "→ Waiting for postgres to be healthy..."
+until docker compose -f "$COMPOSE_FILE" ps postgres | grep -q "healthy"; do
+  sleep 3
+done
+
 echo "→ Building containers..."
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --no-cache web indexer
 
@@ -14,7 +22,8 @@ npm install --ignore-scripts --prefer-offline 2>/dev/null || npm install --ignor
 
 echo "→ Running database migrations..."
 set -a; source "$ENV_FILE"; set +a
-npx prisma migrate deploy
+MIGRATION_URL="${DATABASE_URL//@postgres:/@localhost:}"
+DATABASE_URL="$MIGRATION_URL" npx prisma migrate deploy
 
 echo "→ Rolling restart..."
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --remove-orphans
