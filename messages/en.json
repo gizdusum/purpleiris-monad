@@ -1,0 +1,33 @@
+{
+  "nav": {
+    "validators": "Validators",
+    "find": "Find Validator",
+    "compare": "Compare",
+    "insights": "Insights",
+    "learn": "Learn",
+    "myStake": "My Stake"
+  },
+  "home": {
+    "tagline": "See the chain through Iris.",
+    "subtitle": "Monad validator intelligence for delegators and operators.",
+    "networkWeather": {
+      "title": "Network Weather",
+      "description": "Live health of the Monad validator network",
+      "sunny": "Sunny",
+      "cloudy": "Cloudy",
+      "stormy": "Stormy",
+      "validators": "Active Validators",
+      "successRate": "24h Success Rate",
+      "diversityScore": "Diversity Score",
+      "trendTitle": "7-Day Trend"
+    }
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong.",
+    "viewAll": "View all",
+    "learnMore": "Learn more",
+    "copyLink": "Copy link",
+    "share": "Share"
+  }
+}

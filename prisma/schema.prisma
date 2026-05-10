@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Validator {
+  id              String   @id @default(cuid())
+  address         String   @unique
+  moniker         String
+  website         String?
+  commission      Float
+  jailed          Boolean  @default(false)
+  active          Boolean  @default(true)
+  region          String?
+  infraProvider   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  profile         ValidatorProfile?
+  epochSnapshots  EpochSnapshot[]
+
+  @@index([active])
+  @@index([commission])
+}
+
+model ValidatorProfile {
+  id              String    @id @default(cuid())
+  validatorId     String    @unique
+  validator       Validator @relation(fields: [validatorId], references: [id])
+
+  displayName     String?
+  description     String?
+  philosophy      String?
+  hardware        Json?
+  logoUrl         String?
+  twitterHandle   String?
+  discordHandle   String?
+  telegram        String?
+  claimed         Boolean   @default(false)
+  claimedAt       DateTime?
+  vdpCompliant    Boolean   @default(false)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model EpochSnapshot {
+  id              String    @id @default(cuid())
+  validatorId     String
+  validator       Validator @relation(fields: [validatorId], references: [id])
+
+  epoch           Int
+  blocksProposed  Int       @default(0)
+  blocksMissed    Int       @default(0)
+  successRate     Float
+  votingPower     BigInt
+  delegatorCount  Int       @default(0)
+  snapshotAt      DateTime
+
+  @@unique([validatorId, epoch])
+  @@index([epoch])
+  @@index([snapshotAt])
+}
+
+model UserProfile {
+  id              String   @id @default(cuid())
+  walletAddress   String   @unique
+  diversityScore  Float?
+  lastScoreAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  alerts          AlertSubscription[]
+}
+
+model AlertSubscription {
+  id              String      @id @default(cuid())
+  userId          String
+  user            UserProfile @relation(fields: [userId], references: [id])
+
+  validatorAddress String
+  alertType        String
+  endpoint         String
+  active           Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+
+  @@index([validatorAddress])
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  locale    String   @default("en")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}

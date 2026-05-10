@@ -1,0 +1,33 @@
+{
+  "nav": {
+    "validators": "Doğrulayıcılar",
+    "find": "Doğrulayıcı Bul",
+    "compare": "Karşılaştır",
+    "insights": "Analizler",
+    "learn": "Öğren",
+    "myStake": "Hissem"
+  },
+  "home": {
+    "tagline": "Ağı Iris ile gör.",
+    "subtitle": "Delegatörler ve operatörler için Monad doğrulayıcı zekâsı.",
+    "networkWeather": {
+      "title": "Ağ Hava Durumu",
+      "description": "Monad doğrulayıcı ağının anlık sağlık durumu",
+      "sunny": "Güneşli",
+      "cloudy": "Bulutlu",
+      "stormy": "Fırtınalı",
+      "validators": "Aktif Doğrulayıcılar",
+      "successRate": "24s Başarı Oranı",
+      "diversityScore": "Çeşitlilik Skoru",
+      "trendTitle": "7 Günlük Trend"
+    }
+  },
+  "common": {
+    "loading": "Yükleniyor...",
+    "error": "Bir şeyler ters gitti.",
+    "viewAll": "Tümünü gör",
+    "learnMore": "Daha fazla",
+    "copyLink": "Bağlantıyı kopyala",
+    "share": "Paylaş"
+  }
+}
