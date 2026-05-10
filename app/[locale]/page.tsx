@@ -1,11 +1,30 @@
-import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { NetworkWeather } from "@/components/features/NetworkWeather";
+import { getNetworkStats } from "@/lib/monad/validators";
 import { getMockNetworkSnapshot } from "@/lib/monad/mock-data";
+import type { NetworkSnapshot } from "@/lib/monad/mock-data";
 
-export default function HomePage() {
-  const t = useTranslations("home");
-  const snapshot = getMockNetworkSnapshot();
+export const dynamic = "force-dynamic";
+
+async function getNetworkSnapshot(): Promise<NetworkSnapshot> {
+  const mock = getMockNetworkSnapshot();
+  try {
+    const stats = await getNetworkStats();
+    return {
+      ...mock,
+      activeValidators: stats.activeValidators,
+      successRate: stats.successRate,
+      diversityScore: stats.diversityScore,
+    };
+  } catch {
+    return mock;
+  }
+}
+
+export default async function HomePage() {
+  const t = await getTranslations("home");
+  const snapshot = await getNetworkSnapshot();
 
   return (
     <>
@@ -38,7 +57,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Network Weather */}
+      {/* Network Weather — live data from Monad RPC with mock fallback */}
       <NetworkWeather data={snapshot} />
 
       {/* Value props */}
