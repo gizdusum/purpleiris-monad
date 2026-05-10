@@ -1,5 +1,3 @@
-"use server";
-
 import { Link } from "@/i18n/navigation";
 import { getWatchtowerOverview } from "@/lib/monad/watchtower";
 import type { WatchtowerValidator } from "@/lib/monad/watchtower";
