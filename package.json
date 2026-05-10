@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "prepare": "husky",
-    "lint": "next lint",
+    "lint": "eslint \"app/**/*.{ts,tsx}\" \"components/**/*.{ts,tsx}\" \"lib/**/*.{ts,tsx}\"",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit",
     "db:generate": "prisma generate",
