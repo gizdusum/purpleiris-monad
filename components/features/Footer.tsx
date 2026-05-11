@@ -1,6 +1,17 @@
+import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 
-export function Footer() {
+export async function Footer() {
+  const t = await getTranslations("footer");
+  const tn = await getTranslations("nav");
+
+  const productLinks = [
+    { href: "/validators" as const, label: tn("validators") },
+    { href: "/find" as const, label: tn("find") },
+    { href: "/insights" as const, label: tn("insights") },
+    { href: "/learn" as const, label: tn("learn") },
+  ];
+
   return (
     <footer className="border-border/40 bg-card/30 border-t py-12">
       <div className="mx-auto max-w-7xl px-6">
@@ -9,7 +20,7 @@ export function Footer() {
           <div>
             <p className="font-heading text-primary text-sm font-semibold">PurpleIris</p>
             <p className="text-muted-foreground mt-2 max-w-xs text-xs leading-relaxed">
-              Validator intelligence for the Monad blockchain. Track, analyze, and delegate smarter.
+              {t("tagline")}
             </p>
           </div>
 
@@ -17,15 +28,10 @@ export function Footer() {
           <div className="flex gap-12">
             <div>
               <p className="text-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
-                Product
+                {t("product")}
               </p>
               <nav className="flex flex-col gap-2">
-                {[
-                  { href: "/validators", label: "Validators" },
-                  { href: "/find", label: "Find Validator" },
-                  { href: "/insights", label: "Insights" },
-                  { href: "/learn", label: "Learn" },
-                ].map((l) => (
+                {productLinks.map((l) => (
                   <Link
                     key={l.href}
                     href={l.href}
@@ -38,7 +44,7 @@ export function Footer() {
             </div>
             <div>
               <p className="text-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
-                Ecosystem
+                {t("ecosystem")}
               </p>
               <nav className="flex flex-col gap-2">
                 {[
@@ -62,12 +68,16 @@ export function Footer() {
 
           {/* Status */}
           <div className="flex flex-col items-start sm:items-end">
-            <div className="flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5">
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a
+              href="/api/health"
+              className="flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 transition-opacity hover:opacity-80"
+            >
               <span className="size-1.5 rounded-full bg-emerald-400" />
-              <span className="text-xs font-medium text-emerald-400">Network Online</span>
-            </div>
+              <span className="text-xs font-medium text-emerald-400">{t("online")}</span>
+            </a>
             <p className="text-muted-foreground mt-4 text-xs">
-              © {new Date().getFullYear()} PurpleIris
+              {t("copyright", { year: new Date().getFullYear() })}
             </p>
           </div>
         </div>

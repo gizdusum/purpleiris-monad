@@ -7,11 +7,23 @@
     "learn": "Learn",
     "myStake": "My Stake"
   },
+  "header": {
+    "getStarted": "Get Started",
+    "toggleMenu": "Toggle menu",
+    "switchLocale": "TR"
+  },
   "home": {
     "tagline": "See the chain through Iris.",
     "subtitle": "Monad validator intelligence for delegators and operators.",
+    "hero": {
+      "badge": "Live — Monad Mainnet",
+      "cta": {
+        "primary": "Find My Validator",
+        "secondary": "Browse All Validators"
+      }
+    },
     "networkWeather": {
-      "title": "Network Weather",
+      "title": "Network Health",
       "description": "Live health of the Monad validator network",
       "sunny": "Sunny",
       "cloudy": "Cloudy",
@@ -19,8 +31,119 @@
       "validators": "Active Validators",
       "successRate": "24h Success Rate",
       "diversityScore": "Diversity Score",
-      "trendTitle": "7-Day Trend"
+      "trendTitle": "7-Day Trend",
+      "onlineNow": "online now",
+      "blockProduction": "block production",
+      "decentralization": "decentralization"
+    },
+    "health": {
+      "title": "What Makes a Good Validator?",
+      "uptime": {
+        "label": "Uptime",
+        "desc": "Above 99% means the validator rarely misses blocks"
+      },
+      "vdp": {
+        "label": "VDP Clean",
+        "desc": "Zero Violation Detection Program flags in 90 days"
+      },
+      "decentralization": {
+        "label": "Decentralization",
+        "desc": "Not concentrated in one cloud provider or region"
+      },
+      "commission": {
+        "label": "Commission",
+        "desc": "Lower fees mean more rewards go back to delegators"
+      }
     }
+  },
+  "validators": {
+    "title": "Validator Network",
+    "subtitle": "Live data from Monad Watchtower",
+    "tips": {
+      "title": "Tips for Choosing",
+      "uptime": {
+        "label": "Uptime",
+        "desc": "Look for 99%+ uptime over the last 30 days"
+      },
+      "vdp": {
+        "label": "VDP Flags",
+        "desc": "Zero flags = clean compliance record"
+      },
+      "diversity": {
+        "label": "Diversity",
+        "desc": "Spread stake across regions & providers"
+      },
+      "size": {
+        "label": "Size",
+        "desc": "Mid-tier validators improve decentralization"
+      }
+    },
+    "card": {
+      "uptime": "Uptime",
+      "vdpClean": "VDP Clean",
+      "vdpFlags": "VDP Flags",
+      "blocks": "Blocks",
+      "stakeNow": "Stake",
+      "down": "Down",
+      "perfect": "Perfect",
+      "alert": "Alert"
+    },
+    "empty": "No validators found.",
+    "lastUpdated": "Live data"
+  },
+  "find": {
+    "badge": "Delegator Wizard",
+    "title": "Find Your Perfect Validator",
+    "subtitle": "3 questions. We match you with the top 5 validators from live Monad network data.",
+    "step": "Step {current} of {total}",
+    "takesSeconds": "Takes about 30 seconds",
+    "back": "← Back",
+    "continue": "Continue →",
+    "findValidators": "Find My Validators →",
+    "browseAll": "Browse all validators instead →",
+    "steps": {
+      "priority": {
+        "title": "What matters most to you?",
+        "hint": "Pick your top priority"
+      },
+      "experience": {
+        "title": "How experienced are you with staking?",
+        "hint": "This helps us tailor the recommendations"
+      },
+      "size": {
+        "title": "Which validator size do you prefer?",
+        "hint": "Size = position in the network by blocks produced"
+      }
+    },
+    "results": {
+      "badge": "Your Matches",
+      "title": "Top {count} Validators for You",
+      "subtitle": "Optimized for {priority} · Live Monad data",
+      "empty": "No validators matched your filters. Try different preferences.",
+      "startOver": "Start over",
+      "seeAll": "See All Validators →",
+      "reset": "Start over with different preferences"
+    }
+  },
+  "insights": {
+    "title": "Insights",
+    "subtitle": "Weekly reports and analysis on the Monad validator network.",
+    "comingSoon": "Coming soon",
+    "comingSoonDesc": "Weekly validator reports and network analysis will appear here."
+  },
+  "learn": {
+    "title": "Learn",
+    "subtitle": "Guides to help you stake smarter on Monad.",
+    "comingSoon": "Coming soon",
+    "comingSoonDesc": "Educational articles and staking guides will appear here."
+  },
+  "footer": {
+    "tagline": "Validator intelligence for the Monad blockchain. Track, analyze, and delegate smarter.",
+    "product": "Product",
+    "ecosystem": "Ecosystem",
+    "online": "Network Online",
+    "copyright": "© {year} PurpleIris",
+    "status": "Status"
   },
   "common": {
     "loading": "Loading...",

@@ -7,11 +7,23 @@
     "learn": "Öğren",
     "myStake": "Hissem"
   },
+  "header": {
+    "getStarted": "Başla",
+    "toggleMenu": "Menüyü aç/kapat",
+    "switchLocale": "EN"
+  },
   "home": {
     "tagline": "Ağı Iris ile gör.",
     "subtitle": "Delegatörler ve operatörler için Monad doğrulayıcı zekâsı.",
+    "hero": {
+      "badge": "Canlı — Monad Mainnet",
+      "cta": {
+        "primary": "Doğrulayıcımı Bul",
+        "secondary": "Tüm Doğrulayıcılar"
+      }
+    },
     "networkWeather": {
-      "title": "Ağ Hava Durumu",
+      "title": "Ağ Sağlığı",
       "description": "Monad doğrulayıcı ağının anlık sağlık durumu",
       "sunny": "Güneşli",
       "cloudy": "Bulutlu",
@@ -19,8 +31,119 @@
       "validators": "Aktif Doğrulayıcılar",
       "successRate": "24s Başarı Oranı",
       "diversityScore": "Çeşitlilik Skoru",
-      "trendTitle": "7 Günlük Trend"
+      "trendTitle": "7 Günlük Trend",
+      "onlineNow": "çevrimiçi",
+      "blockProduction": "blok üretimi",
+      "decentralization": "merkeziyetsizlik"
+    },
+    "health": {
+      "title": "İyi Bir Doğrulayıcının Özellikleri",
+      "uptime": {
+        "label": "Çalışma Süresi",
+        "desc": "%99 üzeri, doğrulayıcının nadiren blok kaçırdığı anlamına gelir"
+      },
+      "vdp": {
+        "label": "VDP Temiz",
+        "desc": "90 günde sıfır İhlal Tespit Programı uyarısı"
+      },
+      "decentralization": {
+        "label": "Merkeziyetsizlik",
+        "desc": "Tek bir bulut sağlayıcısında veya bölgede yoğunlaşmamış"
+      },
+      "commission": {
+        "label": "Komisyon",
+        "desc": "Düşük komisyon, delegatörlere daha fazla ödül anlamına gelir"
+      }
     }
+  },
+  "validators": {
+    "title": "Doğrulayıcı Ağı",
+    "subtitle": "Monad Watchtower'dan canlı veri",
+    "tips": {
+      "title": "Seçim İpuçları",
+      "uptime": {
+        "label": "Çalışma Süresi",
+        "desc": "Son 30 günde %99+ çalışma süresi arayın"
+      },
+      "vdp": {
+        "label": "VDP Bayrakları",
+        "desc": "Sıfır bayrak = temiz uyum sicili"
+      },
+      "diversity": {
+        "label": "Çeşitlilik",
+        "desc": "Hisseyi bölgeler ve sağlayıcılar arasında dağıtın"
+      },
+      "size": {
+        "label": "Boyut",
+        "desc": "Orta ölçekli doğrulayıcılar merkeziyetsizliği artırır"
+      }
+    },
+    "card": {
+      "uptime": "Çalışma",
+      "vdpClean": "VDP Temiz",
+      "vdpFlags": "VDP Bayrak",
+      "blocks": "Blok",
+      "stakeNow": "Stake",
+      "down": "Çevrimdışı",
+      "perfect": "Mükemmel",
+      "alert": "Uyarı"
+    },
+    "empty": "Doğrulayıcı bulunamadı.",
+    "lastUpdated": "Canlı veri"
+  },
+  "find": {
+    "badge": "Delegatör Sihirbazı",
+    "title": "Mükemmel Doğrulayıcını Bul",
+    "subtitle": "3 soru. Canlı Monad ağ verisinden en iyi 5 doğrulayıcıyı eşleştiriyoruz.",
+    "step": "Adım {current} / {total}",
+    "takesSeconds": "Yaklaşık 30 saniye sürer",
+    "back": "← Geri",
+    "continue": "Devam Et →",
+    "findValidators": "Doğrulayıcılarımı Bul →",
+    "browseAll": "Tüm doğrulayıcılara göz at →",
+    "steps": {
+      "priority": {
+        "title": "Sana en önemli olan ne?",
+        "hint": "Ana önceliğini seç"
+      },
+      "experience": {
+        "title": "Stake konusunda ne kadar deneyimlisin?",
+        "hint": "Önerileri kişiselleştirmemize yardımcı olur"
+      },
+      "size": {
+        "title": "Hangi doğrulayıcı boyutunu tercih edersin?",
+        "hint": "Boyut = ağdaki üretilen blok sıralaması"
+      }
+    },
+    "results": {
+      "badge": "Eşleşmelerin",
+      "title": "Sana Özel En İyi {count} Doğrulayıcı",
+      "subtitle": "{priority} için optimize edildi · Canlı Monad verisi",
+      "empty": "Filtrelerine uyan doğrulayıcı bulunamadı. Farklı tercihler dene.",
+      "startOver": "Başa dön",
+      "seeAll": "Tüm Doğrulayıcıları Gör →",
+      "reset": "Farklı tercihlerle başa dön"
+    }
+  },
+  "insights": {
+    "title": "Analizler",
+    "subtitle": "Monad doğrulayıcı ağına dair haftalık raporlar ve analizler.",
+    "comingSoon": "Yakında",
+    "comingSoonDesc": "Haftalık doğrulayıcı raporları ve ağ analizleri burada yayınlanacak."
+  },
+  "learn": {
+    "title": "Öğren",
+    "subtitle": "Monad'da daha akıllıca stake yapmanıza yardımcı olacak rehberler.",
+    "comingSoon": "Yakında",
+    "comingSoonDesc": "Eğitim makaleleri ve stake rehberleri burada yayınlanacak."
+  },
+  "footer": {
+    "tagline": "Monad blokzinciri için doğrulayıcı zekâsı. İzle, analiz et, akıllıca delege et.",
+    "product": "Ürün",
+    "ecosystem": "Ekosistem",
+    "online": "Ağ Çevrimiçi",
+    "copyright": "© {year} PurpleIris",
+    "status": "Durum"
   },
   "common": {
     "loading": "Yükleniyor...",

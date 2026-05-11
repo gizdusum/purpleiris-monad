@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Link, usePathname } from "@/i18n/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { Link, usePathname, useRouter } from "@/i18n/navigation";
 
 const IrisLogo = () => (
   <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -13,16 +14,24 @@ const IrisLogo = () => (
   </svg>
 );
 
-const NAV_LINKS = [
-  { href: "/validators", label: "Validators" },
-  { href: "/find", label: "Find Validator" },
-  { href: "/insights", label: "Insights" },
-  { href: "/learn", label: "Learn" },
-];
-
 export function Header() {
+  const t = useTranslations();
+  const locale = useLocale();
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const NAV_LINKS = [
+    { href: "/validators" as const, label: t("nav.validators") },
+    { href: "/find" as const, label: t("nav.find") },
+    { href: "/insights" as const, label: t("nav.insights") },
+    { href: "/learn" as const, label: t("nav.learn") },
+  ];
+
+  function toggleLocale() {
+    const next = locale === "en" ? "tr" : "en";
+    router.replace(pathname, { locale: next });
+  }
 
   return (
     <header className="border-border/40 bg-background/80 sticky top-0 z-50 border-b backdrop-blur-xl">
@@ -61,19 +70,28 @@ export function Header() {
         </nav>
 
         {/* Right */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* Locale toggle */}
+          <button
+            onClick={toggleLocale}
+            className="border-border/60 text-muted-foreground hover:text-foreground hidden h-8 items-center justify-center rounded-lg border px-2.5 text-xs font-semibold transition-colors sm:flex"
+            aria-label={`Switch to ${locale === "en" ? "Turkish" : "English"}`}
+          >
+            {t("header.switchLocale")}
+          </button>
+
           <Link
             href="/find"
             className="bg-primary text-primary-foreground shadow-primary/20 hidden h-9 items-center justify-center rounded-full px-5 text-sm font-semibold shadow-md transition-all hover:opacity-90 sm:inline-flex"
           >
-            Get Started
+            {t("header.getStarted")}
           </Link>
 
           {/* Mobile toggle */}
           <button
             className="border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground flex size-9 items-center justify-center rounded-lg border transition-colors md:hidden"
             onClick={() => setMobileOpen((v) => !v)}
-            aria-label="Toggle menu"
+            aria-label={t("header.toggleMenu")}
           >
             {mobileOpen ? (
               <svg
@@ -121,13 +139,24 @@ export function Header() {
                 </Link>
               );
             })}
-            <Link
-              href="/find"
-              onClick={() => setMobileOpen(false)}
-              className="bg-primary text-primary-foreground mt-3 rounded-full py-2.5 text-center text-sm font-semibold"
-            >
-              Get Started
-            </Link>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => {
+                  toggleLocale();
+                  setMobileOpen(false);
+                }}
+                className="border-border/60 text-muted-foreground h-10 flex-1 rounded-full border text-sm font-semibold"
+              >
+                {t("header.switchLocale")}
+              </button>
+              <Link
+                href="/find"
+                onClick={() => setMobileOpen(false)}
+                className="bg-primary text-primary-foreground flex-[2] rounded-full py-2.5 text-center text-sm font-semibold"
+              >
+                {t("header.getStarted")}
+              </Link>
+            </div>
           </nav>
         </div>
       )}
