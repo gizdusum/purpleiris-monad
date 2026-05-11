@@ -1,6 +1,7 @@
 import { Link } from "@/i18n/navigation";
 import { getWatchtowerOverview } from "@/lib/monad/watchtower";
 import type { WatchtowerValidator } from "@/lib/monad/watchtower";
+import { toSlug } from "@/lib/monad/slug";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Validators" };
@@ -458,15 +459,23 @@ function ValidatorCard({ v, rank }: { v: WatchtowerValidator & { score: number }
         )}
       </div>
 
-      {/* Stake button */}
-      <a
-        href="https://monad.xyz/stake"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="bg-primary text-primary-foreground flex items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold transition-opacity hover:opacity-90"
-      >
-        Stake Now ↗
-      </a>
+      {/* Actions */}
+      <div className="flex gap-2">
+        <Link
+          href={`/v/${toSlug(v.name)}`}
+          className="border-border/50 text-muted-foreground hover:text-foreground flex flex-1 items-center justify-center rounded-full border py-2 text-xs font-medium transition-colors"
+        >
+          View Profile
+        </Link>
+        <a
+          href="https://monad.xyz/stake"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-primary text-primary-foreground flex flex-1 items-center justify-center rounded-full py-2 text-xs font-semibold transition-opacity hover:opacity-90"
+        >
+          Stake ↗
+        </a>
+      </div>
     </div>
   );
 }
