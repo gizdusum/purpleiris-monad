@@ -8,5 +8,5 @@ export function proxy(request: Parameters<typeof intlMiddleware>[0]) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"],
+  matcher: ["/((?!api|_next|_vercel|favicon\\.ico|.*\\..*).*)", "/"],
 };
