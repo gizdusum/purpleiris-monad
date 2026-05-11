@@ -24,8 +24,9 @@ export function Header() {
   const NAV_LINKS = [
     { href: "/validators" as const, label: t("nav.validators") },
     { href: "/find" as const, label: t("nav.find") },
+    { href: "/compare" as const, label: t("nav.compare") },
+    { href: "/me" as const, label: t("nav.myStake") },
     { href: "/insights" as const, label: t("nav.insights") },
-    { href: "/learn" as const, label: t("nav.learn") },
   ];
 
   function toggleLocale() {

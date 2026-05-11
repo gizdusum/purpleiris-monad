@@ -1,5 +1,6 @@
 import { Link } from "@/i18n/navigation";
 import { GlobeAnimation } from "@/components/features/GlobeAnimation";
+import { NetworkWeather } from "@/components/features/NetworkWeather";
 import { getNetworkStats } from "@/lib/monad/validators";
 import { getMockNetworkSnapshot } from "@/lib/monad/mock-data";
 import type { NetworkSnapshot } from "@/lib/monad/mock-data";
@@ -29,7 +30,6 @@ export default async function HomePage() {
     <>
       {/* ── Hero ── */}
       <section className="relative overflow-hidden">
-        {/* Radial glow behind globe */}
         <div
           aria-hidden
           className="pointer-events-none absolute top-0 right-0 h-full w-1/2 bg-[radial-gradient(ellipse_at_70%_40%,oklch(0.62_0.26_291/0.18),transparent_65%)]"
@@ -49,19 +49,15 @@ export default async function HomePage() {
               </div>
 
               <h1 className="font-heading text-foreground text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
-                See the Network{" "}
+                Validator scores{" "}
                 <span className="from-primary bg-gradient-to-r to-[oklch(0.80_0.14_291)] bg-clip-text text-transparent">
-                  Through Iris
+                  like FIFA cards
                 </span>
               </h1>
 
               <p className="text-muted-foreground mt-6 max-w-lg text-lg leading-relaxed">
-                Real-time validator intelligence for the Monad blockchain. Track performance,
-                decentralization, and stake across all{" "}
-                <span className="text-foreground font-semibold">
-                  {snapshot.activeValidators} active validators
-                </span>{" "}
-                worldwide.
+                The only Monad dashboard that turns raw chain data into a single OVR score — so you
+                can pick the best validator without reading a single block explorer.
               </p>
 
               <div className="mt-10 flex flex-col gap-4 sm:flex-row">
@@ -69,7 +65,7 @@ export default async function HomePage() {
                   href="/validators"
                   className="bg-primary text-primary-foreground shadow-primary/25 hover:shadow-primary/40 inline-flex h-12 items-center justify-center rounded-full px-8 text-sm font-semibold shadow-lg transition-all hover:opacity-90"
                 >
-                  Explore Validators →
+                  See All OVR Scores →
                 </Link>
                 <Link
                   href="/find"
@@ -98,59 +94,90 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Network Stats Bar ── */}
-      <section className="border-border/40 bg-card/40 border-y backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-6 py-6">
-          <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
-            <StatBar
-              label="Active Validators"
-              value={snapshot.activeValidators}
-              total={snapshot.totalValidators}
-              suffix="/ 212"
-            />
-            <StatBar label="Block Success" value={snapshot.successRate} suffix="%" decimals={1} />
-            <StatBar
-              label="Decentralization"
-              value={snapshot.diversityScore}
-              suffix="/10"
-              decimals={1}
-            />
-            <StatBar label="Network Status" value={100} suffix="" status="Online" />
+      {/* ── Network Weather ── */}
+      <section className="py-16">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="mb-8">
+            <p className="text-primary mb-2 text-xs font-semibold tracking-wider uppercase">
+              Network Weather
+            </p>
+            <h2 className="font-heading text-foreground text-2xl font-semibold">
+              How is the network right now?
+            </h2>
           </div>
+          <NetworkWeather data={snapshot} />
         </div>
       </section>
 
-      {/* ── 7-Day Trend ── */}
-      <section className="py-16">
+      {/* ── My Stake Score Teaser ── */}
+      <section className="border-border/40 bg-card/30 border-y py-16">
         <div className="mx-auto max-w-7xl px-6">
-          <h2 className="font-heading text-foreground mb-8 text-2xl font-semibold">
-            7-Day Performance
-          </h2>
-          <div className="border-border/40 bg-card rounded-2xl border p-6">
-            <div className="flex h-28 items-end gap-2">
-              {snapshot.trend.map((point) => {
-                const pct = ((point.successRate - 96) / 4) * 100;
-                return (
-                  <div key={point.day} className="flex flex-1 flex-col items-center gap-2">
-                    <div className="flex w-full flex-1 flex-col justify-end">
-                      <div
-                        className="bg-primary/70 w-full rounded-t-sm transition-all duration-500"
-                        style={{ height: `${Math.max(4, pct)}%` }}
-                      />
-                    </div>
-                    <span className="text-muted-foreground text-xs">{point.day}</span>
-                    <span className="text-foreground text-xs font-medium tabular-nums">
-                      {point.successRate.toFixed(1)}%
-                    </span>
+          <div className="flex flex-col items-center gap-10 lg:flex-row">
+            {/* Score preview */}
+            <div className="flex shrink-0 flex-col items-center gap-3">
+              <div className="border-primary/30 bg-primary/5 relative flex size-40 items-center justify-center rounded-full border-4">
+                <div className="text-center">
+                  <div className="font-heading text-primary/40 text-6xl font-black">?</div>
+                  <div className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">
+                    Your Score
                   </div>
-                );
-              })}
+                </div>
+                <div className="absolute -top-2 -right-2 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-black">
+                  NEW
+                </div>
+              </div>
+              <div className="flex gap-1">
+                {[3.5, 6.2, 8.0].map((s) => (
+                  <div
+                    key={s}
+                    className="h-1.5 w-10 rounded-full"
+                    style={{
+                      background:
+                        s >= 8
+                          ? "oklch(0.62 0.26 291)"
+                          : s >= 6
+                            ? "oklch(0.62 0.26 291 / 0.5)"
+                            : "oklch(0.62 0.26 291 / 0.2)",
+                    }}
+                  />
+                ))}
+              </div>
+              <p className="text-muted-foreground text-xs">0 — 10 diversity range</p>
+            </div>
+
+            {/* Copy */}
+            <div className="max-w-xl text-center lg:text-left">
+              <p className="text-primary mb-2 text-xs font-semibold tracking-wider uppercase">
+                Personal Stake Score
+              </p>
+              <h2 className="font-heading text-foreground mb-4 text-3xl font-bold">
+                How diversified is your stake?
+              </h2>
+              <p className="text-muted-foreground mb-6 leading-relaxed">
+                Connect your wallet and get a Shannon-entropy diversity score for your Monad
+                delegations. See exactly which validators you rely on — and where rebalancing would
+                help the network most.
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/me"
+                  className="bg-primary text-primary-foreground inline-flex h-11 items-center justify-center rounded-full px-7 text-sm font-semibold transition-all hover:opacity-90"
+                >
+                  Check My Score →
+                </Link>
+                <Link
+                  href="/compare"
+                  className="border-border/60 text-muted-foreground hover:text-foreground inline-flex h-11 items-center justify-center rounded-full border px-7 text-sm transition-colors"
+                >
+                  Compare Validators
+                </Link>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── What makes a good validator? ── */}
+      {/* ── OVR Scoring ── */}
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-6">
           <div className="mb-10 text-center">
@@ -177,13 +204,13 @@ export default async function HomePage() {
               desc="Blocks produced without missing. Higher = better."
             />
             <HealthTile
-              icon="💰"
-              label="Commission"
-              sublabel="Your cut"
-              value={72}
+              icon="🛡"
+              label="Trust"
+              sublabel="VDP Clean"
+              value={88}
               barClass="bg-violet-400"
-              good="3%"
-              desc="Fee the validator takes. Lower = more rewards for you."
+              good="0 flags"
+              desc="Zero Violation Detection Program flags. Clean record = higher trust."
             />
             <HealthTile
               icon="🌍"
@@ -195,13 +222,13 @@ export default async function HomePage() {
               desc="Validates from diverse countries and cloud providers."
             />
             <HealthTile
-              icon="🔒"
-              label="Trust"
-              sublabel="Stake"
+              icon="🔥"
+              label="Reliability"
+              sublabel="Streak"
               value={94}
               barClass="bg-amber-400"
-              good="4.9M MON"
-              desc="Total MON staked. More stake = more skin in the game."
+              good="10k+"
+              desc="Consecutive blocks proposed without a skip. Consistency matters."
             />
           </div>
 
@@ -210,7 +237,7 @@ export default async function HomePage() {
               <span className="text-3xl">🏆</span>
               <div>
                 <p className="text-foreground font-semibold">
-                  We combine all 4 into one OVR score (0–99)
+                  All 4 dimensions → one OVR score (50–99)
                 </p>
                 <p className="text-muted-foreground text-sm">
                   Like FIFA player ratings — higher is always better.
@@ -227,71 +254,42 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Features ── */}
-      <section className="border-border/40 bg-card/20 border-t py-24">
+      {/* ── Why Iris? ── */}
+      <section className="border-border/40 bg-card/20 border-t py-20">
         <div className="mx-auto max-w-7xl px-6">
           <div className="mb-12 text-center">
+            <p className="text-primary mb-2 text-xs font-semibold tracking-wider uppercase">
+              Why Iris?
+            </p>
             <h2 className="font-heading text-foreground text-3xl font-bold sm:text-4xl">
-              Built for the Monad Ecosystem
+              Not just another explorer
             </h2>
             <p className="text-muted-foreground mx-auto mt-4 max-w-xl">
-              Whether you delegate or operate, Iris gives you the data edge you need.
+              Explorers show you raw data. Iris translates it into decisions.
             </p>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <FeatureCard
-              icon={
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="size-6">
-                  <circle cx="12" cy="12" r="10" strokeWidth="1.5" />
-                  <path
-                    d="M12 2a14.5 14.5 0 0 0 0 20M12 2a14.5 14.5 0 0 1 0 20M2 12h20"
-                    strokeWidth="1.5"
-                  />
-                </svg>
-              }
-              title="200 Validators, One Dashboard"
-              desc="Every active Monad validator ranked by performance, commission, uptime, and decentralization score."
+          <div className="grid gap-6 sm:grid-cols-3">
+            <WhyCard
+              icon="🎴"
+              title="OVR Score"
+              desc="Every validator gets a single 50–99 score computed from uptime, VDP flags, alert level, and block streaks. No spreadsheets needed."
               href="/validators"
-              cta="Browse Validators"
+              cta="Browse Scores"
             />
-            <FeatureCard
-              icon={
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="size-6">
-                  <path
-                    d="M9 11l3 3L22 4"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              }
-              title="60-Second Validator Match"
-              desc="Answer five questions about your priorities. Get a personalized shortlist of validators with reasoning."
-              href="/find"
-              cta="Find My Match"
+            <WhyCard
+              icon="⚖️"
+              title="Head-to-Head Compare"
+              desc="Pick two validators and see 17 metrics side-by-side — green highlights the winner on each row automatically."
+              href="/compare"
+              cta="Try Compare"
             />
-            <FeatureCard
-              icon={
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="size-6">
-                  <polyline
-                    points="22 12 18 12 15 21 9 3 6 12 2 12"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              }
-              title="Network Intelligence"
-              desc="Track Nakamoto coefficient, geographic distribution, and infrastructure provider concentration in real time."
-              href="/insights"
-              cta="View Insights"
+            <WhyCard
+              icon="📊"
+              title="Your Diversity Score"
+              desc="Connect your wallet. Get a Shannon entropy score for your delegation spread. Know when you're over-concentrated before it matters."
+              href="/me"
+              cta="Check My Score"
             />
           </div>
         </div>
@@ -309,8 +307,8 @@ export default async function HomePage() {
               Stake smarter. Strengthen Monad.
             </h2>
             <p className="text-muted-foreground relative mx-auto mt-4 max-w-md">
-              Join thousands of delegators who use Iris to make informed staking decisions that
-              support network decentralization.
+              Join delegators who use Iris to make informed staking decisions that support network
+              decentralization.
             </p>
             <div className="relative mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link
@@ -388,46 +386,14 @@ function QuickStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatBar({
-  label,
-  value,
-  suffix,
-  total,
-  decimals = 0,
-  status,
-}: {
-  label: string;
-  value: number;
-  suffix: string;
-  total?: number;
-  decimals?: number;
-  status?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">{label}</p>
-      <p className="font-heading text-foreground text-2xl font-bold tabular-nums">
-        {status ?? `${value.toFixed(decimals)}${suffix}`}
-        {total && <span className="text-muted-foreground text-base font-normal"> {suffix}</span>}
-      </p>
-      {status && (
-        <div className="flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-emerald-400" />
-          <span className="text-xs text-emerald-400">All systems operational</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FeatureCard({
+function WhyCard({
   icon,
   title,
   desc,
   href,
   cta,
 }: {
-  icon: React.ReactNode;
+  icon: string;
   title: string;
   desc: string;
   href: string;
@@ -435,9 +401,7 @@ function FeatureCard({
 }) {
   return (
     <div className="group border-border/60 bg-card hover:border-primary/30 hover:bg-card/80 flex flex-col gap-4 rounded-2xl border p-6 transition-colors">
-      <div className="bg-primary/10 text-primary flex size-11 items-center justify-center rounded-xl">
-        {icon}
-      </div>
+      <span className="text-4xl leading-none">{icon}</span>
       <div className="flex-1">
         <h3 className="font-heading text-foreground mb-2 text-lg font-semibold">{title}</h3>
         <p className="text-muted-foreground text-sm leading-relaxed">{desc}</p>
