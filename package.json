@@ -1,69 +1,33 @@
 {
   "name": "purpleiris",
-  "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "prepare": "husky",
-    "lint": "eslint \"app/**/*.{ts,tsx}\" \"components/**/*.{ts,tsx}\" \"lib/**/*.{ts,tsx}\"",
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "type-check": "turbo type-check",
     "format": "prettier --write .",
-    "type-check": "tsc --noEmit",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio",
-    "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test": "turbo test",
+    "prepare": "husky"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
       "eslint --fix",
       "prettier --write"
     ],
-    "*.{json,md,css}": [
+    "*.{json,md,css,yaml,yml}": [
       "prettier --write"
     ]
   },
-  "dependencies": {
-    "@base-ui/react": "^1.4.1",
-    "@mdx-js/loader": "^3.1.1",
-    "@mdx-js/react": "^3.1.1",
-    "@next/mdx": "^16.2.6",
-    "@prisma/client": "^7.8.0",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "framer-motion": "^12.38.0",
-    "ioredis": "^5.10.1",
-    "lucide-react": "^1.14.0",
-    "next": "16.2.6",
-    "next-intl": "^4.11.1",
-    "prisma": "^7.8.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "shadcn": "^4.7.0",
-    "tailwind-merge": "^3.6.0",
-    "tw-animate-css": "^1.4.0",
-    "viem": "^2.48.11",
-    "zod": "^4.4.3"
-  },
   "devDependencies": {
-    "@playwright/test": "^1.59.1",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@typescript-eslint/eslint-plugin": "^8.59.2",
-    "@typescript-eslint/parser": "^8.59.2",
-    "@vitejs/plugin-react": "^6.0.1",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "^16.2.6",
-    "husky": "^9.1.7",
-    "lint-staged": "^17.0.4",
-    "prettier": "^3.8.3",
-    "prettier-plugin-tailwindcss": "^0.8.0",
-    "tailwindcss": "^4",
-    "typescript": "^5",
-    "vitest": "^4.1.5"
+    "@typescript-eslint/eslint-plugin": "^8",
+    "@typescript-eslint/parser": "^8",
+    "eslint": "^9",
+    "lint-staged": "^15",
+    "prettier": "^3",
+    "prettier-plugin-tailwindcss": "^0.6",
+    "turbo": "^2",
+    "typescript": "^5"
   }
 }

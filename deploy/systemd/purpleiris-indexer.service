@@ -1,0 +1,16 @@
+[Unit]
+Description=PurpleIris monad-indexer worker
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=purpleiris
+WorkingDirectory=/opt/purpleiris
+ExecStart=/usr/bin/docker compose -f /opt/purpleiris/deploy/docker-compose.yml up indexer
+ExecStop=/usr/bin/docker compose -f /opt/purpleiris/deploy/docker-compose.yml stop indexer
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

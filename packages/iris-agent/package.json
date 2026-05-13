@@ -1,0 +1,23 @@
+{
+  "name": "@purpleiris/iris-agent",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@purpleiris/monad-indexer": "workspace:*",
+    "@purpleiris/shared-types": "workspace:*",
+    "zod": "^3"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5",
+    "vitest": "^2"
+  }
+}

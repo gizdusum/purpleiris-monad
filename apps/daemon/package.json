@@ -1,0 +1,22 @@
+{
+  "name": "@purpleiris/daemon",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --outDir dist",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@purpleiris/monad-indexer": "workspace:*",
+    "@purpleiris/shared-types": "workspace:*",
+    "viem": "^2",
+    "zod": "^3"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4",
+    "typescript": "^5"
+  }
+}

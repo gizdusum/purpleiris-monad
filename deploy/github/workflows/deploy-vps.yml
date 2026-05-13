@@ -1,0 +1,31 @@
+# GitHub Actions: deploy VPS services on push to main
+# Phase 5 target — credentials wired at that phase
+name: Deploy VPS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/monad-indexer/**"
+      - "packages/telemetry-ingest/**"
+      - "apps/daemon/**"
+      - "deploy/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.HOSTINGER_VPS_SSH_HOST }}
+          username: purpleiris
+          key: ${{ secrets.HOSTINGER_VPS_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.HOSTINGER_VPS_SSH_PORT }}
+          script: |
+            cd /opt/purpleiris
+            git pull origin main
+            docker compose -f deploy/docker-compose.yml build
+            docker compose -f deploy/docker-compose.yml up -d

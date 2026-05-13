@@ -1,0 +1,61 @@
+# VPS services — monad-indexer worker, telemetry-ingest, vault daemon
+# Deployed on Hostinger VPS (VPS_HOST), fronted by nginx
+
+services:
+  indexer:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.indexer
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - MONAD_MAINNET_RPC_URL=${MONAD_MAINNET_RPC_URL}
+    networks:
+      - purpleiris
+    depends_on:
+      - redis
+
+  telemetry-ingest:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.telemetry-ingest
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - TELEMETRY_INGEST_HMAC_SECRET=${TELEMETRY_INGEST_HMAC_SECRET}
+    ports:
+      - "127.0.0.1:3010:3010"
+    networks:
+      - purpleiris
+
+  # daemon: Phase 10 — vault rebalancer, uncomment when ready
+  # daemon:
+  #   build:
+  #     context: ..
+  #     dockerfile: deploy/Dockerfile.daemon
+  #   ...
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - purpleiris
+
+volumes:
+  redis_data:
+
+networks:
+  purpleiris:
+    driver: bridge

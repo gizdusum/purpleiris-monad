@@ -1,85 +1,97 @@
-# Purple Iris
+# PurpleIris v2
 
-Validator intelligence platform for the Monad network. Scores validators like FIFA cards — OVR rating, reliability streaks, commission trust, and geographic diversity analysis.
+**Monad's open intelligence layer for staking decisions, validator operations, and network decentralization.**
 
-## Features
+Powered by **Iris** — a conversational AI grounded strictly in on-chain data, never in parametric knowledge. Every answer cites a source and carries a data-class label.
 
-- **Validator Discovery** — Browse all active Monad validators with live performance data
-- **OVR Score** — FIFA-style composite score: reliability streak, commission trust (VDP), voting power
-- **Network Weather** — 5-state health metaphor (Sunny → Stormy) based on network-wide success rate
-- **Head-to-Head Compare** — Side-by-side validator comparison across all metrics
-- **Delegator Diversity Score** — Analyze your stake spread across regions and operators
-- **Validator Profiles** — Per-validator pages with historical epoch snapshots
-- **Find Wizard** — Interactive delegator wizard to match validators to user priorities
-- **Bilingual** — English and Turkish, switchable from the header
+> "Iris — the open eye on Monad."
 
-## Stack
+---
 
-- Next.js 16 + React 19 (App Router)
-- Prisma + PostgreSQL — validator and epoch data
-- Redis — caching layer
-- next-intl — i18n (EN/TR)
-- Framer Motion + shadcn/ui — UI
-- viem — Monad RPC integration
-- Nginx + Certbot — reverse proxy and TLS
+## Three doors
 
-## Routes
+|     | Mode               | Route             | Status                  |
+| --- | ------------------ | ----------------- | ----------------------- |
+| 👤  | **Delegator Iris** | `/chat/delegator` | Phase 3                 |
+| 🛠  | **Operator Iris**  | `/chat/operator`  | Phase 6                 |
+| 🧪  | **Stake Sim**      | `/vault`          | Phase 10 — Testnet Beta |
 
-| Path          | Description                                    |
-| ------------- | ---------------------------------------------- |
-| `/`           | Homepage — hero, network weather, score teaser |
-| `/validators` | Full validator list with live data             |
-| `/v/[slug]`   | Individual validator profile                   |
-| `/find`       | Delegator wizard                               |
-| `/compare`    | Head-to-head comparison                        |
-| `/me`         | Personal stake diversity score                 |
-| `/operator`   | Operator panel                                 |
-| `/insights`   | Network insights                               |
-| `/learn`      | Educational content                            |
+The Stake Sim (Mode 3) is a public beta on Monad testnet only. Mainnet release pending professional audit.
 
-## Self-hosting
+---
 
-### Prerequisites
+## Monorepo layout
 
-- Docker + Docker Compose
-- Nginx with SSL (Certbot)
-- Domain pointing to your server
-
-### Setup
-
-```bash
-git clone https://github.com/gizdusum/purpleiris.git
-cd purpleiris
-cp .env.example .env
-# fill in .env values
-docker compose -f docker/docker-compose.prod.yml up -d --build
+```
+apps/
+  web/                Next.js 14 frontend → Vercel
+  daemon/             Vault rebalancer → Hostinger VPS
+packages/
+  shared-types/       Cross-package TypeScript types
+  monad-indexer/      On-chain reads (viem, staking precompile)
+  iris-agent/         Anthropic SDK agent + tool surface
+  telemetry-ingest/   HMAC-verifying ingestion endpoint
+  ui/                 shadcn/ui primitives
+contracts/            Foundry vault (testnet only)
+telemetry-agent/      Go binary for validator operators
+deploy/               Docker Compose, systemd, nginx, GitHub Actions
+legacy/               Salvaged v1 source — read-only reference
+docs/                 Iris persona, methodology, operator guide
 ```
 
-### Environment Variables
+## Tech stack
 
-See `.env.example` for all required variables:
-
-- `DATABASE_URL` — PostgreSQL connection string
-- `REDIS_URL` — Redis connection string
-- `NEXT_PUBLIC_APP_URL` — public URL (e.g. `https://purpleiris.live`)
-- `MONAD_RPC_URL` — Monad RPC endpoint
-- `OPENROUTER_API_KEY` — OpenRouter key for AI wizard features
-
-### Nginx config
-
-The web container binds to `127.0.0.1:3005`. Point your nginx proxy_pass to `http://localhost:3005`.
+| Layer           | Technology                                                             |
+| --------------- | ---------------------------------------------------------------------- |
+| Frontend        | Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS, shadcn/ui |
+| LLM             | Anthropic SDK — Claude Sonnet 4.6 (Iris), Haiku 4.5 (cheap subtasks)   |
+| Database        | Neon Postgres + Drizzle ORM                                            |
+| Cache           | Upstash Redis                                                          |
+| On-chain        | viem → Monad staking precompile (0x…1000)                              |
+| VPS workloads   | Docker Compose + systemd + nginx + Let's Encrypt                       |
+| Contracts       | Foundry, Solidity 0.8.x, ERC-4626                                      |
+| Telemetry agent | Go 1.22+ static binary                                                 |
 
 ## Development
 
 ```bash
-npm install
-cp .env.example .env
-# fill in .env values
-npx prisma migrate dev
-npm run dev
+corepack enable
+pnpm install
+cp .env.example apps/web/.env.local
+# fill in .env.local values
+pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+## Build
+
+```bash
+pnpm build
+pnpm type-check
+pnpm lint
+```
+
+## Deployment topology
+
+| Service                | Host          | Subdomain                                |
+| ---------------------- | ------------- | ---------------------------------------- |
+| `apps/web`             | Vercel        | `purpleiris.live`, `www.purpleiris.live` |
+| `monad-indexer` worker | Hostinger VPS | — (internal)                             |
+| `telemetry-ingest`     | Hostinger VPS | `ingest.purpleiris.live`                 |
+| `apps/daemon`          | Hostinger VPS | `daemon-admin.purpleiris.live`           |
+
+## Data accuracy
+
+Iris labels every factual claim with its class:
+
+- **Class 1 — On-chain** (deterministic, staking precompile / Watchtower)
+- **Class 2 — Derived** (formula-dependent; all formulas published at `/methodology` with version pinning)
+- **Class 3 — Estimated** (uncertainty-aware; always reported as a range with confidence interval)
+
+## Vault disclaimer
+
+The Mode 3 vault (`/vault`) is deployed **on Monad testnet only**. No mainnet deployment until a professional smart contract audit is complete. See the vault page for the full disclaimer.
 
 ## License
 

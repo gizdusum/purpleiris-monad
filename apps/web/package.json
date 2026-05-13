@@ -1,0 +1,44 @@
+{
+  "name": "@purpleiris/web",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@purpleiris/monad-indexer": "workspace:*",
+    "@purpleiris/shared-types": "workspace:*",
+    "@purpleiris/ui": "workspace:*",
+    "@anthropic-ai/sdk": "^0.39.0",
+    "class-variance-authority": "^0.7",
+    "clsx": "^2",
+    "framer-motion": "^11",
+    "lucide-react": "^0.469",
+    "next": "14.2.29",
+    "next-auth": "^4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2",
+    "viem": "^2",
+    "zod": "^3"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@vitejs/plugin-react": "^4",
+    "autoprefixer": "^10",
+    "eslint": "^9",
+    "eslint-config-next": "14",
+    "postcss": "^8",
+    "tailwindcss": "^3",
+    "typescript": "^5",
+    "vitest": "^2"
+  }
+}
