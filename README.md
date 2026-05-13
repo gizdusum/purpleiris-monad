@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Purple Iris
 
-## Getting Started
+Validator intelligence platform for the Monad network. Scores validators like FIFA cards — OVR rating, reliability streaks, commission trust, and geographic diversity analysis.
 
-First, run the development server:
+## Features
+
+- **Validator Discovery** — Browse all active Monad validators with live performance data
+- **OVR Score** — FIFA-style composite score: reliability streak, commission trust (VDP), voting power
+- **Network Weather** — 5-state health metaphor (Sunny → Stormy) based on network-wide success rate
+- **Head-to-Head Compare** — Side-by-side validator comparison across all metrics
+- **Delegator Diversity Score** — Analyze your stake spread across regions and operators
+- **Validator Profiles** — Per-validator pages with historical epoch snapshots
+- **Find Wizard** — Interactive delegator wizard to match validators to user priorities
+- **Bilingual** — English and Turkish, switchable from the header
+
+## Stack
+
+- Next.js 16 + React 19 (App Router)
+- Prisma + PostgreSQL — validator and epoch data
+- Redis — caching layer
+- next-intl — i18n (EN/TR)
+- Framer Motion + shadcn/ui — UI
+- viem — Monad RPC integration
+- Nginx + Certbot — reverse proxy and TLS
+
+## Routes
+
+| Path          | Description                                    |
+| ------------- | ---------------------------------------------- |
+| `/`           | Homepage — hero, network weather, score teaser |
+| `/validators` | Full validator list with live data             |
+| `/v/[slug]`   | Individual validator profile                   |
+| `/find`       | Delegator wizard                               |
+| `/compare`    | Head-to-head comparison                        |
+| `/me`         | Personal stake diversity score                 |
+| `/operator`   | Operator panel                                 |
+| `/insights`   | Network insights                               |
+| `/learn`      | Educational content                            |
+
+## Self-hosting
+
+### Prerequisites
+
+- Docker + Docker Compose
+- Nginx with SSL (Certbot)
+- Domain pointing to your server
+
+### Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/gizdusum/purpleiris.git
+cd purpleiris
+cp .env.example .env
+# fill in .env values
+docker compose -f docker/docker-compose.prod.yml up -d --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+See `.env.example` for all required variables:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `DATABASE_URL` — PostgreSQL connection string
+- `REDIS_URL` — Redis connection string
+- `NEXT_PUBLIC_APP_URL` — public URL (e.g. `https://purpleiris.live`)
+- `MONAD_RPC_URL` — Monad RPC endpoint
+- `OPENROUTER_API_KEY` — OpenRouter key for AI wizard features
 
-## Learn More
+### Nginx config
 
-To learn more about Next.js, take a look at the following resources:
+The web container binds to `127.0.0.1:3005`. Point your nginx proxy_pass to `http://localhost:3005`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Development
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm install
+cp .env.example .env
+# fill in .env values
+npx prisma migrate dev
+npm run dev
+```
 
-## Deploy on Vercel
+Open [http://localhost:3000](http://localhost:3000).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT

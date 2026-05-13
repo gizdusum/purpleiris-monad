@@ -1,20 +1,4 @@
 services:
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - web
-    networks:
-      - purpleiris
-
   web:
     build:
       context: ..
@@ -27,8 +11,8 @@ services:
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
       - MONAD_RPC_URL=${MONAD_RPC_URL}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-    expose:
-      - "3000"
+    ports:
+      - "127.0.0.1:3005:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -91,8 +75,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  caddy_data:
-  caddy_config:
 
 networks:
   purpleiris:
