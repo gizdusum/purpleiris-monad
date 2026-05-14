@@ -6,14 +6,24 @@
   "types": "./src/index.ts",
   "scripts": {
     "type-check": "tsc --noEmit",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "indexer": "tsx src/worker.ts"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "@purpleiris/shared-types": "workspace:*",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
     "viem": "^2"
   },
   "devDependencies": {
     "@types/node": "^20",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4",
     "typescript": "^5"
   }
 }
