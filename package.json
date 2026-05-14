@@ -29,5 +29,8 @@
     "prettier-plugin-tailwindcss": "^0.6",
     "turbo": "^2",
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.96.0"
   }
 }

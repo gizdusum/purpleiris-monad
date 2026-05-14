@@ -13,6 +13,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@neondatabase/serverless": "^1.1.0",
+    "@purpleiris/iris-agent": "workspace:*",
     "@purpleiris/monad-indexer": "workspace:*",
     "@purpleiris/shared-types": "workspace:*",
     "@purpleiris/ui": "workspace:*",
