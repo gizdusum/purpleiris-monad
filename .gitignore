@@ -47,3 +47,4 @@ next-env.d.ts
 
 # vitest
 **/node_modules/.vite/
+.session-state.md
