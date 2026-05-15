@@ -7,8 +7,8 @@ Requires=docker.service
 Type=simple
 User=purpleiris
 WorkingDirectory=/opt/purpleiris
-ExecStart=/usr/bin/docker compose --project-directory /opt/purpleiris -f /opt/purpleiris/deploy/docker-compose.yml up indexer
-ExecStop=/usr/bin/docker compose --project-directory /opt/purpleiris -f /opt/purpleiris/deploy/docker-compose.yml stop indexer
+ExecStart=/usr/bin/docker compose -f /opt/purpleiris/deploy/docker-compose.yml up indexer
+ExecStop=/usr/bin/docker compose -f /opt/purpleiris/deploy/docker-compose.yml stop indexer
 Restart=on-failure
 RestartSec=10
 
