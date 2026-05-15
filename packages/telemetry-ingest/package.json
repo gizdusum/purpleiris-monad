@@ -6,12 +6,16 @@
   "types": "./src/index.ts",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
     "build": "tsc --outDir dist",
     "type-check": "tsc --noEmit",
     "lint": "eslint src"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "@purpleiris/monad-indexer": "workspace:*",
     "@purpleiris/shared-types": "workspace:*",
+    "drizzle-orm": "^0.45.2",
     "zod": "^3"
   },
   "devDependencies": {

@@ -25,7 +25,7 @@ docs/             Persona, methodology, operator guide
 
 1. **`legacy/` is READ-ONLY.** Never import from it. Never modify it. Reference only.
 2. **`gizdusum/arcana` is OFF-LIMITS.** No commits, PRs, or modifications. No runtime calls.
-3. **Testnet validator node is OFF-LIMITS.** Never install anything on it, never reference its RPC.
+3. **Testnet validator node is OFF-LIMITS.** Never install anything on it, never reference its RPC. The validator node is a SEPARATE machine; the Hostinger VPS at VPS_HOST is the deployment target for indexer + telemetry-ingest + (future) daemon, and is NOT off-limits.
 4. **Vault contracts stay on testnet** until external audit + explicit mainnet deploy decision.
 5. **English only.** No i18n, no locale routing, no translation files.
 6. **No mainnet wallet signing in the build** except Mode 3 vault deposit/withdraw.

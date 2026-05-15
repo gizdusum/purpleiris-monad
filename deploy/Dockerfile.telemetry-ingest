@@ -1,0 +1,21 @@
+FROM node:22-alpine
+RUN npm install -g pnpm
+WORKDIR /app
+
+# Copy manifests for layer cache
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/monad-indexer/package.json ./packages/monad-indexer/
+COPY packages/telemetry-ingest/package.json ./packages/telemetry-ingest/
+
+RUN pnpm install --frozen-lockfile --filter @purpleiris/telemetry-ingest...
+
+# Copy source
+COPY packages/shared-types/src ./packages/shared-types/src
+COPY packages/monad-indexer/src ./packages/monad-indexer/src
+COPY packages/telemetry-ingest/src ./packages/telemetry-ingest/src
+
+WORKDIR /app/packages/telemetry-ingest
+ENV NODE_ENV=production
+EXPOSE 3010
+CMD ["pnpm", "run", "start"]

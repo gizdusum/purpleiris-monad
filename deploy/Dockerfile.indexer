@@ -1,0 +1,18 @@
+FROM node:22-alpine
+RUN npm install -g pnpm
+WORKDIR /app
+
+# Copy manifests for layer cache
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/monad-indexer/package.json ./packages/monad-indexer/
+
+RUN pnpm install --frozen-lockfile --filter @purpleiris/monad-indexer...
+
+# Copy source
+COPY packages/shared-types/src ./packages/shared-types/src
+COPY packages/monad-indexer/src ./packages/monad-indexer/src
+
+WORKDIR /app/packages/monad-indexer
+ENV NODE_ENV=production
+CMD ["pnpm", "run", "indexer"]
