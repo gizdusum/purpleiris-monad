@@ -8,7 +8,7 @@ COPY packages/shared-types/package.json ./packages/shared-types/
 COPY packages/monad-indexer/package.json ./packages/monad-indexer/
 COPY packages/telemetry-ingest/package.json ./packages/telemetry-ingest/
 
-ENV HUSKY=0
+RUN node -e "const p=JSON.parse(require('fs').readFileSync('package.json','utf8'));if(p.scripts)delete p.scripts.prepare;require('fs').writeFileSync('package.json',JSON.stringify(p))"
 RUN pnpm install --frozen-lockfile --filter @purpleiris/telemetry-ingest...
 
 # Copy source
