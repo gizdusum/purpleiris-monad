@@ -8,6 +8,7 @@ COPY packages/shared-types/package.json ./packages/shared-types/
 COPY packages/monad-indexer/package.json ./packages/monad-indexer/
 COPY packages/telemetry-ingest/package.json ./packages/telemetry-ingest/
 
+ENV HUSKY=0
 RUN pnpm install --frozen-lockfile --filter @purpleiris/telemetry-ingest...
 
 # Copy source

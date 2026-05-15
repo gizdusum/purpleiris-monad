@@ -7,6 +7,7 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/shared-types/package.json ./packages/shared-types/
 COPY packages/monad-indexer/package.json ./packages/monad-indexer/
 
+ENV HUSKY=0
 RUN pnpm install --frozen-lockfile --filter @purpleiris/monad-indexer...
 
 # Copy source
