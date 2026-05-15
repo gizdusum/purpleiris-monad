@@ -9,7 +9,7 @@
     "type-check": "turbo type-check",
     "format": "prettier --write .",
     "test": "turbo test",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
