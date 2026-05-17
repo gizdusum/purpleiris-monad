@@ -19,7 +19,9 @@ export async function listValidatorsTool(input: ListValidatorsInput): Promise<To
   if (max_commission_bps !== undefined)
     conditions.push(lte(validators.commissionBps, max_commission_bps));
   if (min_stake_mon !== undefined)
-    conditions.push(gte(validators.stakedAmount, BigInt(Math.floor(min_stake_mon * 1e18))));
+    conditions.push(
+      gte(validators.stakedAmount, BigInt(Math.floor(min_stake_mon * 1e18)).toString())
+    );
   if (region) conditions.push(eq(validators.region, region));
   if (infra_provider) conditions.push(eq(validators.infraProvider, infra_provider));
 

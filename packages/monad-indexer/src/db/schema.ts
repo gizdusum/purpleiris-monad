@@ -4,6 +4,7 @@ import {
   boolean,
   integer,
   bigint,
+  numeric,
   real,
   timestamp,
   uniqueIndex,
@@ -21,7 +22,7 @@ export const validators = pgTable(
     commissionBps: integer("commission_bps").notNull(),
     jailed: boolean("jailed").notNull().default(false),
     active: boolean("active").notNull().default(true),
-    stakedAmount: bigint("staked_amount", { mode: "bigint" }).notNull(),
+    stakedAmount: numeric("staked_amount").notNull(),
     // Community registry enrichment (Class 3 — geo inference)
     region: text("region"),
     infraProvider: text("infra_provider"),

@@ -1,0 +1,1 @@
+ALTER TABLE "validators" ALTER COLUMN "staked_amount" SET DATA TYPE numeric;

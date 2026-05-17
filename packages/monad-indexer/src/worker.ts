@@ -38,7 +38,7 @@ async function indexOnce() {
       commissionBps: v.commissionBps,
       jailed: v.jailed,
       active: v.active,
-      stakedAmount: v.stakedAmount,
+      stakedAmount: v.stakedAmount.toString(),
       region: m?.region ?? null,
       infraProvider: m?.infraProvider ?? null,
       flag: wt ? null : null, // enriched separately via geo Phase 9

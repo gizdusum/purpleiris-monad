@@ -39,7 +39,7 @@ export async function getNetworkHealthTool(): Promise<ToolResult> {
     .select({ staked: validators.stakedAmount })
     .from(validators)
     .where(eq(validators.active, true));
-  const nakamoto = computeNakamoto(stakeRows.map((r) => r.staked));
+  const nakamoto = computeNakamoto(stakeRows.map((r) => BigInt(r.staked)));
 
   const networkUptime = wt?.global_stats?.network_uptime ?? null;
   const successRate = networkUptime;
