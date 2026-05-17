@@ -77,7 +77,7 @@ export async function getValidatorsFromChain(): Promise<OnChainValidator[]> {
   }
 
   // Step 3: fetch detail for each validator ID with bounded concurrency.
-  const CONCURRENCY = 10;
+  const CONCURRENCY = 3;
   const results: OnChainValidator[] = [];
 
   for (let i = 0; i < validatorIds.length; i += CONCURRENCY) {

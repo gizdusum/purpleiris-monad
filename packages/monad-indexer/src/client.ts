@@ -1,4 +1,4 @@
-import { createPublicClient, http, fallback } from "viem";
+import { createPublicClient, http } from "viem";
 import { monadMainnet, MONAD_MAINNET_RPC_URL } from "./config";
 
 let _client: ReturnType<typeof createPublicClient> | null = null;
@@ -7,10 +7,11 @@ export function getPublicClient() {
   if (!_client) {
     _client = createPublicClient({
       chain: monadMainnet,
-      transport: fallback([
-        http(MONAD_MAINNET_RPC_URL, { timeout: 10_000 }),
-        http("https://rpc1.monad.xyz", { timeout: 10_000 }),
-      ]),
+      transport: http(MONAD_MAINNET_RPC_URL, {
+        timeout: 10_000,
+        retryCount: 3,
+        retryDelay: 1000,
+      }),
     });
   }
   return _client;
