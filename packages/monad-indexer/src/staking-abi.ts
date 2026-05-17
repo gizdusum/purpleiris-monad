@@ -1,105 +1,43 @@
-// Monad staking precompile ABI (0x0000000000000000000000000000000000001000)
-// Source: https://docs.monad.xyz/developer-essentials/staking/staking-precompile
-
 export const STAKING_ABI = [
   {
-    name: "getValidators",
     type: "function",
-    stateMutability: "view",
+    name: "getExecutionValidatorSet",
+    inputs: [{ name: "startIndex", type: "uint32" }],
+    outputs: [
+      { name: "isDone", type: "bool" },
+      { name: "nextIndex", type: "uint32" },
+      { name: "valIds", type: "uint64[]" },
+    ],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "getValidator",
+    inputs: [{ name: "validatorId", type: "uint64" }],
+    outputs: [
+      { name: "authAddress", type: "address" },
+      { name: "flags", type: "uint64" },
+      { name: "stake", type: "uint256" },
+      { name: "accRewardPerToken", type: "uint256" },
+      { name: "commission", type: "uint256" },
+      { name: "unclaimedRewards", type: "uint256" },
+      { name: "consensusStake", type: "uint256" },
+      { name: "consensusCommission", type: "uint256" },
+      { name: "snapshotStake", type: "uint256" },
+      { name: "snapshotCommission", type: "uint256" },
+      { name: "secpPubkey", type: "bytes" },
+      { name: "blsPubkey", type: "bytes" },
+    ],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "getEpoch",
     inputs: [],
     outputs: [
-      {
-        name: "validators",
-        type: "tuple[]",
-        components: [
-          { name: "valAddress", type: "address" },
-          { name: "moniker", type: "string" },
-          { name: "website", type: "string" },
-          { name: "commission", type: "uint256" },
-          { name: "jailed", type: "bool" },
-          { name: "active", type: "bool" },
-        ],
-      },
+      { name: "epoch", type: "uint64" },
+      { name: "inEpochDelayPeriod", type: "bool" },
     ],
-  },
-  {
-    name: "getValidator",
-    type: "function",
-    stateMutability: "view",
-    inputs: [{ name: "valAddress", type: "address" }],
-    outputs: [
-      {
-        name: "validator",
-        type: "tuple",
-        components: [
-          { name: "valAddress", type: "address" },
-          { name: "moniker", type: "string" },
-          { name: "website", type: "string" },
-          { name: "commission", type: "uint256" },
-          { name: "jailed", type: "bool" },
-          { name: "active", type: "bool" },
-        ],
-      },
-    ],
-  },
-  {
-    name: "getDelegation",
-    type: "function",
-    stateMutability: "view",
-    inputs: [
-      { name: "delAddress", type: "address" },
-      { name: "valAddress", type: "address" },
-    ],
-    outputs: [
-      {
-        name: "delegation",
-        type: "tuple",
-        components: [
-          { name: "shares", type: "uint256" },
-          { name: "staked", type: "uint256" },
-        ],
-      },
-    ],
-  },
-  {
-    name: "getAllDelegatorStake",
-    type: "function",
-    stateMutability: "view",
-    inputs: [{ name: "delAddress", type: "address" }],
-    outputs: [
-      {
-        name: "delegations",
-        type: "tuple[]",
-        components: [
-          { name: "valAddress", type: "address" },
-          { name: "shares", type: "uint256" },
-          { name: "staked", type: "uint256" },
-        ],
-      },
-    ],
-  },
-  {
-    name: "getValidatorDelegations",
-    type: "function",
-    stateMutability: "view",
-    inputs: [{ name: "valAddress", type: "address" }],
-    outputs: [
-      {
-        name: "delegations",
-        type: "tuple[]",
-        components: [
-          { name: "delAddress", type: "address" },
-          { name: "shares", type: "uint256" },
-          { name: "staked", type: "uint256" },
-        ],
-      },
-    ],
-  },
-  {
-    name: "getStakedAmount",
-    type: "function",
-    stateMutability: "view",
-    inputs: [{ name: "valAddress", type: "address" }],
-    outputs: [{ name: "amount", type: "uint256" }],
+    stateMutability: "nonpayable",
   },
 ] as const;

@@ -41,54 +41,106 @@ export async function getValidatorMeta(): Promise<ValidatorMeta[]> {
 export async function getValidatorsFromChain(): Promise<OnChainValidator[]> {
   const client = getPublicClient();
 
-  const result = await client.readContract({
-    address: STAKING_PRECOMPILE,
-    abi: STAKING_ABI,
-    functionName: "getValidators",
-  });
+  // Step 1: paginate getExecutionValidatorSet to collect all validator IDs.
+  const validatorIds: bigint[] = [];
+  let startIndex = 0;
+  let pagesFetched = 0;
+  const MAX_PAGES = 50; // safety cap: 50 * 100 = 5000 validators
 
-  const validators = result as {
-    valAddress: `0x${string}`;
-    moniker: string;
-    website: string;
-    commission: bigint;
-    jailed: boolean;
-    active: boolean;
-  }[];
+  while (pagesFetched < MAX_PAGES) {
+    const result = (await client.readContract({
+      address: STAKING_PRECOMPILE,
+      abi: STAKING_ABI,
+      functionName: "getExecutionValidatorSet",
+      args: [startIndex],
+    })) as readonly [boolean, number, readonly bigint[]];
 
-  const withStake = await Promise.all(
-    validators.slice(0, 200).map(async (v) => {
-      try {
-        const staked = await client.readContract({
-          address: STAKING_PRECOMPILE,
-          abi: STAKING_ABI,
-          functionName: "getStakedAmount",
-          args: [v.valAddress],
-        });
-        return {
-          address: v.valAddress,
-          moniker: v.moniker,
-          website: v.website,
-          commissionBps: Number(v.commission),
-          jailed: v.jailed,
-          active: v.active,
-          stakedAmount: staked as bigint,
-        };
-      } catch {
-        return {
-          address: v.valAddress,
-          moniker: v.moniker,
-          website: v.website,
-          commissionBps: Number(v.commission),
-          jailed: v.jailed,
-          active: v.active,
-          stakedAmount: 0n,
-        };
-      }
-    })
-  );
+    const [isDone, nextIndex, valIds] = result;
+    validatorIds.push(...valIds);
+    pagesFetched++;
 
-  return withStake;
+    if (isDone) break;
+    startIndex = nextIndex;
+  }
+
+  if (pagesFetched >= MAX_PAGES) {
+    console.warn(`[validators] hit MAX_PAGES safety cap at ${validatorIds.length} validators`);
+  }
+
+  console.log(`[validators] fetched ${validatorIds.length} validator IDs from execution set`);
+
+  // Step 2: prefetch the community registry once and build an address lookup map.
+  const metaList = await getValidatorMeta();
+  const metaByAddress = new Map<string, ValidatorMeta>();
+  for (const m of metaList) {
+    metaByAddress.set(m.address.toLowerCase(), m);
+  }
+
+  // Step 3: fetch detail for each validator ID with bounded concurrency.
+  const CONCURRENCY = 10;
+  const results: OnChainValidator[] = [];
+
+  for (let i = 0; i < validatorIds.length; i += CONCURRENCY) {
+    const batch = validatorIds.slice(i, i + CONCURRENCY);
+    const batchResults = await Promise.all(
+      batch.map(async (valId) => {
+        try {
+          const detail = (await client.readContract({
+            address: STAKING_PRECOMPILE,
+            abi: STAKING_ABI,
+            functionName: "getValidator",
+            args: [valId],
+          })) as readonly [
+            `0x${string}`,
+            bigint,
+            bigint,
+            bigint,
+            bigint,
+            bigint,
+            bigint,
+            bigint,
+            bigint,
+            bigint,
+            `0x${string}`,
+            `0x${string}`,
+          ];
+
+          const [authAddress, , , , commission, , consensusStake] = detail;
+          const addr = authAddress.toLowerCase();
+
+          // commission is 1e18-scaled (10% = 1e17). Convert to BPS (1% = 100 BPS).
+          // 1 BPS = 0.01% = 1e14 in the 1e18 scale.
+          const commissionBps = Number(commission / 10n ** 14n);
+
+          // Community registry lookup (Class 3 enrichment for display fields).
+          const meta = metaByAddress.get(addr);
+
+          const validator: OnChainValidator = {
+            address: addr,
+            moniker: meta?.name ?? `Validator ${valId}`,
+            website: meta?.website ?? "",
+            commissionBps,
+            jailed: false, // TODO post-launch: derive from flags bit pattern
+            active: true, // present in execution set => active
+            stakedAmount: consensusStake, // current-epoch active stake
+            validatorId: valId,
+          };
+
+          return validator;
+        } catch (err) {
+          console.warn(`[validators] failed to fetch validator ${valId}:`, err);
+          return null;
+        }
+      })
+    );
+
+    for (const r of batchResults) {
+      if (r !== null) results.push(r);
+    }
+  }
+
+  console.log(`[validators] enriched ${results.length} validators`);
+  return results;
 }
 
 export async function getNetworkStats(): Promise<NetworkStats> {

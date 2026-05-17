@@ -10,6 +10,7 @@ export type OnChainValidator = {
   flag?: string;
   country?: string;
   provider?: string;
+  validatorId?: bigint;
 };
 
 export type NetworkStats = {
