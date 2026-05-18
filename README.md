@@ -1,4 +1,4 @@
-# PurpleIris v2
+# PurpleIris v1.0 — Iris
 
 **Monad's open intelligence layer for staking decisions, validator operations, and network decentralization.**
 
@@ -12,11 +12,31 @@ Powered by **Iris** — a conversational AI grounded strictly in on-chain data, 
 
 |     | Mode               | Route             | Status                  |
 | --- | ------------------ | ----------------- | ----------------------- |
-| 👤  | **Delegator Iris** | `/chat/delegator` | Phase 3                 |
-| 🛠  | **Operator Iris**  | `/chat/operator`  | Phase 6                 |
-| 🧪  | **Stake Sim**      | `/vault`          | Phase 10 — Testnet Beta |
+| 👤  | **Delegator Iris** | `/chat/delegator` | Live — v1.0             |
+| 🛠  | **Operator Iris**  | `/chat/operator`  | Live — v1.0 (read-only) |
+| 🧪  | **Stake Sim**      | `/vault`          | Planned — v2.0 Pythia   |
 
-The Stake Sim (Mode 3) is a public beta on Monad testnet only. Mainnet release pending professional audit.
+> Stake Sim ships in v2.0 "Pythia" with audited vault contracts.
+> Until then the route is reserved and the landing surfaces a
+> "Coming soon" state.
+
+---
+
+## Release roadmap
+
+PurpleIris ships in mythologically themed releases. Each name maps
+to what the release adds.
+
+| Version  | Codename  | Theme                     | Scope                                                                                                                                          |
+| -------- | --------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **v1.0** | Iris      | Bridge between worlds     | Delegator chat (non-advisory, cited). Operator chat read-only over public on-chain data. Stake Sim placeholder.                                |
+| v1.1     | Hermes    | Messenger, guide          | Operator authentication via SIWE. Validator-scoped operator persona unlocks peer-percentile comparisons.                                       |
+| v1.2     | Argus     | The all-seeing watcher    | Telemetry agent (Go) + HMAC ingest. Operator chat gains live device metrics: CPU, RAM, disk I/O, IOWait, peer count, bandwidth.                |
+| v1.3     | Mnemosyne | Memory, the muses' mother | Monad docs RAG. Operator troubleshooting with cited solutions. Anomaly detection on telemetry baselines. Push alerts via Telegram and Discord. |
+| v2.0     | Pythia    | The oracle                | Stake Sim live. Audited vault contracts. Daemon rebalancer. Reward forecasting with explicit confidence intervals.                             |
+
+Versions are additive. Each release preserves prior surfaces and
+extends them.
 
 ---
 
@@ -91,7 +111,10 @@ Iris labels every factual claim with its class:
 
 ## Vault disclaimer
 
-The Mode 3 vault (`/vault`) is deployed **on Monad testnet only**. No mainnet deployment until a professional smart contract audit is complete. See the vault page for the full disclaimer.
+The Mode 3 vault (`/vault`) is reserved for the v2.0 "Pythia"
+release. No deployment — testnet or mainnet — until a professional
+smart contract audit is complete. See `/vault` for the current
+placeholder state.
 
 ## License
 
