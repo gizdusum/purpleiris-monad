@@ -102,3 +102,39 @@
 .iris-cta:not(:disabled):hover {
   background-color: color-mix(in srgb, var(--cta-color) 10%, transparent);
 }
+
+/* ── Hero image Ken Burns ── */
+@keyframes slow-zoom {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+.hero-image-zoom {
+  animation: slow-zoom 22s ease-in-out infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-image-zoom {
+    animation: none;
+  }
+}
+
+/* ── Streaming cursor ── */
+@keyframes iris-cursor-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+.iris-cursor::after {
+  content: "▋";
+  display: inline-block;
+  color: var(--accent);
+  animation: iris-cursor-blink 0.85s step-end infinite;
+  margin-left: 1px;
+}

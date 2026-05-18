@@ -7,9 +7,20 @@ export const metadata: Metadata = {
   title: "PurpleIris — Monad Validator Intelligence",
 };
 
-const IrisBackground = dynamic(() => import("@/components/IrisBackground"), {
+const HeroSection = dynamic(() => import("@/components/HeroSection"), {
   ssr: false,
-  loading: () => null,
+  loading: () => (
+    <div
+      style={{
+        height: "100vh",
+        background: "var(--bg)",
+        display: "flex",
+        alignItems: "center",
+        paddingLeft: "24px",
+        paddingTop: "56px",
+      }}
+    />
+  ),
 });
 
 /* ─── Card data ─── */
@@ -95,191 +106,109 @@ const cards: CardDef[] = [
 export default function HomePage() {
   return (
     <>
-      <IrisBackground />
-
-      {/* Vignette — darkens edges so 3D doesn't fight text */}
-      <div
-        aria-hidden="true"
+      {/* ── Header ── */}
+      <header
         style={{
           position: "fixed",
-          inset: 0,
-          zIndex: 0,
-          pointerEvents: "none",
-          background:
-            "radial-gradient(ellipse at 50% 40%, transparent 25%, rgba(7,6,26,0.75) 100%)",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 50,
+          borderBottom: "1px solid color-mix(in srgb, var(--border) 30%, transparent)",
+          padding: "14px 24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          backgroundColor: "rgba(7,6,26,0.7)",
+          backdropFilter: "blur(8px)",
         }}
-      />
+      >
+        <span className="text-sm tracking-wider uppercase" style={{ fontWeight: 500 }}>
+          <span style={{ color: "var(--accent)" }}>|</span>
+          <span style={{ color: "var(--text)" }}>PURPLEIRIS</span>
+        </span>
+        <nav className="flex items-center gap-1 text-xs tracking-wider uppercase">
+          <Link href="/methodology" className="iris-nav-link">
+            DOCS
+          </Link>
+          <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
+          <a
+            href="https://github.com/gizdusum/purpleiris"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="iris-nav-link"
+          >
+            GITHUB
+          </a>
+          <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
+          <Link href="/api/health" className="iris-nav-link">
+            STATUS
+          </Link>
+        </nav>
+      </header>
 
-      {/* Content layer */}
-      <div style={{ position: "relative", zIndex: 1 }}>
-        {/* ── Header ── */}
-        <header
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 50,
-            borderBottom: "1px solid color-mix(in srgb, var(--border) 30%, transparent)",
-            padding: "14px 24px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <span className="text-sm tracking-wider uppercase" style={{ fontWeight: 500 }}>
-            <span style={{ color: "var(--accent)" }}>|</span>
-            <span style={{ color: "var(--text)" }}>PURPLEIRIS</span>
-          </span>
-          <nav className="flex items-center gap-1 text-xs tracking-wider uppercase">
-            <Link href="/methodology" className="iris-nav-link">
-              DOCS
-            </Link>
-            <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
-            <a
-              href="https://github.com/gizdusum/purpleiris"
-              target="_blank"
-              rel="noopener noreferrer"
+      {/* ── Hero ── */}
+      <HeroSection />
+
+      {/* ── Card grid ── */}
+      <section
+        style={{
+          maxWidth: "1152px",
+          margin: "0 auto",
+          padding: "0 24px",
+          marginTop: "80px",
+        }}
+      >
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {cards.map((card) => (
+            <ModeCard key={card.id} card={card} />
+          ))}
+        </div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer
+        style={{
+          marginTop: "80px",
+          padding: "32px 24px",
+          borderTop: "1px solid var(--border)",
+        }}
+      >
+        <div className="text-xs">
+          {/* Row 1 — data-class attribution */}
+          <p className="text-center" style={{ color: "var(--text-dim)" }}>
+            All Iris responses carry data-class labels:{" "}
+            <span style={{ color: "var(--text)" }}>CLASS 1</span> on-chain{" · "}
+            <span style={{ color: "var(--text)" }}>CLASS 2</span> derived{" · "}
+            <span style={{ color: "var(--text)" }}>CLASS 3</span> estimated.{" "}
+            <Link
+              href="/methodology"
               className="iris-nav-link"
+              style={{ textDecoration: "underline" }}
             >
-              GITHUB
-            </a>
-            <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
-            <Link href="/api/health" className="iris-nav-link">
-              STATUS
+              Read the methodology →
             </Link>
-          </nav>
-        </header>
+          </p>
 
-        {/* ── Hero ── */}
-        <section
-          style={{
-            minHeight: "100vh",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            paddingTop: "56px",
-            paddingLeft: "24px",
-            paddingRight: "24px",
-          }}
-        >
-          <div className="text-center" style={{ maxWidth: "720px", width: "100%" }}>
-            {/* Eyebrow */}
-            <p
-              className="text-xs tracking-[0.3em] uppercase"
-              style={{ color: "var(--accent)", marginBottom: "16px", fontWeight: 500 }}
-            >
-              MONAD VALIDATOR INTELLIGENCE
-            </p>
-
-            {/* Headline */}
-            <h1
-              className="font-bold uppercase"
+          {/* Row 2 — copyright + version badge */}
+          <div
+            className="flex flex-wrap items-center justify-between gap-4 tracking-wider uppercase"
+            style={{ marginTop: "20px" }}
+          >
+            <span style={{ color: "var(--text-mute)" }}>© 2026 PurpleIris</span>
+            <span
+              className="rounded-sm"
               style={{
-                color: "var(--text)",
-                fontSize: "clamp(2rem, 6vw, 4rem)",
-                letterSpacing: "-0.02em",
-                lineHeight: 1.1,
-                marginBottom: "20px",
+                border: "1px solid var(--accent)",
+                color: "var(--accent)",
+                padding: "4px 10px",
               }}
             >
-              THE OPEN EYE ON MONAD
-            </h1>
-
-            {/* Subhead */}
-            <p
-              className="text-base leading-relaxed"
-              style={{ color: "var(--text-dim)", marginBottom: "0" }}
-            >
-              Iris reads on-chain data so you don&apos;t have to.
-              <br />
-              Every number cited. Every claim classified.
-            </p>
-
-            {/* Stat strip */}
-            <div
-              className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs tracking-wider uppercase"
-              style={{
-                borderTop: "1px solid color-mix(in srgb, var(--border) 50%, transparent)",
-                borderBottom: "1px solid color-mix(in srgb, var(--border) 50%, transparent)",
-                padding: "12px 0",
-                marginTop: "32px",
-                color: "var(--text-dim)",
-              }}
-            >
-              <span>3 MODES</span>
-              <span>·</span>
-              <span>202 VALIDATORS</span>
-              <span>·</span>
-              <span>MONAD MAINNET NETWORK</span>
-              <span>·</span>
-              <span>CLAUDE SONNET 4.6 POWERED BY</span>
-              <span>·</span>
-              <span>CLASS 1/2/3 DATA MODEL</span>
-            </div>
+              v1.0 · Iris
+            </span>
           </div>
-        </section>
-
-        {/* ── Card grid ── */}
-        <section
-          style={{
-            maxWidth: "1152px",
-            margin: "0 auto",
-            padding: "0 24px",
-            marginTop: "80px",
-          }}
-        >
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            {cards.map((card) => (
-              <ModeCard key={card.id} card={card} />
-            ))}
-          </div>
-        </section>
-
-        {/* ── Footer ── */}
-        <footer
-          style={{
-            marginTop: "80px",
-            padding: "32px 24px",
-            borderTop: "1px solid var(--border)",
-          }}
-        >
-          <div className="text-xs">
-            {/* Row 1 — data-class attribution */}
-            <p className="text-center" style={{ color: "var(--text-dim)" }}>
-              All Iris responses carry data-class labels:{" "}
-              <span style={{ color: "var(--text)" }}>CLASS 1</span> on-chain{" · "}
-              <span style={{ color: "var(--text)" }}>CLASS 2</span> derived{" · "}
-              <span style={{ color: "var(--text)" }}>CLASS 3</span> estimated.{" "}
-              <Link
-                href="/methodology"
-                className="iris-nav-link"
-                style={{ textDecoration: "underline" }}
-              >
-                Read the methodology →
-              </Link>
-            </p>
-
-            {/* Row 2 — copyright + version badge */}
-            <div
-              className="flex flex-wrap items-center justify-between gap-4 tracking-wider uppercase"
-              style={{ marginTop: "20px" }}
-            >
-              <span style={{ color: "var(--text-mute)" }}>© 2026 PurpleIris</span>
-              <span
-                className="rounded-sm"
-                style={{
-                  border: "1px solid var(--accent)",
-                  color: "var(--accent)",
-                  padding: "4px 10px",
-                }}
-              >
-                v1.0 · Iris
-              </span>
-            </div>
-          </div>
-        </footer>
-      </div>
+        </div>
+      </footer>
     </>
   );
 }

@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, type FormEvent } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { IrisResponse } from "@purpleiris/iris-agent";
 
 type Role = "user" | "assistant";
 
@@ -12,16 +11,17 @@ type Message = {
   id: string;
   role: Role;
   content: string;
+  streaming?: boolean;
   guardPassed?: boolean;
   toolCount?: number;
 };
 
 const SUGGESTED = [
-  "What are the active validators on Monad right now?",
-  "What's the Nakamoto coefficient of the network?",
-  "Which validators have the lowest commission and highest reliability?",
-  "If I stake 1000 MON with Chorus One for 30 days, what reward can I expect?",
-  "How diverse would a split between Chorus One and Figment be?",
+  "What are the top 5 validators by 30-day block success rate?",
+  "What's the Nakamoto coefficient right now?",
+  "If I stake 500 MON for 60 days, what reward can I estimate?",
+  "Which validators have commission under 5% and high reliability?",
+  "Show me underdog validators worth supporting for decentralization.",
 ];
 
 export function ChatClient() {
@@ -55,6 +55,10 @@ export function ChatClient() {
     setLoading(true);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
+    // Add streaming placeholder message
+    const assistantId = crypto.randomUUID();
+    setMessages([...history, { id: assistantId, role: "assistant", content: "", streaming: true }]);
+
     try {
       const res = await fetch("/api/chat/delegator", {
         method: "POST",
@@ -64,23 +68,69 @@ export function ChatClient() {
         }),
       });
 
-      if (!res.ok) {
+      if (!res.ok || !res.body) {
         const err = (await res.json()) as { error?: string };
         throw new Error(err.error ?? `HTTP ${res.status}`);
       }
 
-      const data = (await res.json()) as IrisResponse;
-      const assistantMsg: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: data.text,
-        guardPassed: data.guard_passed,
-        toolCount: data.tool_calls.length,
-      };
-      setMessages([...history, assistantMsg]);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6).trim();
+          if (!raw) continue;
+
+          let event: {
+            type: string;
+            text?: string;
+            tool_calls?: number;
+            guard_passed?: boolean;
+            message?: string;
+          };
+          try {
+            event = JSON.parse(raw) as typeof event;
+          } catch {
+            continue;
+          }
+
+          if (event.type === "delta" && event.text) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId ? { ...m, content: m.content + event.text! } : m
+              )
+            );
+          } else if (event.type === "done") {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? {
+                      ...m,
+                      streaming: false,
+                      toolCount: event.tool_calls ?? 0,
+                      guardPassed: event.guard_passed ?? true,
+                    }
+                  : m
+              )
+            );
+            setLoading(false);
+          } else if (event.type === "error") {
+            throw new Error(event.message ?? "Stream error");
+          }
+        }
+      }
     } catch (err) {
+      setMessages((prev) => prev.filter((m) => m.id !== assistantId));
       setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
       setLoading(false);
     }
   }
@@ -144,7 +194,6 @@ export function ChatClient() {
             {messages.map((m) => (
               <MessageBubble key={m.id} message={m} />
             ))}
-            {loading && <ThinkingIndicator />}
             {error && (
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {error}
@@ -209,9 +258,9 @@ function MessageBubble({ message }: { message: Message }) {
         {isUser ? (
           <p className="whitespace-pre-wrap">{message.content}</p>
         ) : (
-          <IrisMarkdown text={message.content} />
+          <IrisMarkdown text={message.content} streaming={message.streaming ?? false} />
         )}
-        {!isUser && message.toolCount !== undefined && (
+        {!isUser && !message.streaming && message.toolCount !== undefined && (
           <div className="mt-2 flex items-center gap-2 border-t border-current/10 pt-2 text-xs opacity-60">
             <span>
               {message.toolCount} tool call{message.toolCount !== 1 ? "s" : ""}
@@ -226,209 +275,190 @@ function MessageBubble({ message }: { message: Message }) {
   );
 }
 
-function IrisMarkdown({ text }: { text: string }) {
+function IrisMarkdown({ text, streaming }: { text: string; streaming?: boolean }) {
+  if (!text && streaming) {
+    return <span className="iris-cursor" />;
+  }
+
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        p({ children }) {
-          return <p style={{ marginBottom: "12px", lineHeight: "1.7" }}>{children}</p>;
-        },
-        /* Tables */
-        table({ children }) {
-          return (
-            <div style={{ overflowX: "auto", marginBottom: "12px" }}>
-              <table
+    <span className={streaming ? "iris-cursor" : undefined}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          p({ children }) {
+            return <p style={{ marginBottom: "12px", lineHeight: "1.7" }}>{children}</p>;
+          },
+          table({ children }) {
+            return (
+              <div style={{ overflowX: "auto", marginBottom: "12px" }}>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontSize: "0.75rem",
+                    fontFamily: "var(--font-mono), monospace",
+                  }}
+                >
+                  {children}
+                </table>
+              </div>
+            );
+          },
+          th({ children }) {
+            return (
+              <th
                 style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: "0.75rem",
-                  fontFamily: "var(--font-mono), monospace",
+                  padding: "8px 12px",
+                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--bg-elev-2)",
+                  color: "var(--text)",
+                  textAlign: "left",
+                  fontWeight: 700,
                 }}
               >
                 {children}
-              </table>
-            </div>
-          );
-        },
-        th({ children }) {
-          return (
-            <th
-              style={{
-                padding: "8px 12px",
-                border: "1px solid var(--border)",
-                backgroundColor: "var(--bg-elev-2)",
-                color: "var(--text)",
-                textAlign: "left",
-                fontWeight: 700,
-              }}
-            >
-              {children}
-            </th>
-          );
-        },
-        td({ children }) {
-          return (
-            <td
-              style={{
-                padding: "8px 12px",
-                border: "1px solid var(--border)",
-                color: "var(--text)",
-              }}
-            >
-              {children}
-            </td>
-          );
-        },
-        /* Code */
-        pre({ children }) {
-          return (
-            <pre
-              style={{
-                backgroundColor: "var(--bg-elev)",
-                padding: "12px 16px",
-                borderRadius: "4px",
-                overflowX: "auto",
-                marginBottom: "12px",
-                fontFamily: "var(--font-mono), monospace",
-                fontSize: "0.875rem",
-                color: "var(--text)",
-              }}
-            >
-              {children}
-            </pre>
-          );
-        },
-        code({ children, className }) {
-          /* Inside a <pre> block className will be "language-*" */
-          const isBlock = Boolean(className);
-          if (isBlock) {
+              </th>
+            );
+          },
+          td({ children }) {
+            return (
+              <td
+                style={{
+                  padding: "8px 12px",
+                  border: "1px solid var(--border)",
+                  color: "var(--text)",
+                }}
+              >
+                {children}
+              </td>
+            );
+          },
+          pre({ children }) {
+            return (
+              <pre
+                style={{
+                  backgroundColor: "var(--bg-elev)",
+                  padding: "12px 16px",
+                  borderRadius: "4px",
+                  overflowX: "auto",
+                  marginBottom: "12px",
+                  fontFamily: "var(--font-mono), monospace",
+                  fontSize: "0.875rem",
+                  color: "var(--text)",
+                }}
+              >
+                {children}
+              </pre>
+            );
+          },
+          code({ children, className }) {
+            const isBlock = Boolean(className);
+            if (isBlock) {
+              return (
+                <code
+                  className={className}
+                  style={{ fontFamily: "var(--font-mono), monospace", color: "var(--text)" }}
+                >
+                  {children}
+                </code>
+              );
+            }
             return (
               <code
-                className={className}
-                style={{ fontFamily: "var(--font-mono), monospace", color: "var(--text)" }}
+                style={{
+                  backgroundColor: "var(--bg-elev-2)",
+                  borderRadius: "3px",
+                  padding: "2px 6px",
+                  fontFamily: "var(--font-mono), monospace",
+                  fontSize: "0.875rem",
+                  color: "var(--text)",
+                }}
               >
                 {children}
               </code>
             );
-          }
-          return (
-            <code
-              style={{
-                backgroundColor: "var(--bg-elev-2)",
-                borderRadius: "3px",
-                padding: "2px 6px",
-                fontFamily: "var(--font-mono), monospace",
-                fontSize: "0.875rem",
-                color: "var(--text)",
-              }}
-            >
-              {children}
-            </code>
-          );
-        },
-        /* Links */
-        a({ href, children }) {
-          return (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "var(--accent)", textDecoration: "underline" }}
-            >
-              {children}
-            </a>
-          );
-        },
-        /* Lists */
-        ul({ children }) {
-          return (
-            <ul style={{ listStyleType: "disc", paddingLeft: "24px", marginBottom: "12px" }}>
-              {children}
-            </ul>
-          );
-        },
-        ol({ children }) {
-          return (
-            <ol style={{ listStyleType: "decimal", paddingLeft: "24px", marginBottom: "12px" }}>
-              {children}
-            </ol>
-          );
-        },
-        li({ children }) {
-          return <li style={{ marginBottom: "4px" }}>{children}</li>;
-        },
-        /* Typography */
-        strong({ children }) {
-          return <strong style={{ fontWeight: 700, color: "var(--text)" }}>{children}</strong>;
-        },
-        h1({ children }) {
-          return (
-            <h1
-              style={{
-                fontWeight: 700,
-                fontSize: "1.125rem",
-                color: "var(--text)",
-                marginTop: "16px",
-                marginBottom: "8px",
-              }}
-            >
-              {children}
-            </h1>
-          );
-        },
-        h2({ children }) {
-          return (
-            <h2
-              style={{
-                fontWeight: 700,
-                fontSize: "1rem",
-                color: "var(--text)",
-                marginTop: "12px",
-                marginBottom: "8px",
-              }}
-            >
-              {children}
-            </h2>
-          );
-        },
-        h3({ children }) {
-          return (
-            <h3
-              style={{
-                fontWeight: 600,
-                fontSize: "0.875rem",
-                color: "var(--text)",
-                marginTop: "10px",
-                marginBottom: "6px",
-              }}
-            >
-              {children}
-            </h3>
-          );
-        },
-      }}
-    >
-      {text}
-    </ReactMarkdown>
-  );
-}
-
-function ThinkingIndicator() {
-  return (
-    <div className="flex justify-start">
-      <div className="border-border bg-card flex items-center gap-2 rounded-2xl border px-4 py-3">
-        <div className="flex gap-1">
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className="bg-iris-primary h-1.5 w-1.5 animate-bounce rounded-full"
-              style={{ animationDelay: `${i * 120}ms` }}
-            />
-          ))}
-        </div>
-        <span className="text-muted-foreground text-xs">Iris is thinking…</span>
-      </div>
-    </div>
+          },
+          a({ href, children }) {
+            return (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "var(--accent)", textDecoration: "underline" }}
+              >
+                {children}
+              </a>
+            );
+          },
+          ul({ children }) {
+            return (
+              <ul style={{ listStyleType: "disc", paddingLeft: "24px", marginBottom: "12px" }}>
+                {children}
+              </ul>
+            );
+          },
+          ol({ children }) {
+            return (
+              <ol style={{ listStyleType: "decimal", paddingLeft: "24px", marginBottom: "12px" }}>
+                {children}
+              </ol>
+            );
+          },
+          li({ children }) {
+            return <li style={{ marginBottom: "4px" }}>{children}</li>;
+          },
+          strong({ children }) {
+            return <strong style={{ fontWeight: 700, color: "var(--text)" }}>{children}</strong>;
+          },
+          h1({ children }) {
+            return (
+              <h1
+                style={{
+                  fontWeight: 700,
+                  fontSize: "1.125rem",
+                  color: "var(--text)",
+                  marginTop: "16px",
+                  marginBottom: "8px",
+                }}
+              >
+                {children}
+              </h1>
+            );
+          },
+          h2({ children }) {
+            return (
+              <h2
+                style={{
+                  fontWeight: 700,
+                  fontSize: "1rem",
+                  color: "var(--text)",
+                  marginTop: "12px",
+                  marginBottom: "8px",
+                }}
+              >
+                {children}
+              </h2>
+            );
+          },
+          h3({ children }) {
+            return (
+              <h3
+                style={{
+                  fontWeight: 600,
+                  fontSize: "0.875rem",
+                  color: "var(--text)",
+                  marginTop: "10px",
+                  marginBottom: "6px",
+                }}
+              >
+                {children}
+              </h3>
+            );
+          },
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    </span>
   );
 }

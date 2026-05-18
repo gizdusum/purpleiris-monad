@@ -5,12 +5,14 @@ import { getNetworkHealthTool } from "./get-network-health";
 import { findUnderdogsTool } from "./find-underdogs";
 import { simulateDelegationTool } from "./simulate-delegation";
 import { simulateDiversificationTool } from "./simulate-diversification";
+import { estimateStakeRewardTool } from "./estimate-stake-reward";
 import type {
   GetValidatorInput,
   ListValidatorsInput,
   FindUnderdogsInput,
   SimulateDelegationInput,
   SimulateDiversificationInput,
+  EstimateStakeRewardInput,
   ToolResult,
 } from "./types";
 
@@ -129,6 +131,23 @@ export function getDelegatorToolDefinitions(): Anthropic.Tool[] {
       // Prompt cache breakpoint: caches system prompt + all tool definitions
       cache_control: { type: "ephemeral" },
     },
+    {
+      name: "estimate_stake_reward",
+      description:
+        "Quick Class 3 estimate of staking rewards given stake amount, duration in days, and optional commission in basis points. Use when the user asks a general 'what will I earn' question WITHOUT specifying a validator. For validator-specific projections using historical block data, prefer simulate_delegation.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          stake_mon: { type: "number", description: "Amount of MON to stake" },
+          days: { type: "number", description: "Duration in days" },
+          commission_bps: {
+            type: "number",
+            description: "Commission rate in basis points (default: 500 = 5%)",
+          },
+        },
+        required: ["stake_mon", "days"],
+      },
+    },
   ];
 }
 
@@ -154,6 +173,9 @@ export async function executeTool(name: string, input: unknown): Promise<string>
       break;
     case "simulate_diversification":
       result = await simulateDiversificationTool(input as SimulateDiversificationInput);
+      break;
+    case "estimate_stake_reward":
+      result = await estimateStakeRewardTool((input as EstimateStakeRewardInput) ?? {});
       break;
     default:
       result = {

@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
 import { DELEGATOR_SYSTEM_PROMPT } from "./prompts/delegator";
+import { OPERATOR_SYSTEM_PROMPT } from "./prompts/operator";
 import { getDelegatorToolDefinitions, executeTool } from "./tools/index";
 import { checkCitations, ensureReportLink } from "./guard";
 
@@ -140,4 +141,235 @@ export async function runDelegatorIris(messages: IrisMessage[]): Promise<IrisRes
     guard_passed: guardPassed,
     guard_violations: guardViolations,
   };
+}
+
+export async function runOperatorIris(messages: IrisMessage[]): Promise<IrisResponse> {
+  const client = getClient();
+  const tools = getDelegatorToolDefinitions();
+  const toolCallLog: IrisResponse["tool_calls"] = [];
+
+  let apiMessages: MessageParam[] = messages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  let finalText = "";
+  let rounds = 0;
+
+  while (rounds < MAX_TOOL_ROUNDS) {
+    rounds++;
+
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 4096,
+      system: [
+        {
+          type: "text",
+          text: OPERATOR_SYSTEM_PROMPT,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
+      tools,
+      messages: apiMessages,
+    });
+
+    if (response.stop_reason === "end_turn") {
+      const textBlock = response.content.find((b) => b.type === "text");
+      finalText = textBlock?.type === "text" ? textBlock.text : "";
+      break;
+    }
+
+    if (response.stop_reason === "tool_use") {
+      const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");
+      if (toolUseBlocks.length === 0) break;
+
+      const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
+        toolUseBlocks.map(async (block) => {
+          if (block.type !== "tool_use") throw new Error("unreachable");
+          const output = await executeTool(block.name, block.input);
+          toolCallLog.push({ tool: block.name, input: block.input, output: JSON.parse(output) });
+          return {
+            type: "tool_result" as const,
+            tool_use_id: block.id,
+            content: output,
+          };
+        })
+      );
+
+      apiMessages = [
+        ...apiMessages,
+        { role: "assistant", content: response.content },
+        { role: "user", content: toolResults },
+      ];
+      continue;
+    }
+
+    const textBlock = response.content.find((b) => b.type === "text");
+    finalText = textBlock?.type === "text" ? textBlock.text : "";
+    break;
+  }
+
+  finalText = ensureReportLink(finalText);
+
+  return {
+    text: finalText,
+    tool_calls: toolCallLog,
+    guard_passed: true,
+    guard_violations: [],
+  };
+}
+
+export type StreamDelegatorMeta = {
+  tool_calls: IrisResponse["tool_calls"];
+  guard_passed: boolean;
+  guard_violations: string[];
+};
+
+export async function streamDelegatorIris(
+  messages: IrisMessage[],
+  onDelta: (chunk: string) => void
+): Promise<StreamDelegatorMeta> {
+  const client = getClient();
+  const tools = getDelegatorToolDefinitions();
+  const toolCallLog: IrisResponse["tool_calls"] = [];
+
+  let apiMessages: MessageParam[] = messages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  let finalText = "";
+  let rounds = 0;
+  let madeToolCalls = false;
+
+  while (rounds < MAX_TOOL_ROUNDS) {
+    rounds++;
+
+    if (madeToolCalls) {
+      // Final answer turn — stream it
+      const s = client.messages.stream({
+        model: "claude-sonnet-4-6",
+        max_tokens: 4096,
+        system: [
+          { type: "text", text: DELEGATOR_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+        ],
+        tools,
+        messages: apiMessages,
+      });
+
+      for await (const event of s) {
+        if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+          onDelta(event.delta.text);
+          finalText += event.delta.text;
+        }
+      }
+
+      const fm = await s.finalMessage();
+
+      if (fm.stop_reason === "tool_use") {
+        // Unexpected extra tool call — execute and loop again
+        const toolUseBlocks = fm.content.filter((b) => b.type === "tool_use");
+        const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
+          toolUseBlocks.map(async (block) => {
+            if (block.type !== "tool_use") throw new Error("unreachable");
+            const output = await executeTool(block.name, block.input);
+            toolCallLog.push({ tool: block.name, input: block.input, output: JSON.parse(output) });
+            return { type: "tool_result" as const, tool_use_id: block.id, content: output };
+          })
+        );
+        apiMessages = [
+          ...apiMessages,
+          { role: "assistant", content: fm.content },
+          { role: "user", content: toolResults },
+        ];
+        finalText = "";
+        continue;
+      }
+
+      break;
+    }
+
+    // Non-streaming tool rounds
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 4096,
+      system: [
+        { type: "text", text: DELEGATOR_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+      ],
+      tools,
+      messages: apiMessages,
+    });
+
+    if (response.stop_reason === "end_turn") {
+      // No tool calls — emit text as single chunk
+      const textBlock = response.content.find((b) => b.type === "text");
+      finalText = textBlock?.type === "text" ? textBlock.text : "";
+      onDelta(finalText);
+      break;
+    }
+
+    if (response.stop_reason === "tool_use") {
+      const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");
+      if (toolUseBlocks.length === 0) break;
+
+      const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
+        toolUseBlocks.map(async (block) => {
+          if (block.type !== "tool_use") throw new Error("unreachable");
+          const output = await executeTool(block.name, block.input);
+          toolCallLog.push({ tool: block.name, input: block.input, output: JSON.parse(output) });
+          return { type: "tool_result" as const, tool_use_id: block.id, content: output };
+        })
+      );
+
+      apiMessages = [
+        ...apiMessages,
+        { role: "assistant", content: response.content },
+        { role: "user", content: toolResults },
+      ];
+      madeToolCalls = true;
+      continue;
+    }
+
+    const textBlock = response.content.find((b) => b.type === "text");
+    finalText = textBlock?.type === "text" ? textBlock.text : "";
+    onDelta(finalText);
+    break;
+  }
+
+  // Guardrail check
+  let guardPassed = false;
+  let guardViolations: string[] = [];
+
+  for (let attempt = 0; attempt < MAX_GUARD_RETRIES; attempt++) {
+    const guardResult = await checkCitations(finalText, client);
+    guardPassed = guardResult.passed;
+    guardViolations = guardResult.violations;
+    if (guardPassed) break;
+
+    const rePromptMessages: MessageParam[] = [
+      ...apiMessages,
+      { role: "assistant", content: finalText },
+      {
+        role: "user",
+        content: `Your response contained factual claims without data-class citations. Please revise, ensuring every number is accompanied by its source and class label (Class 1, 2, or 3). Missing citations were found in:\n\n${guardViolations.map((v) => `- ${v}`).join("\n")}`,
+      },
+    ];
+
+    const retryResponse = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 4096,
+      system: [
+        { type: "text", text: DELEGATOR_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+      ],
+      tools,
+      messages: rePromptMessages,
+    });
+
+    const textBlock = retryResponse.content.find((b) => b.type === "text");
+    finalText = textBlock?.type === "text" ? textBlock.text : finalText;
+  }
+
+  finalText = ensureReportLink(finalText);
+
+  return { tool_calls: toolCallLog, guard_passed: guardPassed, guard_violations: guardViolations };
 }

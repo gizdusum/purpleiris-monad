@@ -48,3 +48,9 @@ export type SimulateDelegationInput = {
 export type SimulateDiversificationInput = {
   allocations: { validator_id: string; stake_mon: number }[];
 };
+
+export type EstimateStakeRewardInput = {
+  stake_mon: number;
+  days: number;
+  commission_bps?: number;
+};
