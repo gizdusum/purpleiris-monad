@@ -85,7 +85,7 @@ pnpm lint
 
 Iris labels every factual claim with its class:
 
-- **Class 1 — On-chain** (deterministic, staking precompile / Watchtower)
+- **Class 1 — On-chain** (deterministic, staking precompile)
 - **Class 2 — Derived** (formula-dependent; all formulas published at `/methodology` with version pinning)
 - **Class 3 — Estimated** (uncertainty-aware; always reported as a range with confidence interval)
 

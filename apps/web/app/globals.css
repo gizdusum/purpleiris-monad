@@ -9,7 +9,7 @@
     --iris-navy: 263 60% 15%; /* #1b0e3f */
     --iris-lavender: 263 55% 78%; /* #b8a5e8 */
 
-    /* shadcn/ui semantic tokens — light mode (cream + purple) */
+    /* shadcn/ui semantic tokens */
     --background: 263 20% 98%;
     --foreground: 263 30% 12%;
     --card: 0 0% 100%;
@@ -30,10 +30,21 @@
     --input: 263 20% 90%;
     --ring: 263 41% 52%;
     --radius: 0.625rem;
+
+    /* v1.0 Iris design tokens */
+    --bg: #0a0a1a;
+    --bg-elev: #11112a;
+    --iris-border: #1f1f3a;
+    --text: #e8e8f5;
+    --text-dim: #8888a8;
+    --iris-accent: #7c5cff;
+    --iris-accent-hover: #6952ff;
+    --cat-casual: #a78bfa;
+    --cat-operator: #5b4cc4;
+    --cat-forecast: #3b3b6b;
   }
 
   .dark {
-    /* dark mode — deep space purple */
     --background: 263 35% 6%;
     --foreground: 263 15% 94%;
     --card: 263 32% 9%;
@@ -60,7 +71,10 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono), ui-monospace, "Courier New", monospace;
+    @apply antialiased;
     font-feature-settings:
       "rlig" 1,
       "calt" 1;
@@ -69,6 +83,18 @@
   h1,
   h2,
   h3 {
-    font-family: var(--font-fraunces), Georgia, serif;
+    font-family: var(--font-mono), ui-monospace, "Courier New", monospace;
   }
+}
+
+.iris-nav-link {
+  color: var(--text-dim);
+  transition: color 150ms ease;
+}
+.iris-nav-link:hover {
+  color: var(--iris-accent);
+}
+
+.iris-cta:not(:disabled):hover {
+  background-color: var(--cta-hover-bg);
 }
