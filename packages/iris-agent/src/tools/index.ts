@@ -6,6 +6,8 @@ import { findUnderdogsTool } from "./find-underdogs";
 import { simulateDelegationTool } from "./simulate-delegation";
 import { simulateDiversificationTool } from "./simulate-diversification";
 import { estimateStakeRewardTool } from "./estimate-stake-reward";
+import { getRecentAssignmentsTool } from "./get-recent-assignments";
+import { getNetworkOverviewTool } from "./get-network-overview";
 import type {
   GetValidatorInput,
   ListValidatorsInput,
@@ -13,6 +15,7 @@ import type {
   SimulateDelegationInput,
   SimulateDiversificationInput,
   EstimateStakeRewardInput,
+  GetRecentAssignmentsInput,
   ToolResult,
 } from "./types";
 
@@ -148,6 +151,35 @@ export function getDelegatorToolDefinitions(): Anthropic.Tool[] {
         required: ["stake_mon", "days"],
       },
     },
+    {
+      name: "get_recent_assignments",
+      description:
+        "Fetch epoch-level block assignment history for a specific validator, newest first. Returns per-epoch blocks proposed, missed, and success rate. Use for questions about a validator's recent activity, consistency over time, or to identify degraded epochs.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          validator_id: {
+            type: "string",
+            description: "Validator address (0x...) or slug (e.g. 'chorus-one')",
+          },
+          limit: {
+            type: "number",
+            description: "Number of epochs to return (default: 20, max: 100)",
+          },
+        },
+        required: ["validator_id"],
+      },
+    },
+    {
+      name: "get_network_overview",
+      description:
+        "Get a comprehensive network-wide summary: total and active validator counts, current epoch, live network uptime from Watchtower, 30-day aggregated success rate, alert distribution, and top validators by uptime. Use for broad network health questions and current state snapshots.",
+      input_schema: {
+        type: "object" as const,
+        properties: {},
+        required: [],
+      },
+    },
   ];
 }
 
@@ -178,6 +210,12 @@ export async function executeTool(name: string, input: unknown): Promise<string>
         break;
       case "estimate_stake_reward":
         result = await estimateStakeRewardTool((input as EstimateStakeRewardInput) ?? {});
+        break;
+      case "get_recent_assignments":
+        result = await getRecentAssignmentsTool(input as GetRecentAssignmentsInput);
+        break;
+      case "get_network_overview":
+        result = await getNetworkOverviewTool();
         break;
       default:
         result = {

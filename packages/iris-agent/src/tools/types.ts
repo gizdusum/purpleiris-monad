@@ -54,3 +54,10 @@ export type EstimateStakeRewardInput = {
   days: number;
   commission_bps?: number;
 };
+
+export type GetRecentAssignmentsInput = {
+  validator_id: string;
+  limit?: number;
+};
+
+export type GetNetworkOverviewInput = Record<string, never>;
