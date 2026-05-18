@@ -4,7 +4,9 @@ import { useState, useRef, useEffect, type FormEvent } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import IrisBackdrop from "@/components/IrisBackdrop";
+import { applyIrisMarkers, parseSuggestions, stripSuggestionsForStream } from "@/lib/iris-markdown";
 
 type Role = "user" | "assistant";
 
@@ -15,6 +17,7 @@ type Message = {
   streaming?: boolean;
   guardPassed?: boolean;
   toolCount?: number;
+  suggestions?: string[];
 };
 
 const SUGGESTED = [
@@ -112,16 +115,18 @@ export function ChatClient() {
             );
           } else if (event.type === "done") {
             setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId
-                  ? {
-                      ...m,
-                      streaming: false,
-                      toolCount: event.tool_calls ?? 0,
-                      guardPassed: event.guard_passed ?? true,
-                    }
-                  : m
-              )
+              prev.map((m) => {
+                if (m.id !== assistantId) return m;
+                const { displayContent, suggestions } = parseSuggestions(m.content);
+                return {
+                  ...m,
+                  content: displayContent,
+                  streaming: false,
+                  toolCount: event.tool_calls ?? 0,
+                  guardPassed: event.guard_passed ?? true,
+                  suggestions,
+                };
+              })
             );
             setLoading(false);
           } else if (event.type === "error") {
@@ -208,7 +213,7 @@ export function ChatClient() {
         ) : (
           <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
             {messages.map((m) => (
-              <MessageBubble key={m.id} message={m} />
+              <MessageBubble key={m.id} message={m} onSuggest={(s) => void send(s)} />
             ))}
             {error && (
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -259,10 +264,16 @@ export function ChatClient() {
   );
 }
 
-function MessageBubble({ message }: { message: Message }) {
+function MessageBubble({
+  message,
+  onSuggest,
+}: {
+  message: Message;
+  onSuggest: (s: string) => void;
+}) {
   const isUser = message.role === "user";
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+    <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
       <div
         className={[
           "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
@@ -287,12 +298,38 @@ function MessageBubble({ message }: { message: Message }) {
           </div>
         )}
       </div>
+      {!isUser && !message.streaming && message.suggestions && message.suggestions.length > 0 && (
+        <div className="mt-2 flex max-w-[85%] flex-wrap gap-2">
+          {message.suggestions.map((s) => (
+            <button
+              key={s}
+              onClick={() => onSuggest(s)}
+              className="border-border bg-card hover:border-iris-primary text-muted-foreground hover:text-foreground rounded-xl border px-3 py-1.5 text-left text-xs transition-colors"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
+function extractCodeText(children: React.ReactNode): string {
+  if (typeof children === "string") return children;
+  if (Array.isArray(children)) {
+    return children.map((c) => (typeof c === "string" ? c : "")).join("");
+  }
+  return String(children ?? "");
+}
+
 function IrisMarkdown({ text, streaming }: { text: string; streaming?: boolean }) {
-  if (!text && streaming) {
+  // During streaming, hide content from the suggestions sentinel onwards
+  const displayText = streaming ? stripSuggestionsForStream(text) : text;
+  // Apply markers to prose (non-code) content; code blocks handled per component
+  const processed = applyIrisMarkers(displayText);
+
+  if (!processed && streaming) {
     return <span className="iris-cursor" />;
   }
 
@@ -300,6 +337,7 @@ function IrisMarkdown({ text, streaming }: { text: string; streaming?: boolean }
     <span className={streaming ? "iris-cursor" : undefined}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
         components={{
           p({ children }) {
             return <p style={{ marginBottom: "12px", lineHeight: "1.7" }}>{children}</p>;
@@ -361,6 +399,7 @@ function IrisMarkdown({ text, streaming }: { text: string; streaming?: boolean }
                   fontFamily: "var(--font-mono), monospace",
                   fontSize: "0.875rem",
                   color: "var(--text)",
+                  whiteSpace: "pre",
                 }}
               >
                 {children}
@@ -369,14 +408,15 @@ function IrisMarkdown({ text, streaming }: { text: string; streaming?: boolean }
           },
           code({ children, className }) {
             const isBlock = Boolean(className);
+            const raw = extractCodeText(children);
+            const html = applyIrisMarkers(raw);
             if (isBlock) {
               return (
                 <code
                   className={className}
                   style={{ fontFamily: "var(--font-mono), monospace", color: "var(--text)" }}
-                >
-                  {children}
-                </code>
+                  dangerouslySetInnerHTML={{ __html: html }}
+                />
               );
             }
             return (
@@ -389,9 +429,8 @@ function IrisMarkdown({ text, streaming }: { text: string; streaming?: boolean }
                   fontSize: "0.875rem",
                   color: "var(--text)",
                 }}
-              >
-                {children}
-              </code>
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
             );
           },
           a({ href, children }) {
@@ -473,7 +512,7 @@ function IrisMarkdown({ text, streaming }: { text: string; streaming?: boolean }
           },
         }}
       >
-        {text}
+        {processed}
       </ReactMarkdown>
     </span>
   );

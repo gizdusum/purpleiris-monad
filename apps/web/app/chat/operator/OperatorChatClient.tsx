@@ -4,8 +4,10 @@ import { useState, useRef, useEffect, type FormEvent } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import type { IrisResponse } from "@purpleiris/iris-agent";
 import IrisBackdrop from "@/components/IrisBackdrop";
+import { applyIrisMarkers, parseSuggestions } from "@/lib/iris-markdown";
 
 type Role = "user" | "assistant";
 
@@ -14,6 +16,7 @@ type Message = {
   role: Role;
   content: string;
   toolCount?: number;
+  suggestions?: string[];
 };
 
 const SUGGESTED = [
@@ -70,11 +73,13 @@ export function OperatorChatClient() {
       }
 
       const data = (await res.json()) as IrisResponse;
+      const { displayContent, suggestions } = parseSuggestions(data.text);
       const assistantMsg: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: data.text,
+        content: displayContent,
         toolCount: data.tool_calls.length,
+        suggestions,
       };
       setMessages([...history, assistantMsg]);
     } catch (err) {
@@ -151,7 +156,7 @@ export function OperatorChatClient() {
         ) : (
           <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
             {messages.map((m) => (
-              <OperatorMessageBubble key={m.id} message={m} />
+              <OperatorMessageBubble key={m.id} message={m} onSuggest={(s) => void send(s)} />
             ))}
             {loading && <ThinkingIndicator />}
             {error && (
@@ -213,10 +218,16 @@ export function OperatorChatClient() {
   );
 }
 
-function OperatorMessageBubble({ message }: { message: Message }) {
+function OperatorMessageBubble({
+  message,
+  onSuggest,
+}: {
+  message: Message;
+  onSuggest: (s: string) => void;
+}) {
   const isUser = message.role === "user";
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+    <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
       <div
         className={[
           "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
@@ -237,14 +248,38 @@ function OperatorMessageBubble({ message }: { message: Message }) {
           </div>
         )}
       </div>
+      {!isUser && message.suggestions && message.suggestions.length > 0 && (
+        <div className="mt-2 flex max-w-[85%] flex-wrap gap-2">
+          {message.suggestions.map((s) => (
+            <button
+              key={s}
+              onClick={() => onSuggest(s)}
+              className="border-border bg-card hover:border-iris-primary text-muted-foreground hover:text-foreground rounded-xl border px-3 py-1.5 text-left text-xs transition-colors"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
+function extractCodeText(children: React.ReactNode): string {
+  if (typeof children === "string") return children;
+  if (Array.isArray(children)) {
+    return children.map((c) => (typeof c === "string" ? c : "")).join("");
+  }
+  return String(children ?? "");
+}
+
 function IrisMarkdown({ text }: { text: string }) {
+  const processed = applyIrisMarkers(text);
+
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeRaw]}
       components={{
         p({ children }) {
           return <p style={{ marginBottom: "12px", lineHeight: "1.7" }}>{children}</p>;
@@ -306,6 +341,7 @@ function IrisMarkdown({ text }: { text: string }) {
                 fontFamily: "var(--font-mono), monospace",
                 fontSize: "0.875rem",
                 color: "var(--text)",
+                whiteSpace: "pre",
               }}
             >
               {children}
@@ -314,14 +350,15 @@ function IrisMarkdown({ text }: { text: string }) {
         },
         code({ children, className }) {
           const isBlock = Boolean(className);
+          const raw = extractCodeText(children);
+          const html = applyIrisMarkers(raw);
           if (isBlock) {
             return (
               <code
                 className={className}
                 style={{ fontFamily: "var(--font-mono), monospace", color: "var(--text)" }}
-              >
-                {children}
-              </code>
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
             );
           }
           return (
@@ -334,9 +371,8 @@ function IrisMarkdown({ text }: { text: string }) {
                 fontSize: "0.875rem",
                 color: "var(--text)",
               }}
-            >
-              {children}
-            </code>
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
           );
         },
         a({ href, children }) {
@@ -418,7 +454,7 @@ function IrisMarkdown({ text }: { text: string }) {
         },
       }}
     >
-      {text}
+      {processed}
     </ReactMarkdown>
   );
 }
