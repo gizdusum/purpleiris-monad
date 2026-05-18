@@ -1,4 +1,5 @@
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 
@@ -6,14 +7,18 @@ export const metadata: Metadata = {
   title: "PurpleIris — Monad Validator Intelligence",
 };
 
+const IrisBackground = dynamic(() => import("@/components/IrisBackground"), {
+  ssr: false,
+  loading: () => null,
+});
+
+/* ─── Card data ─── */
 type Bar = { label: string; value: number | null };
 type Spec = { key: string; value: string };
-
 type CardDef = {
   id: string;
   category: string;
   catColor: string;
-  hoverBg: string;
   name: string;
   bars: Bar[];
   specs: Spec[];
@@ -28,11 +33,10 @@ const cards: CardDef[] = [
     id: "delegator",
     category: "CASUAL",
     catColor: "var(--cat-casual)",
-    hoverBg: "rgba(167, 139, 250, 0.1)",
     name: "DELEGATOR",
     bars: [
-      { label: "READINESS", value: 8 },
-      { label: "DEPTH", value: 6 },
+      { label: "READINESS", value: 9 },
+      { label: "DEPTH", value: 7 },
       { label: "LATENCY", value: 9 },
     ],
     specs: [
@@ -40,7 +44,7 @@ const cards: CardDef[] = [
       { key: "OUTPUT:", value: "validator lists" },
       { key: "BOUNDARY:", value: "non-advisory" },
     ],
-    copy: "Ask anything about Monad staking. Get validator data, not advice.",
+    copy: "Ask anything about Monad staking. Get validator data, never advice.",
     cta: "ENTER →",
     href: "/chat/delegator",
     disabled: false,
@@ -49,28 +53,26 @@ const cards: CardDef[] = [
     id: "operator",
     category: "OPERATOR",
     catColor: "var(--cat-operator)",
-    hoverBg: "rgba(91, 76, 196, 0.1)",
     name: "OPERATOR",
     bars: [
-      { label: "READINESS", value: 10 },
+      { label: "READINESS", value: 6 },
       { label: "DEPTH", value: 10 },
       { label: "LATENCY", value: 8 },
     ],
     specs: [
       { key: "MODE:", value: "technical" },
       { key: "OUTPUT:", value: "metrics + commands" },
-      { key: "ACCESS:", value: "read-only" },
+      { key: "ACCESS:", value: "read-only (v1.0)" },
     ],
     copy: "Run validator diagnostics. Inspect performance, commission, uptime.",
     cta: "ENTER →",
-    href: "#",
+    href: "/chat/operator",
     disabled: false,
   },
   {
     id: "stake-sim",
     category: "FORECAST",
     catColor: "var(--cat-forecast)",
-    hoverBg: "rgba(59, 59, 107, 0.1)",
     name: "STAKE SIM",
     bars: [
       { label: "READINESS", value: 0 },
@@ -80,158 +82,284 @@ const cards: CardDef[] = [
     specs: [
       { key: "MODE:", value: "forecast" },
       { key: "STATUS:", value: "coming soon" },
-      { key: "RELEASE:", value: "v1.x" },
+      { key: "RELEASE:", value: "v2.0 Pythia" },
     ],
-    copy: "Project your rewards across scenarios. Not yet live.",
+    copy: "Project your rewards across scenarios. Ships in v2.0 with audited vault contracts.",
     cta: "COMING SOON",
     href: "#",
     disabled: true,
   },
 ];
 
+/* ─── Page ─── */
 export default function HomePage() {
   return (
-    <main className="min-h-screen">
-      {/* Header */}
-      <header
-        className="flex items-center justify-between px-6 py-4"
-        style={{ borderBottom: "1px solid var(--iris-border)" }}
-      >
-        <span className="text-sm tracking-wider uppercase">
-          <span style={{ color: "var(--iris-accent)" }}>|</span>
-          <span style={{ color: "var(--text)" }}>PURPLEIRIS</span>
-        </span>
-        <nav className="flex items-center gap-1 text-xs tracking-wider uppercase">
-          <Link href="/methodology" className="iris-nav-link">
-            DOCS
-          </Link>
-          <span className="mx-1" style={{ color: "var(--text-dim)" }}>
-            ·
-          </span>
-          <a
-            href="https://github.com/gizdusum/purpleiris"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="iris-nav-link"
-          >
-            GITHUB
-          </a>
-          <span className="mx-1" style={{ color: "var(--text-dim)" }}>
-            ·
-          </span>
-          <Link href="/api/health" className="iris-nav-link">
-            STATUS
-          </Link>
-        </nav>
-      </header>
+    <>
+      <IrisBackground />
 
-      {/* Hero stat strip */}
+      {/* Vignette — darkens edges so 3D doesn't fight text */}
       <div
-        className="flex flex-wrap items-center gap-x-3 gap-y-1 px-6 py-5 text-xs tracking-wider uppercase"
-        style={{ borderBottom: "1px solid var(--iris-border)", color: "var(--text-dim)" }}
-      >
-        <span>3 MODES</span>
-        <span>·</span>
-        <span>202 VALIDATORS</span>
-        <span>·</span>
-        <span>MONAD MAINNET NETWORK</span>
-        <span>·</span>
-        <span>CLAUDE SONNET 4.6 POWERED BY</span>
-        <span>·</span>
-        <span>CLASS 1/2/3 DATA MODEL</span>
-      </div>
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 0,
+          pointerEvents: "none",
+          background:
+            "radial-gradient(ellipse at 50% 40%, transparent 25%, rgba(7,6,26,0.75) 100%)",
+        }}
+      />
 
-      {/* Card grid */}
-      <div className="grid grid-cols-1 gap-4 px-6 py-8 md:grid-cols-3 md:gap-6">
-        {cards.map((card) => (
-          <ModeCard key={card.id} card={card} />
-        ))}
-      </div>
-
-      {/* Footer */}
-      <footer className="px-6 py-6" style={{ borderTop: "1px solid var(--iris-border)" }}>
-        <div className="flex flex-wrap items-center justify-between gap-4 text-xs tracking-wider uppercase">
-          <p style={{ color: "var(--text-dim)" }}>
-            ALL RESPONSES CARRY DATA-CLASS LABELS ·{" "}
-            <Link href="/methodology" style={{ color: "var(--iris-accent)" }}>
-              READ THE METHODOLOGY
-            </Link>
-          </p>
-          <span
-            className="rounded-sm"
-            style={{
-              border: "1px solid var(--iris-accent)",
-              color: "var(--iris-accent)",
-              padding: "4px 10px",
-            }}
-          >
-            v1.0 · Iris
+      {/* Content layer */}
+      <div style={{ position: "relative", zIndex: 1 }}>
+        {/* ── Header ── */}
+        <header
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 50,
+            borderBottom: "1px solid color-mix(in srgb, var(--border) 30%, transparent)",
+            padding: "14px 24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span className="text-sm tracking-wider uppercase" style={{ fontWeight: 500 }}>
+            <span style={{ color: "var(--accent)" }}>|</span>
+            <span style={{ color: "var(--text)" }}>PURPLEIRIS</span>
           </span>
-        </div>
-      </footer>
-    </main>
+          <nav className="flex items-center gap-1 text-xs tracking-wider uppercase">
+            <Link href="/methodology" className="iris-nav-link">
+              DOCS
+            </Link>
+            <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
+            <a
+              href="https://github.com/gizdusum/purpleiris"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="iris-nav-link"
+            >
+              GITHUB
+            </a>
+            <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
+            <Link href="/api/health" className="iris-nav-link">
+              STATUS
+            </Link>
+          </nav>
+        </header>
+
+        {/* ── Hero ── */}
+        <section
+          style={{
+            minHeight: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingTop: "56px",
+            paddingLeft: "24px",
+            paddingRight: "24px",
+          }}
+        >
+          <div className="text-center" style={{ maxWidth: "720px", width: "100%" }}>
+            {/* Eyebrow */}
+            <p
+              className="text-xs tracking-[0.3em] uppercase"
+              style={{ color: "var(--accent)", marginBottom: "16px", fontWeight: 500 }}
+            >
+              MONAD VALIDATOR INTELLIGENCE
+            </p>
+
+            {/* Headline */}
+            <h1
+              className="font-bold uppercase"
+              style={{
+                color: "var(--text)",
+                fontSize: "clamp(2rem, 6vw, 4rem)",
+                letterSpacing: "-0.02em",
+                lineHeight: 1.1,
+                marginBottom: "20px",
+              }}
+            >
+              THE OPEN EYE ON MONAD
+            </h1>
+
+            {/* Subhead */}
+            <p
+              className="text-base leading-relaxed"
+              style={{ color: "var(--text-dim)", marginBottom: "0" }}
+            >
+              Iris reads on-chain data so you don&apos;t have to.
+              <br />
+              Every number cited. Every claim classified.
+            </p>
+
+            {/* Stat strip */}
+            <div
+              className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs tracking-wider uppercase"
+              style={{
+                borderTop: "1px solid color-mix(in srgb, var(--border) 50%, transparent)",
+                borderBottom: "1px solid color-mix(in srgb, var(--border) 50%, transparent)",
+                padding: "12px 0",
+                marginTop: "32px",
+                color: "var(--text-dim)",
+              }}
+            >
+              <span>3 MODES</span>
+              <span>·</span>
+              <span>202 VALIDATORS</span>
+              <span>·</span>
+              <span>MONAD MAINNET NETWORK</span>
+              <span>·</span>
+              <span>CLAUDE SONNET 4.6 POWERED BY</span>
+              <span>·</span>
+              <span>CLASS 1/2/3 DATA MODEL</span>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Card grid ── */}
+        <section
+          style={{
+            maxWidth: "1152px",
+            margin: "0 auto",
+            padding: "0 24px",
+            marginTop: "80px",
+          }}
+        >
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            {cards.map((card) => (
+              <ModeCard key={card.id} card={card} />
+            ))}
+          </div>
+        </section>
+
+        {/* ── Footer ── */}
+        <footer
+          style={{
+            marginTop: "80px",
+            padding: "32px 24px",
+            borderTop: "1px solid var(--border)",
+          }}
+        >
+          <div className="text-xs">
+            {/* Row 1 — data-class attribution */}
+            <p className="text-center" style={{ color: "var(--text-dim)" }}>
+              All Iris responses carry data-class labels:{" "}
+              <span style={{ color: "var(--text)" }}>CLASS 1</span> on-chain{" · "}
+              <span style={{ color: "var(--text)" }}>CLASS 2</span> derived{" · "}
+              <span style={{ color: "var(--text)" }}>CLASS 3</span> estimated.{" "}
+              <Link
+                href="/methodology"
+                className="iris-nav-link"
+                style={{ textDecoration: "underline" }}
+              >
+                Read the methodology →
+              </Link>
+            </p>
+
+            {/* Row 2 — copyright + version badge */}
+            <div
+              className="flex flex-wrap items-center justify-between gap-4 tracking-wider uppercase"
+              style={{ marginTop: "20px" }}
+            >
+              <span style={{ color: "var(--text-mute)" }}>© 2026 PurpleIris</span>
+              <span
+                className="rounded-sm"
+                style={{
+                  border: "1px solid var(--accent)",
+                  color: "var(--accent)",
+                  padding: "4px 10px",
+                }}
+              >
+                v1.0 · Iris
+              </span>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </>
   );
 }
 
+/* ─── Mode card component ─── */
 function ModeCard({ card }: { card: CardDef }) {
-  const { category, catColor, hoverBg, name, bars, specs, copy, cta, href, disabled } = card;
-
-  const cardStyle: CSSProperties = {
-    backgroundColor: "var(--bg-elev)",
-    borderTop: `3px solid ${catColor}`,
-    borderRight: "1px solid var(--iris-border)",
-    borderBottom: "1px solid var(--iris-border)",
-    borderLeft: "1px solid var(--iris-border)",
-  };
-
-  const ctaStyle = {
-    border: `1px solid ${catColor}`,
-    color: disabled ? "var(--text-dim)" : catColor,
-    backgroundColor: "transparent",
-    padding: "8px 16px",
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.5 : 1,
-    "--cta-hover-bg": hoverBg,
-  } as CSSProperties;
+  const { category, catColor, name, bars, specs, copy, cta, href, disabled } = card;
 
   const inner = (
-    <div style={cardStyle} className="flex h-full flex-col rounded-sm p-6 md:p-8">
+    <div
+      className="mode-card relative flex h-full flex-col rounded-md"
+      style={
+        {
+          borderTopColor: catColor,
+          "--cta-color": catColor,
+          padding: "28px",
+        } as CSSProperties
+      }
+    >
       {/* Category label */}
-      <p className="mb-3 text-xs tracking-wider uppercase" style={{ color: catColor }}>
+      <p
+        className="text-xs tracking-[0.25em] uppercase"
+        style={{ color: catColor, fontWeight: 600 }}
+      >
         {category}
       </p>
 
       {/* Card name */}
-      <h2 className="mb-4 text-3xl font-bold uppercase" style={{ color: "var(--text)" }}>
+      <h2
+        className="font-bold uppercase"
+        style={{
+          color: "var(--text)",
+          fontSize: "1.875rem",
+          letterSpacing: "-0.02em",
+          marginTop: "8px",
+        }}
+      >
         {name}
       </h2>
 
       {/* Separator */}
-      <div className="mb-4" style={{ borderTop: "1px solid var(--iris-border)" }} />
+      <div style={{ borderTop: "1px solid var(--border)", margin: "20px 0" }} />
 
       {/* Progress bars */}
-      <div className="mb-4 flex flex-col gap-2">
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
         {bars.map((bar) => (
           <div key={bar.label} className="flex items-center gap-3">
             <span
               className="text-xs tracking-wider uppercase"
-              style={{ color: "var(--text-dim)", minWidth: "80px" }}
+              style={{ color: "var(--text-mute)", minWidth: "90px" }}
             >
               {bar.label}
             </span>
             {bar.value === null ? (
-              <span className="text-xs" style={{ color: "var(--text-dim)" }}>
+              <span
+                className="text-xs"
+                style={{ color: "var(--text-mute)", flex: 1, maxWidth: "120px" }}
+              >
                 —
               </span>
             ) : (
-              <div className="flex h-2 w-24 overflow-hidden rounded-sm">
+              <div
+                className="rounded-sm"
+                style={{
+                  flex: 1,
+                  maxWidth: "120px",
+                  height: "8px",
+                  backgroundColor: "var(--border)",
+                  display: "flex",
+                  overflow: "hidden",
+                }}
+              >
                 <div
+                  className="rounded-sm"
                   style={{
                     width: `${(bar.value / 10) * 100}%`,
+                    height: "100%",
                     backgroundColor: catColor,
                   }}
                 />
-                <div style={{ flex: 1, backgroundColor: "var(--iris-border)" }} />
               </div>
             )}
           </div>
@@ -239,15 +367,15 @@ function ModeCard({ card }: { card: CardDef }) {
       </div>
 
       {/* Separator */}
-      <div className="mb-4" style={{ borderTop: "1px solid var(--iris-border)" }} />
+      <div style={{ borderTop: "1px solid var(--border)", margin: "20px 0" }} />
 
       {/* Spec lines */}
-      <div className="mb-4 flex flex-col gap-1.5">
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
         {specs.map((spec) => (
           <div key={spec.key} className="flex text-xs">
             <span
               className="tracking-wider uppercase"
-              style={{ color: "var(--text-dim)", minWidth: "90px" }}
+              style={{ color: "var(--text-mute)", minWidth: "90px" }}
             >
               {spec.key}
             </span>
@@ -257,15 +385,31 @@ function ModeCard({ card }: { card: CardDef }) {
       </div>
 
       {/* Marketing copy */}
-      <p className="mb-6 flex-1 text-sm leading-relaxed" style={{ color: "var(--text-dim)" }}>
+      <p
+        className="text-sm leading-relaxed"
+        style={{
+          color: "var(--text-dim)",
+          marginTop: "16px",
+          minHeight: "3rem",
+        }}
+      >
         {copy}
       </p>
 
       {/* CTA */}
       <button
         disabled={disabled}
-        style={ctaStyle}
-        className="iris-cta mt-auto self-start rounded-sm text-xs tracking-wider uppercase"
+        className="iris-cta w-full rounded-sm text-xs tracking-[0.25em] uppercase"
+        style={{
+          border: `1px solid ${catColor}`,
+          color: disabled ? "var(--text-mute)" : catColor,
+          backgroundColor: "transparent",
+          padding: "10px 20px",
+          cursor: disabled ? "not-allowed" : "pointer",
+          opacity: disabled ? 0.5 : 1,
+          marginTop: "20px",
+          transition: "background-color 150ms ease",
+        }}
       >
         {cta}
       </button>

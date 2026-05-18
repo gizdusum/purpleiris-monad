@@ -4,47 +4,12 @@
 
 @layer base {
   :root {
-    /* PurpleIris brand — hex anchors */
-    --iris-primary: 263 41% 52%; /* #6b4fbb */
-    --iris-navy: 263 60% 15%; /* #1b0e3f */
-    --iris-lavender: 263 55% 78%; /* #b8a5e8 */
+    /* PurpleIris HSL refs — used by iris-primary opacity utilities */
+    --iris-primary: 263 55% 62%;
+    --iris-navy: 263 60% 15%;
+    --iris-lavender: 263 55% 78%;
 
-    /* shadcn/ui semantic tokens */
-    --background: 263 20% 98%;
-    --foreground: 263 30% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 263 30% 12%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 263 30% 12%;
-    --primary: 263 41% 52%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 263 30% 92%;
-    --secondary-foreground: 263 41% 52%;
-    --muted: 263 20% 94%;
-    --muted-foreground: 263 15% 46%;
-    --accent: 263 38% 75%;
-    --accent-foreground: 263 40% 20%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 263 20% 86%;
-    --input: 263 20% 90%;
-    --ring: 263 41% 52%;
-    --radius: 0.625rem;
-
-    /* v1.0 Iris design tokens */
-    --bg: #0a0a1a;
-    --bg-elev: #11112a;
-    --iris-border: #1f1f3a;
-    --text: #e8e8f5;
-    --text-dim: #8888a8;
-    --iris-accent: #7c5cff;
-    --iris-accent-hover: #6952ff;
-    --cat-casual: #a78bfa;
-    --cat-operator: #5b4cc4;
-    --cat-forecast: #3b3b6b;
-  }
-
-  .dark {
+    /* shadcn semantic tokens — dark-only, HSL channels (no hsl() wrapper) */
     --background: 263 35% 6%;
     --foreground: 263 15% 94%;
     --card: 263 32% 9%;
@@ -57,13 +22,29 @@
     --secondary-foreground: 263 15% 94%;
     --muted: 263 28% 11%;
     --muted-foreground: 263 20% 52%;
-    --accent: 263 28% 17%;
     --accent-foreground: 263 15% 94%;
     --destructive: 0 62% 56%;
     --destructive-foreground: 0 0% 98%;
-    --border: 263 25% 20%;
     --input: 263 25% 20%;
     --ring: 263 55% 62%;
+    --radius: 0.5rem;
+
+    /* v1.0 Iris design tokens — hex (Tailwind config uses var(), not hsl(var())) */
+    --bg: #07061a;
+    --bg-elev: #0e0a26;
+    --bg-elev-2: #15103a;
+    --border: #2a1f5a;
+    --border-hover: #4a3aa0;
+    --text: #ece8ff;
+    --text-dim: #8a82c4;
+    --text-mute: #5a5388;
+    --accent: #7c5cff;
+    --accent-hover: #9b80ff;
+    --accent-deep: #5436d9;
+    --cat-casual: #c4b5ff;
+    --cat-operator: #7c5cff;
+    --cat-forecast: #4a3aa0;
+    --glow-accent: 0 0 40px rgba(124, 92, 255, 0.25);
   }
 
   * {
@@ -75,9 +56,6 @@
     color: var(--text);
     font-family: var(--font-mono), ui-monospace, "Courier New", monospace;
     @apply antialiased;
-    font-feature-settings:
-      "rlig" 1,
-      "calt" 1;
   }
 
   h1,
@@ -87,14 +65,40 @@
   }
 }
 
+/* ── Nav link hover ── */
 .iris-nav-link {
   color: var(--text-dim);
   transition: color 150ms ease;
 }
 .iris-nav-link:hover {
-  color: var(--iris-accent);
+  color: var(--accent);
 }
 
+/* ── Mode card ── */
+.mode-card {
+  background-color: var(--bg-elev);
+  border-top-width: 3px;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+  border-left-width: 1px;
+  border-style: solid;
+  border-right-color: var(--border);
+  border-bottom-color: var(--border);
+  border-left-color: var(--border);
+  transition:
+    background-color 200ms ease,
+    border-right-color 200ms ease,
+    border-bottom-color 200ms ease,
+    border-left-color 200ms ease;
+}
+.mode-card:hover {
+  background-color: var(--bg-elev-2);
+  border-right-color: var(--border-hover);
+  border-bottom-color: var(--border-hover);
+  border-left-color: var(--border-hover);
+}
+
+/* ── CTA button hover via CSS custom property ── */
 .iris-cta:not(:disabled):hover {
-  background-color: var(--cta-hover-bg);
+  background-color: color-mix(in srgb, var(--cta-color) 10%, transparent);
 }

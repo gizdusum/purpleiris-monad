@@ -16,7 +16,8 @@ const config: Config = {
           navy: "hsl(var(--iris-navy))",
           lavender: "hsl(var(--iris-lavender))",
         },
-        border: "hsl(var(--border))",
+        /* border and accent use var() directly because the CSS tokens are hex */
+        border: "var(--border)",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
@@ -34,7 +35,7 @@ const config: Config = {
           foreground: "hsl(var(--muted-foreground))",
         },
         accent: {
-          DEFAULT: "hsl(var(--accent))",
+          DEFAULT: "var(--accent)",
           foreground: "hsl(var(--accent-foreground))",
         },
         destructive: {
@@ -56,9 +57,9 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
-        heading: ["var(--font-fraunces)", "Georgia", "serif"],
-        mono: ["var(--font-geist-mono)", "monospace"],
+        sans: ["var(--font-mono)", "ui-monospace", "monospace"],
+        heading: ["var(--font-mono)", "ui-monospace", "monospace"],
+        mono: ["var(--font-mono)", "ui-monospace", "monospace"],
       },
     },
   },

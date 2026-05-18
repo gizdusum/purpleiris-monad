@@ -6,6 +6,8 @@ const config = {
     "@purpleiris/shared-types",
     "@purpleiris/monad-indexer",
     "@purpleiris/iris-agent",
+    "react-markdown",
+    "remark-gfm",
   ],
 };
 

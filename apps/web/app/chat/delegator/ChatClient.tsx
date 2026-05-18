@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { IrisResponse } from "@purpleiris/iris-agent";
 
 type Role = "user" | "assistant";
@@ -120,9 +122,7 @@ export function ChatClient() {
       <div className="flex-1 overflow-y-auto">
         {isEmpty ? (
           <div className="flex h-full flex-col items-center justify-center px-4 text-center">
-            <p className="font-heading text-foreground mb-2 text-2xl font-bold">
-              What would you like to know?
-            </p>
+            <p className="text-foreground mb-2 text-2xl font-bold">What would you like to know?</p>
             <p className="text-muted-foreground mb-8 max-w-sm text-sm">
               Ask me about any Monad validator — commission, performance, decentralization, or
               projected rewards.
@@ -227,37 +227,190 @@ function MessageBubble({ message }: { message: Message }) {
 }
 
 function IrisMarkdown({ text }: { text: string }) {
-  const lines = text.split("\n");
   return (
-    <div className="space-y-1.5">
-      {lines.map((line, i) => {
-        if (line.startsWith("## "))
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        p({ children }) {
+          return <p style={{ marginBottom: "12px", lineHeight: "1.7" }}>{children}</p>;
+        },
+        /* Tables */
+        table({ children }) {
           return (
-            <p key={i} className="font-heading mt-3 text-base font-bold first:mt-0">
-              {line.slice(3)}
-            </p>
+            <div style={{ overflowX: "auto", marginBottom: "12px" }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: "0.75rem",
+                  fontFamily: "var(--font-mono), monospace",
+                }}
+              >
+                {children}
+              </table>
+            </div>
           );
-        if (line.startsWith("### "))
+        },
+        th({ children }) {
           return (
-            <p key={i} className="mt-2 font-semibold first:mt-0">
-              {line.slice(4)}
-            </p>
+            <th
+              style={{
+                padding: "8px 12px",
+                border: "1px solid var(--border)",
+                backgroundColor: "var(--bg-elev-2)",
+                color: "var(--text)",
+                textAlign: "left",
+                fontWeight: 700,
+              }}
+            >
+              {children}
+            </th>
           );
-        if (line.startsWith("- ") || line.startsWith("• "))
+        },
+        td({ children }) {
           return (
-            <p key={i} className="flex gap-2">
-              <span className="shrink-0 opacity-50">·</span>
-              <span>{line.slice(2)}</span>
-            </p>
+            <td
+              style={{
+                padding: "8px 12px",
+                border: "1px solid var(--border)",
+                color: "var(--text)",
+              }}
+            >
+              {children}
+            </td>
           );
-        if (line.trim() === "") return <div key={i} className="h-1" />;
-        return (
-          <p key={i} className="whitespace-pre-wrap">
-            {line}
-          </p>
-        );
-      })}
-    </div>
+        },
+        /* Code */
+        pre({ children }) {
+          return (
+            <pre
+              style={{
+                backgroundColor: "var(--bg-elev)",
+                padding: "12px 16px",
+                borderRadius: "4px",
+                overflowX: "auto",
+                marginBottom: "12px",
+                fontFamily: "var(--font-mono), monospace",
+                fontSize: "0.875rem",
+                color: "var(--text)",
+              }}
+            >
+              {children}
+            </pre>
+          );
+        },
+        code({ children, className }) {
+          /* Inside a <pre> block className will be "language-*" */
+          const isBlock = Boolean(className);
+          if (isBlock) {
+            return (
+              <code
+                className={className}
+                style={{ fontFamily: "var(--font-mono), monospace", color: "var(--text)" }}
+              >
+                {children}
+              </code>
+            );
+          }
+          return (
+            <code
+              style={{
+                backgroundColor: "var(--bg-elev-2)",
+                borderRadius: "3px",
+                padding: "2px 6px",
+                fontFamily: "var(--font-mono), monospace",
+                fontSize: "0.875rem",
+                color: "var(--text)",
+              }}
+            >
+              {children}
+            </code>
+          );
+        },
+        /* Links */
+        a({ href, children }) {
+          return (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "var(--accent)", textDecoration: "underline" }}
+            >
+              {children}
+            </a>
+          );
+        },
+        /* Lists */
+        ul({ children }) {
+          return (
+            <ul style={{ listStyleType: "disc", paddingLeft: "24px", marginBottom: "12px" }}>
+              {children}
+            </ul>
+          );
+        },
+        ol({ children }) {
+          return (
+            <ol style={{ listStyleType: "decimal", paddingLeft: "24px", marginBottom: "12px" }}>
+              {children}
+            </ol>
+          );
+        },
+        li({ children }) {
+          return <li style={{ marginBottom: "4px" }}>{children}</li>;
+        },
+        /* Typography */
+        strong({ children }) {
+          return <strong style={{ fontWeight: 700, color: "var(--text)" }}>{children}</strong>;
+        },
+        h1({ children }) {
+          return (
+            <h1
+              style={{
+                fontWeight: 700,
+                fontSize: "1.125rem",
+                color: "var(--text)",
+                marginTop: "16px",
+                marginBottom: "8px",
+              }}
+            >
+              {children}
+            </h1>
+          );
+        },
+        h2({ children }) {
+          return (
+            <h2
+              style={{
+                fontWeight: 700,
+                fontSize: "1rem",
+                color: "var(--text)",
+                marginTop: "12px",
+                marginBottom: "8px",
+              }}
+            >
+              {children}
+            </h2>
+          );
+        },
+        h3({ children }) {
+          return (
+            <h3
+              style={{
+                fontWeight: 600,
+                fontSize: "0.875rem",
+                color: "var(--text)",
+                marginTop: "10px",
+                marginBottom: "6px",
+              }}
+            >
+              {children}
+            </h3>
+          );
+        },
+      }}
+    >
+      {text}
+    </ReactMarkdown>
   );
 }
 
