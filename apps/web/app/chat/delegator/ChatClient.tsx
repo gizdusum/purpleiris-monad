@@ -6,7 +6,9 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import IrisBackdrop from "@/components/IrisBackdrop";
+import { AddressModal } from "@/components/AddressModal";
 import { applyIrisMarkers, parseSuggestions, stripSuggestionsForStream } from "@/lib/iris-markdown";
+import { getRemembered, remember, forget, type RememberedValidator } from "@/lib/validator-memory";
 
 type Role = "user" | "assistant";
 
@@ -20,21 +22,44 @@ type Message = {
   suggestions?: string[];
 };
 
-const SUGGESTED = [
-  "What are the top 5 validators by 30-day block success rate?",
-  "Show me F5 Nodes' commission and performance metrics.",
-  "If I stake 500 MON for 60 days, what reward can I estimate?",
-  "Compare Chorus One and AltLayer for diversification.",
-  "Show me underdog validators worth supporting for decentralization.",
+const NETWORK_QUESTIONS = [
+  "Show me the network overview",
+  "What's the current Nakamoto coefficient?",
+  "Top 5 validators by stake",
+  "Compare Backpack and Chorus One",
+  "How is the network performing today?",
 ];
+
+const MY_VALIDATOR_QUESTIONS = [
+  "Show me my full profile",
+  "What are my last 20 assignments?",
+  "What's my current epoch success rate?",
+  "Am I online and healthy?",
+  "How do I compare to similar validators?",
+];
+
+function substituteMyRef(q: string, displayName: string): string {
+  return q
+    .replace(/\bAm I\b/g, `Is ${displayName}`)
+    .replace(/\bdo I\b/g, `does ${displayName}`)
+    .replace(/\bI'm\b/g, `${displayName} is`)
+    .replace(/\bI\b/g, displayName)
+    .replace(/\bmy\b/g, `${displayName}'s`);
+}
 
 export function ChatClient() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [remembered, setRemembered] = useState<RememberedValidator | null>(null);
+  const [modal, setModal] = useState<{ pending: string } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setRemembered(getRemembered());
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -59,7 +84,6 @@ export function ChatClient() {
     setLoading(true);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
-    // Add streaming placeholder message
     const assistantId = crypto.randomUUID();
     setMessages([...history, { id: assistantId, role: "assistant", content: "", streaming: true }]);
 
@@ -141,6 +165,32 @@ export function ChatClient() {
     }
   }
 
+  function handleMyValidatorQuestion(q: string) {
+    if (remembered) {
+      const displayName = remembered.moniker ?? remembered.address;
+      void send(substituteMyRef(q, displayName));
+    } else {
+      setModal({ pending: q });
+    }
+  }
+
+  function handleModalSubmit(address: string, moniker: string | undefined, doRemember: boolean) {
+    const v: RememberedValidator = {
+      address,
+      saved_at: Date.now(),
+      ...(moniker !== undefined && { moniker }),
+    };
+    if (doRemember) {
+      remember(v);
+      setRemembered(v);
+    }
+    if (modal) {
+      const displayName = moniker ?? address;
+      void send(substituteMyRef(modal.pending, displayName));
+      setModal(null);
+    }
+  }
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     void send(input);
@@ -154,10 +204,14 @@ export function ChatClient() {
   }
 
   const isEmpty = messages.length === 0;
+  const badgeLabel = remembered
+    ? (remembered.moniker ?? `${remembered.address.slice(0, 6)}...${remembered.address.slice(-4)}`)
+    : null;
 
   return (
     <div className="flex h-screen flex-col" style={{ position: "relative" }}>
       <IrisBackdrop intensity="ghost" />
+
       {/* Header */}
       <header
         className="border-border flex items-center justify-between border-b px-4 py-3"
@@ -174,6 +228,37 @@ export function ChatClient() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {badgeLabel && (
+            <div
+              className="flex items-center text-xs tracking-wider uppercase"
+              style={{
+                border: "1px solid var(--accent)",
+                borderRadius: "4px",
+                padding: "4px 10px",
+                color: "var(--accent)",
+                backgroundColor: "transparent",
+              }}
+            >
+              🟣 {badgeLabel}
+              <button
+                onClick={() => {
+                  forget();
+                  setRemembered(null);
+                }}
+                className="ml-2 text-sm"
+                style={{ color: "var(--text-mute)", cursor: "pointer" }}
+                onMouseEnter={(e) =>
+                  ((e.currentTarget as HTMLButtonElement).style.color = "var(--accent)")
+                }
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLButtonElement).style.color = "var(--text-mute)")
+                }
+                aria-label="Forget validator"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <a
             href="https://www.gmonads.com/staking"
             target="_blank"
@@ -198,16 +283,43 @@ export function ChatClient() {
               Ask me about any Monad validator — commission, performance, decentralization, or
               projected rewards.
             </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {SUGGESTED.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => void send(s)}
-                  className="border-border bg-card hover:border-iris-primary text-muted-foreground hover:text-foreground rounded-xl border px-3 py-2 text-left text-xs transition-colors"
-                >
-                  {s}
-                </button>
-              ))}
+
+            <div className="w-full max-w-lg">
+              <p
+                className="text-muted-foreground mb-3 text-xs uppercase"
+                style={{ letterSpacing: "0.3em" }}
+              >
+                About the Network
+              </p>
+              <div className="mb-6 flex flex-wrap justify-center gap-2">
+                {NETWORK_QUESTIONS.map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => void send(q)}
+                    className="border-border bg-card hover:border-iris-primary text-muted-foreground hover:text-foreground rounded-xl border px-3 py-2 text-left text-xs transition-colors"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+
+              <p
+                className="text-muted-foreground mb-3 text-xs uppercase"
+                style={{ letterSpacing: "0.3em", marginTop: "24px" }}
+              >
+                About My Validator
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {MY_VALIDATOR_QUESTIONS.map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => handleMyValidatorQuestion(q)}
+                    className="border-border bg-card hover:border-iris-primary text-muted-foreground hover:text-foreground rounded-xl border px-3 py-2 text-left text-xs transition-colors"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         ) : (
@@ -260,6 +372,12 @@ export function ChatClient() {
           </Link>
         </p>
       </div>
+
+      <AddressModal
+        open={modal !== null}
+        onClose={() => setModal(null)}
+        onSubmit={handleModalSubmit}
+      />
     </div>
   );
 }
@@ -324,9 +442,7 @@ function extractCodeText(children: React.ReactNode): string {
 }
 
 function IrisMarkdown({ text, streaming }: { text: string; streaming?: boolean }) {
-  // During streaming, hide content from the suggestions sentinel onwards
   const displayText = streaming ? stripSuggestionsForStream(text) : text;
-  // Apply markers to prose (non-code) content; code blocks handled per component
   const processed = applyIrisMarkers(displayText);
 
   if (!processed && streaming) {
