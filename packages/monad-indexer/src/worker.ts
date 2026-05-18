@@ -33,6 +33,7 @@ async function indexOnce() {
     const wt = wtMap.get(v.moniker.toLowerCase());
     return {
       id: v.address.toLowerCase(),
+      secpPubkey: v.secpPubkey ?? null,
       moniker: v.moniker,
       website: v.website,
       commissionBps: v.commissionBps,
@@ -55,6 +56,7 @@ async function indexOnce() {
     .onConflictDoUpdate({
       target: validators.id,
       set: {
+        secpPubkey: sql`excluded.secp_pubkey`,
         moniker: sql`excluded.moniker`,
         website: sql`excluded.website`,
         commissionBps: sql`excluded.commission_bps`,

@@ -1,6 +1,7 @@
 // On-chain validator data (Class 1 — deterministic, read from staking precompile)
 export type OnChainValidator = {
   address: string;
+  secpPubkey?: string; // compressed secp256k1 pubkey, 66 hex chars, no 0x prefix
   moniker: string;
   website: string;
   commissionBps: number;

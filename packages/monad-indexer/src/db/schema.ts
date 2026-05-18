@@ -23,6 +23,8 @@ export const validators = pgTable(
     jailed: boolean("jailed").notNull().default(false),
     active: boolean("active").notNull().default(true),
     stakedAmount: numeric("staked_amount").notNull(),
+    // secp256k1 pubkey (66 hex chars, no 0x) — used to JOIN with validator_metadata.pubkey
+    secpPubkey: text("secp_pubkey"),
     // Community registry enrichment (Class 3 — geo inference)
     region: text("region"),
     infraProvider: text("infra_provider"),

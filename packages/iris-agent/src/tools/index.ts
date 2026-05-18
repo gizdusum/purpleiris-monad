@@ -151,39 +151,53 @@ export function getDelegatorToolDefinitions(): Anthropic.Tool[] {
   ];
 }
 
-// Execute a tool by name and return serialized JSON
+// Execute a tool by name and return serialized JSON.
+// All errors are caught here — raw DB errors and stack traces never reach the LLM or the client.
 export async function executeTool(name: string, input: unknown): Promise<string> {
   let result: ToolResult;
 
-  switch (name) {
-    case "get_validator":
-      result = await getValidatorTool(input as GetValidatorInput);
-      break;
-    case "list_validators":
-      result = await listValidatorsTool((input as ListValidatorsInput) ?? {});
-      break;
-    case "get_network_health":
-      result = await getNetworkHealthTool();
-      break;
-    case "find_underdogs":
-      result = await findUnderdogsTool((input as FindUnderdogsInput) ?? {});
-      break;
-    case "simulate_delegation":
-      result = await simulateDelegationTool(input as SimulateDelegationInput);
-      break;
-    case "simulate_diversification":
-      result = await simulateDiversificationTool(input as SimulateDiversificationInput);
-      break;
-    case "estimate_stake_reward":
-      result = await estimateStakeRewardTool((input as EstimateStakeRewardInput) ?? {});
-      break;
-    default:
-      result = {
-        data: { error: `Unknown tool: ${name}` },
-        data_class: 1,
-        source: name,
-        timestamp: new Date().toISOString(),
-      };
+  try {
+    switch (name) {
+      case "get_validator":
+        result = await getValidatorTool(input as GetValidatorInput);
+        break;
+      case "list_validators":
+        result = await listValidatorsTool((input as ListValidatorsInput) ?? {});
+        break;
+      case "get_network_health":
+        result = await getNetworkHealthTool();
+        break;
+      case "find_underdogs":
+        result = await findUnderdogsTool((input as FindUnderdogsInput) ?? {});
+        break;
+      case "simulate_delegation":
+        result = await simulateDelegationTool(input as SimulateDelegationInput);
+        break;
+      case "simulate_diversification":
+        result = await simulateDiversificationTool(input as SimulateDiversificationInput);
+        break;
+      case "estimate_stake_reward":
+        result = await estimateStakeRewardTool((input as EstimateStakeRewardInput) ?? {});
+        break;
+      default:
+        result = {
+          data: { error: `Unknown tool: ${name}` },
+          data_class: 1,
+          source: name,
+          timestamp: new Date().toISOString(),
+        };
+    }
+  } catch (err) {
+    console.error(`[iris-agent] tool "${name}" failed:`, err);
+    result = {
+      data: {
+        error: "Data source temporarily unavailable.",
+        hint: "Suggest the user try again or rephrase their question.",
+      },
+      data_class: 1,
+      source: name,
+      timestamp: new Date().toISOString(),
+    };
   }
 
   return JSON.stringify(result, (_, v) => (typeof v === "bigint" ? v.toString() : v));

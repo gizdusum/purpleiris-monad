@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
         console.error("[/api/chat/delegator stream]", err);
         send({
           type: "error",
-          message: err instanceof Error ? err.message : "Internal error",
+          message: "Service temporarily unavailable. Please try again.",
         });
       } finally {
         controller.close();

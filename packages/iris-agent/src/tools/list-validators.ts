@@ -40,7 +40,10 @@ export async function listValidatorsTool(input: ListValidatorsInput): Promise<To
       infra_provider: validators.infraProvider,
     })
     .from(validators)
-    .leftJoin(validatorMetadata, eq(validators.id, validatorMetadata.pubkey))
+    .leftJoin(
+      validatorMetadata,
+      sql`${validators.secpPubkey} IS NOT NULL AND ${validators.secpPubkey} = ${validatorMetadata.pubkey}`
+    )
     .where(conditions.length ? and(...conditions) : sql`1=1`)
     .orderBy(sql`${validators.stakedAmount} DESC`)
     .limit(Math.min(limit, 100));

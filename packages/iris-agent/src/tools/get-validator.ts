@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { getDb, validators, epochSnapshots, validatorMetadata } from "@purpleiris/monad-indexer";
 import { makeResult } from "./types";
 import type { GetValidatorInput, ToolResult } from "./types";
@@ -25,7 +25,10 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
       infraProvider: validators.infraProvider,
     })
     .from(validators)
-    .leftJoin(validatorMetadata, eq(validators.id, validatorMetadata.pubkey))
+    .leftJoin(
+      validatorMetadata,
+      sql`${validators.secpPubkey} IS NOT NULL AND ${validators.secpPubkey} = ${validatorMetadata.pubkey}`
+    )
     .where(addr ? eq(validators.id, addr) : eq(validators.slug, id))
     .limit(1);
 

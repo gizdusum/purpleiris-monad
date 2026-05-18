@@ -39,8 +39,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result);
   } catch (err) {
     console.error("[/api/chat/operator]", err);
-    const message = err instanceof Error ? err.message : "Internal error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Service temporarily unavailable. Please try again." },
+      { status: 500 }
+    );
   }
 }
 

@@ -105,18 +105,25 @@ export async function getValidatorsFromChain(): Promise<OnChainValidator[]> {
             `0x${string}`,
           ];
 
-          const [authAddress, , , , commission, , consensusStake] = detail;
+          const [authAddress, , , , commission, , consensusStake, , , , secpPubkeyRaw] = detail;
           const addr = authAddress.toLowerCase();
 
           // commission is 1e18-scaled (10% = 1e17). Convert to BPS (1% = 100 BPS).
           // 1 BPS = 0.01% = 1e14 in the 1e18 scale.
           const commissionBps = Number(commission / 10n ** 14n);
 
+          // secpPubkeyRaw comes as 0x-prefixed hex from viem; strip prefix for registry matching.
+          const secpPubkey =
+            typeof secpPubkeyRaw === "string" && secpPubkeyRaw.startsWith("0x")
+              ? secpPubkeyRaw.slice(2).toLowerCase()
+              : undefined;
+
           // Community registry lookup (Class 3 enrichment for display fields).
           const meta = metaByAddress.get(addr);
 
           const validator: OnChainValidator = {
             address: addr,
+            ...(secpPubkey !== undefined && { secpPubkey }),
             moniker: meta?.name ?? `Validator ${valId}`,
             website: meta?.website ?? "",
             commissionBps,
