@@ -51,8 +51,11 @@
     @apply border-border;
   }
 
-  body {
+  html {
     background-color: var(--bg);
+  }
+
+  body {
     color: var(--text);
     font-family: var(--font-mono), ui-monospace, "Courier New", monospace;
     @apply antialiased;

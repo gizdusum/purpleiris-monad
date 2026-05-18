@@ -137,6 +137,16 @@ export type TriageResult = {
   auto_resolution: string | null;
 };
 
+// ── Validator metadata (community registry enrichment) ────────────────────
+export const validatorMetadata = pgTable("validator_metadata", {
+  pubkey: text("pubkey").primaryKey(), // validator address (lowercased), matches validators.id
+  moniker: text("moniker"),
+  logoUrl: text("logo_url"),
+  website: text("website"),
+  description: text("description"),
+  lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ── Telemetry (operator node metrics, opt-in) ─────────────────────────────
 export const telemetryNodes = pgTable(
   "telemetry_nodes",

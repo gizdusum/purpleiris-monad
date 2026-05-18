@@ -1,5 +1,5 @@
 import { eq, desc } from "drizzle-orm";
-import { getDb, validators, epochSnapshots } from "@purpleiris/monad-indexer";
+import { getDb, validators, epochSnapshots, validatorMetadata } from "@purpleiris/monad-indexer";
 import { makeResult } from "./types";
 import type { GetValidatorInput, ToolResult } from "./types";
 
@@ -7,14 +7,31 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
   const db = getDb();
   const addr = id.toLowerCase().startsWith("0x") ? id.toLowerCase() : null;
 
-  const validator = await db
-    .select()
+  const rows = await db
+    .select({
+      id: validators.id,
+      moniker: validators.moniker,
+      meta_moniker: validatorMetadata.moniker,
+      logo_url: validatorMetadata.logoUrl,
+      meta_website: validatorMetadata.website,
+      description: validatorMetadata.description,
+      slug: validators.slug,
+      website: validators.website,
+      commissionBps: validators.commissionBps,
+      jailed: validators.jailed,
+      active: validators.active,
+      stakedAmount: validators.stakedAmount,
+      region: validators.region,
+      infraProvider: validators.infraProvider,
+    })
     .from(validators)
+    .leftJoin(validatorMetadata, eq(validators.id, validatorMetadata.pubkey))
     .where(addr ? eq(validators.id, addr) : eq(validators.slug, id))
-    .limit(1)
-    .then((r) => r[0] ?? null);
+    .limit(1);
 
-  if (!validator) {
+  const row = rows[0] ?? null;
+
+  if (!row) {
     return makeResult(
       { error: `Validator not found: ${id}` },
       { data_class: 1, source: "get_validator" }
@@ -25,9 +42,9 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
   const snapshots = await db
     .select()
     .from(epochSnapshots)
-    .where(eq(epochSnapshots.validatorId, validator.id))
+    .where(eq(epochSnapshots.validatorId, row.id))
     .orderBy(desc(epochSnapshots.epoch))
-    .limit(168); // ~30 days worth at 5.5h/epoch
+    .limit(168);
 
   const now = Date.now();
   const ms7d = 7 * 24 * 60 * 60 * 1000;
@@ -44,17 +61,19 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
 
   return makeResult(
     {
-      id: validator.id,
-      moniker: validator.moniker,
-      slug: validator.slug,
-      website: validator.website,
-      commission_bps: validator.commissionBps,
-      commission_pct: validator.commissionBps / 100,
-      jailed: validator.jailed,
-      active: validator.active,
-      staked_amount_mon: Number(validator.stakedAmount) / 1e18,
-      region: validator.region,
-      infra_provider: validator.infraProvider,
+      id: row.id,
+      moniker: row.meta_moniker ?? row.moniker,
+      logo_url: row.logo_url ?? null,
+      description: row.description ?? null,
+      slug: row.slug,
+      website: row.meta_website ?? row.website,
+      commission_bps: row.commissionBps,
+      commission_pct: row.commissionBps / 100,
+      jailed: row.jailed,
+      active: row.active,
+      staked_amount_mon: Number(row.stakedAmount) / 1e18,
+      region: row.region,
+      infra_provider: row.infraProvider,
       metrics: {
         "7d": {
           avg_success_rate: avg(snaps7d.map((s) => s.successRate)),

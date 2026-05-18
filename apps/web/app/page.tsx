@@ -2,25 +2,16 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
+import { FrostedFutureCard } from "@/components/FrostedFutureCard";
 
 export const metadata: Metadata = {
   title: "PurpleIris — Monad Validator Intelligence",
 };
 
+const IrisBackdrop = dynamic(() => import("@/components/IrisBackdrop"), { ssr: false });
 const HeroSection = dynamic(() => import("@/components/HeroSection"), {
   ssr: false,
-  loading: () => (
-    <div
-      style={{
-        height: "100vh",
-        background: "var(--bg)",
-        display: "flex",
-        alignItems: "center",
-        paddingLeft: "24px",
-        paddingTop: "56px",
-      }}
-    />
-  ),
+  loading: () => <div style={{ height: "100vh" }} />,
 });
 
 /* ─── Card data ─── */
@@ -102,11 +93,21 @@ const cards: CardDef[] = [
   },
 ];
 
+const futureCards = [
+  { version: "v1.1", codename: "HERMES" },
+  { version: "v1.2", codename: "ARGUS" },
+  { version: "v1.3", codename: "MNEMOSYNE" },
+  { version: "v2.0", codename: "PYTHIA" },
+];
+
 /* ─── Page ─── */
 export default function HomePage() {
   return (
     <>
-      {/* ── Header ── */}
+      {/* Fixed iris backdrop — hero intensity with scroll darkening */}
+      <IrisBackdrop intensity="hero" />
+
+      {/* Header */}
       <header
         style={{
           position: "fixed",
@@ -147,16 +148,18 @@ export default function HomePage() {
         </nav>
       </header>
 
-      {/* ── Hero ── */}
+      {/* Hero */}
       <HeroSection />
 
-      {/* ── Card grid ── */}
+      {/* Card grid — transparent so backdrop shows through */}
       <section
         style={{
           maxWidth: "1152px",
           margin: "0 auto",
           padding: "0 24px",
           marginTop: "80px",
+          position: "relative",
+          zIndex: 1,
         }}
       >
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -166,16 +169,40 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Footer ── */}
+      {/* Coming next — frosted future cards */}
+      <section
+        style={{
+          maxWidth: "720px",
+          margin: "80px auto 0",
+          padding: "0 24px",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        <p
+          className="text-center text-xs tracking-[0.3em] uppercase"
+          style={{ color: "var(--text-mute)", marginBottom: "24px" }}
+        >
+          COMING NEXT
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {futureCards.map((c) => (
+            <FrostedFutureCard key={c.codename} version={c.version} codename={c.codename} />
+          ))}
+        </div>
+      </section>
+
+      {/* Footer — transparent */}
       <footer
         style={{
           marginTop: "80px",
           padding: "32px 24px",
           borderTop: "1px solid var(--border)",
+          position: "relative",
+          zIndex: 1,
         }}
       >
         <div className="text-xs">
-          {/* Row 1 — data-class attribution */}
           <p className="text-center" style={{ color: "var(--text-dim)" }}>
             All Iris responses carry data-class labels:{" "}
             <span style={{ color: "var(--text)" }}>CLASS 1</span> on-chain{" · "}
@@ -189,8 +216,6 @@ export default function HomePage() {
               Read the methodology →
             </Link>
           </p>
-
-          {/* Row 2 — copyright + version badge */}
           <div
             className="flex flex-wrap items-center justify-between gap-4 tracking-wider uppercase"
             style={{ marginTop: "20px" }}
@@ -228,7 +253,6 @@ function ModeCard({ card }: { card: CardDef }) {
         } as CSSProperties
       }
     >
-      {/* Category label */}
       <p
         className="text-xs tracking-[0.25em] uppercase"
         style={{ color: catColor, fontWeight: 600 }}
@@ -236,7 +260,6 @@ function ModeCard({ card }: { card: CardDef }) {
         {category}
       </p>
 
-      {/* Card name */}
       <h2
         className="font-bold uppercase"
         style={{
@@ -249,10 +272,8 @@ function ModeCard({ card }: { card: CardDef }) {
         {name}
       </h2>
 
-      {/* Separator */}
       <div style={{ borderTop: "1px solid var(--border)", margin: "20px 0" }} />
 
-      {/* Progress bars */}
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
         {bars.map((bar) => (
           <div key={bar.label} className="flex items-center gap-3">
@@ -295,10 +316,8 @@ function ModeCard({ card }: { card: CardDef }) {
         ))}
       </div>
 
-      {/* Separator */}
       <div style={{ borderTop: "1px solid var(--border)", margin: "20px 0" }} />
 
-      {/* Spec lines */}
       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
         {specs.map((spec) => (
           <div key={spec.key} className="flex text-xs">
@@ -313,19 +332,13 @@ function ModeCard({ card }: { card: CardDef }) {
         ))}
       </div>
 
-      {/* Marketing copy */}
       <p
         className="text-sm leading-relaxed"
-        style={{
-          color: "var(--text-dim)",
-          marginTop: "16px",
-          minHeight: "3rem",
-        }}
+        style={{ color: "var(--text-dim)", marginTop: "16px", minHeight: "3rem" }}
       >
         {copy}
       </p>
 
-      {/* CTA */}
       <button
         disabled={disabled}
         className="iris-cta w-full rounded-sm text-xs tracking-[0.25em] uppercase"

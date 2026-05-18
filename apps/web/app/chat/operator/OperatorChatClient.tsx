@@ -5,6 +5,7 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { IrisResponse } from "@purpleiris/iris-agent";
+import IrisBackdrop from "@/components/IrisBackdrop";
 
 type Role = "user" | "assistant";
 
@@ -16,11 +17,11 @@ type Message = {
 };
 
 const SUGGESTED = [
-  "Show me the current network health and Nakamoto coefficient.",
-  "Which validators have the highest 30-day block success rate?",
-  "Compare commission rates across the top 10 validators by stake.",
-  "Find validators with success rate below 95% this month.",
-  "What's the stake distribution across infra providers?",
+  "What's the network's Nakamoto coefficient?",
+  "Compare commission rates: F5 Nodes vs Chorus One",
+  "Which validators have a success rate below 95% this month?",
+  "Show me AltLayer's block production history.",
+  "What's the stake distribution across the top 20 validators?",
 ];
 
 export function OperatorChatClient() {
@@ -98,9 +99,13 @@ export function OperatorChatClient() {
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="bg-background flex h-screen flex-col">
+    <div className="flex h-screen flex-col" style={{ position: "relative" }}>
+      <IrisBackdrop intensity="ghost" />
       {/* Header */}
-      <header className="border-border flex items-center justify-between border-b px-4 py-3">
+      <header
+        className="border-border flex items-center justify-between border-b px-4 py-3"
+        style={{ position: "relative", zIndex: 1 }}
+      >
         <div className="flex items-center gap-3">
           <Link href="/" className="text-muted-foreground hover:text-foreground text-sm">
             ← Back
@@ -123,7 +128,7 @@ export function OperatorChatClient() {
       </header>
 
       {/* Message list */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" style={{ position: "relative", zIndex: 1 }}>
         {isEmpty ? (
           <div className="flex h-full flex-col items-center justify-center px-4 text-center">
             <p className="text-foreground mb-2 text-2xl font-bold">Operator diagnostics.</p>
@@ -160,7 +165,7 @@ export function OperatorChatClient() {
       </div>
 
       {/* Input bar */}
-      <div className="border-border border-t px-4 py-3">
+      <div className="border-border border-t px-4 py-3" style={{ position: "relative", zIndex: 1 }}>
         <form
           onSubmit={handleSubmit}
           className="border-border bg-card mx-auto flex max-w-2xl items-end gap-2 rounded-2xl border px-4 py-3 focus-within:ring-2"

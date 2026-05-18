@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, type FormEvent } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import IrisBackdrop from "@/components/IrisBackdrop";
 
 type Role = "user" | "assistant";
 
@@ -18,9 +19,9 @@ type Message = {
 
 const SUGGESTED = [
   "What are the top 5 validators by 30-day block success rate?",
-  "What's the Nakamoto coefficient right now?",
+  "Show me F5 Nodes' commission and performance metrics.",
   "If I stake 500 MON for 60 days, what reward can I estimate?",
-  "Which validators have commission under 5% and high reliability?",
+  "Compare Chorus One and AltLayer for diversification.",
   "Show me underdog validators worth supporting for decentralization.",
 ];
 
@@ -150,9 +151,13 @@ export function ChatClient() {
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="bg-background flex h-screen flex-col">
+    <div className="flex h-screen flex-col" style={{ position: "relative" }}>
+      <IrisBackdrop intensity="ghost" />
       {/* Header */}
-      <header className="border-border flex items-center justify-between border-b px-4 py-3">
+      <header
+        className="border-border flex items-center justify-between border-b px-4 py-3"
+        style={{ position: "relative", zIndex: 1 }}
+      >
         <div className="flex items-center gap-3">
           <Link href="/" className="text-muted-foreground hover:text-foreground text-sm">
             ← Back
@@ -163,13 +168,24 @@ export function ChatClient() {
             <p className="text-muted-foreground text-xs">Monad validator intelligence</p>
           </div>
         </div>
-        <span className="bg-iris-primary/10 text-iris-primary rounded-full px-2.5 py-0.5 text-xs font-medium">
-          Live
-        </span>
+        <div className="flex items-center gap-3">
+          <a
+            href="https://www.gmonads.com/staking"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs"
+            style={{ color: "var(--text-mute)" }}
+          >
+            Stake via gmonads ↗
+          </a>
+          <span className="bg-iris-primary/10 text-iris-primary rounded-full px-2.5 py-0.5 text-xs font-medium">
+            Live
+          </span>
+        </div>
       </header>
 
       {/* Message list */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" style={{ position: "relative", zIndex: 1 }}>
         {isEmpty ? (
           <div className="flex h-full flex-col items-center justify-center px-4 text-center">
             <p className="text-foreground mb-2 text-2xl font-bold">What would you like to know?</p>
@@ -205,7 +221,7 @@ export function ChatClient() {
       </div>
 
       {/* Input bar */}
-      <div className="border-border border-t px-4 py-3">
+      <div className="border-border border-t px-4 py-3" style={{ position: "relative", zIndex: 1 }}>
         <form
           onSubmit={handleSubmit}
           className="border-border bg-card focus-within:ring-iris-primary/40 mx-auto flex max-w-2xl items-end gap-2 rounded-2xl border px-4 py-3 focus-within:ring-2"
