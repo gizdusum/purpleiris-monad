@@ -23,6 +23,7 @@ type GitHubRelease = {
   prerelease: boolean;
 };
 
+/** Returns releases array, empty array for 404/empty, or null for rate-limit (exit signal). */
 async function fetchReleases(url: string): Promise<GitHubRelease[] | null> {
   const res = await fetch(url, {
     headers: { "User-Agent": USER_AGENT, Accept: "application/vnd.github.v3+json" },
@@ -30,12 +31,17 @@ async function fetchReleases(url: string): Promise<GitHubRelease[] | null> {
 
   if (res.status === 403 || res.status === 429) {
     console.log(`[sync-releases] rate-limited (${res.status}) — exiting 0`);
-    return null;
+    return null; // signal: exit cleanly
+  }
+
+  if (res.status === 404) {
+    console.log(`[sync-releases] repo not found (404) at ${url}, trying fallback`);
+    return []; // signal: try fallback
   }
 
   if (!res.ok) {
     console.log(`[sync-releases] HTTP ${res.status} for ${url}`);
-    return null;
+    return []; // treat other errors as empty, try fallback
   }
 
   return (await res.json()) as GitHubRelease[];
@@ -54,14 +60,11 @@ async function main() {
   console.log("[sync-releases] fetching Monad releases from GitHub...");
 
   let releases = await fetchReleases(PRIMARY_URL);
-  if (releases === null) {
-    // rate-limited — already logged, exit cleanly
-    process.exit(0);
-  }
+  if (releases === null) process.exit(0); // rate-limited
   if (releases.length === 0) {
-    console.log(`[sync-releases] primary repo empty, trying fallback...`);
+    console.log(`[sync-releases] primary repo empty or missing, trying fallback...`);
     releases = await fetchReleases(FALLBACK_URL);
-    if (releases === null) process.exit(0);
+    if (releases === null) process.exit(0); // rate-limited on fallback
   }
 
   if (releases.length === 0) {
