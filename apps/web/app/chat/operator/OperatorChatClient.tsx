@@ -33,9 +33,9 @@ const MY_VALIDATOR_QUESTIONS = [
   "What are my last 20 rounds?",
 ];
 
-const OPERATOR_GREETING = `Hey, operator. I'm Iris — here to help with your Monad node.
+const OPERATOR_GREETING = `Hey, operator. I'm Hermes — here to help with your Monad node. Bringing you what the chain says about your setup.
 
-Running a validator is real work. Paste your address or moniker and I'll show you what the network sees. Or grab a quick query below.`;
+Paste your address or moniker and I'll show you what the network sees. Or grab a quick query below.`;
 
 function substituteMyRef(q: string, displayName: string): string {
   return q
@@ -185,7 +185,7 @@ export function OperatorChatClient() {
           </Link>
           <div className="bg-border h-4 w-px" />
           <div>
-            <p className="text-foreground text-sm font-semibold">Iris — Operator Mode</p>
+            <p className="text-foreground text-sm font-semibold">Hermes — Operator Mode</p>
             <p className="text-muted-foreground text-xs">Validator diagnostics · read-only v1.0</p>
           </div>
         </div>
@@ -337,7 +337,7 @@ export function OperatorChatClient() {
           </button>
         </form>
         <p className="text-muted-foreground mt-2 text-center text-xs">
-          Read-only access · v1.0 Iris · No financial advice.{" "}
+          Read-only access · v1.0 Hermes · No financial advice.{" "}
           <Link
             href="/transparency/new"
             className="underline underline-offset-2"

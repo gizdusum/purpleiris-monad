@@ -94,9 +94,8 @@ const cards: CardDef[] = [
 ];
 
 const futureCards = [
-  { version: "v1.1", codename: "HERMES" },
-  { version: "v1.2", codename: "ARGUS" },
-  { version: "v1.3", codename: "MNEMOSYNE" },
+  { version: "v1.1", codename: "ARGUS" },
+  { version: "v1.2", codename: "MNEMOSYNE" },
   { version: "v2.0", codename: "PYTHIA" },
 ];
 
@@ -204,7 +203,7 @@ export default function HomePage() {
       >
         <div className="text-xs">
           <p className="text-center" style={{ color: "var(--text-dim)" }}>
-            All Iris responses carry data-class labels:{" "}
+            All Hermes responses carry data-class labels:{" "}
             <span style={{ color: "var(--text)" }}>CLASS 1</span> on-chain{" · "}
             <span style={{ color: "var(--text)" }}>CLASS 2</span> derived{" · "}
             <span style={{ color: "var(--text)" }}>CLASS 3</span> estimated.{" "}
@@ -221,16 +220,36 @@ export default function HomePage() {
             style={{ marginTop: "20px" }}
           >
             <span style={{ color: "var(--text-mute)" }}>© 2026 PurpleIris</span>
-            <span
-              className="rounded-sm"
+            <div
               style={{
-                border: "1px solid var(--accent)",
-                color: "var(--accent)",
-                padding: "4px 10px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-end",
+                gap: "6px",
               }}
             >
-              v1.0 · Iris
-            </span>
+              <span
+                className="rounded-sm"
+                style={{
+                  border: "1px solid var(--accent)",
+                  color: "var(--accent)",
+                  padding: "4px 10px",
+                }}
+              >
+                v1.0 · Hermes
+              </span>
+              <span
+                style={{
+                  color: "var(--text-mute)",
+                  fontSize: "10px",
+                  letterSpacing: "0.05em",
+                  textTransform: "none",
+                  fontFamily: "var(--font-mono), monospace",
+                }}
+              >
+                Messenger of the Monad chain
+              </span>
+            </div>
           </div>
         </div>
       </footer>

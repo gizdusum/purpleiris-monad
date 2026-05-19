@@ -18,40 +18,150 @@ function onlineStatus(wt: WatchtowerValidator | null): "online" | "degraded" | "
   return "offline";
 }
 
+function normalize(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function levenshtein(a: string, b: string): number {
+  const n = b.length;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const curr: number[] = [i];
+    for (let j = 1; j <= n; j++) {
+      curr[j] =
+        a[i - 1] === b[j - 1]
+          ? (prev[j - 1] ?? 0)
+          : 1 + Math.min(prev[j] ?? 0, curr[j - 1] ?? 0, prev[j - 1] ?? 0);
+    }
+    prev = curr;
+  }
+  return prev[n] ?? 0;
+}
+
 export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolResult> {
   const db = getDb();
-  const addr = id.toLowerCase().startsWith("0x") ? id.toLowerCase() : null;
+  const isAddr = id.toLowerCase().startsWith("0x");
+  const addr = isAddr ? id.toLowerCase() : null;
+  const idLower = id.toLowerCase();
 
-  const rows = await db
-    .select({
-      id: validators.id,
-      moniker: validators.moniker,
-      meta_moniker: validatorMetadata.moniker,
-      logo_url: validatorMetadata.logoUrl,
-      meta_website: validatorMetadata.website,
-      description: validatorMetadata.description,
-      slug: validators.slug,
-      website: validators.website,
-      commissionBps: validators.commissionBps,
-      jailed: validators.jailed,
-      active: validators.active,
-      stakedAmount: validators.stakedAmount,
-      region: validators.region,
-      infraProvider: validators.infraProvider,
-      secpPubkey: validators.secpPubkey,
-    })
-    .from(validators)
-    .leftJoin(
-      validatorMetadata,
-      sql`${validators.secpPubkey} IS NOT NULL AND ${validators.secpPubkey} = ${validatorMetadata.pubkey}`
-    )
-    .where(addr ? eq(validators.id, addr) : eq(validators.slug, id))
-    .limit(1);
+  const selectCols = {
+    id: validators.id,
+    moniker: validators.moniker,
+    meta_moniker: validatorMetadata.moniker,
+    logo_url: validatorMetadata.logoUrl,
+    meta_website: validatorMetadata.website,
+    description: validatorMetadata.description,
+    slug: validators.slug,
+    website: validators.website,
+    commissionBps: validators.commissionBps,
+    jailed: validators.jailed,
+    active: validators.active,
+    stakedAmount: validators.stakedAmount,
+    region: validators.region,
+    infraProvider: validators.infraProvider,
+    secpPubkey: validators.secpPubkey,
+  };
 
-  const row = rows[0] ?? null;
+  const joinCond = sql`${validators.secpPubkey} IS NOT NULL AND ${validators.secpPubkey} = ${validatorMetadata.pubkey}`;
+
+  // Primary lookup: address exact OR case-insensitive slug/moniker
+  const initialRows = addr
+    ? await db
+        .select(selectCols)
+        .from(validators)
+        .leftJoin(validatorMetadata, joinCond)
+        .where(eq(validators.id, addr))
+        .limit(1)
+    : await db
+        .select(selectCols)
+        .from(validators)
+        .leftJoin(validatorMetadata, joinCond)
+        .where(
+          sql`LOWER(${validators.slug}) = ${idLower}
+            OR LOWER(${validators.moniker}) = ${idLower}
+            OR LOWER(${validatorMetadata.moniker}) = ${idLower}`
+        )
+        .limit(1);
+
+  let row = initialRows[0] ?? null;
+  let resolutionNote: string | null = null;
+
+  if (row && !addr) {
+    const matched = (row.meta_moniker ?? row.moniker ?? row.slug ?? "").toLowerCase();
+    if (matched !== idLower) {
+      resolutionNote = `Resolved '${id}' → '${row.meta_moniker ?? row.moniker ?? row.slug}'`;
+    }
+  }
+
+  if (!row && !addr) {
+    // Fuzzy fallback: fetch all active validators and compute Levenshtein distance
+    const allRows = await db
+      .select({
+        id: validators.id,
+        moniker: validators.moniker,
+        slug: validators.slug,
+        meta_moniker: validatorMetadata.moniker,
+      })
+      .from(validators)
+      .leftJoin(validatorMetadata, joinCond)
+      .where(eq(validators.active, true));
+
+    const normInput = normalize(id);
+    const candidates = allRows
+      .map((v) => {
+        const label = v.meta_moniker ?? v.moniker ?? v.slug ?? "";
+        const normLabel = normalize(label);
+        const normSlug = normalize(v.slug ?? "");
+        const dist = Math.min(levenshtein(normInput, normLabel), levenshtein(normInput, normSlug));
+        const isSubstring =
+          normLabel.includes(normInput) ||
+          normInput.includes(normLabel) ||
+          normSlug.includes(normInput) ||
+          normInput.includes(normSlug);
+        return { id: v.id, moniker: label, slug: v.slug ?? "", dist, isSubstring };
+      })
+      .filter((c) => c.dist <= 3 || c.isSubstring)
+      .sort((a, b) => a.dist - b.dist || a.moniker.localeCompare(b.moniker))
+      .slice(0, 5);
+
+    if (candidates.length === 0) {
+      return makeResult(
+        { error: `Validator not found: ${id}`, not_found: true },
+        { data_class: 1, source: "get_validator" }
+      );
+    }
+
+    const topCandidate = candidates[0];
+    if (candidates.length === 1 && topCandidate && topCandidate.dist <= 1) {
+      // Single very close match — auto-resolve
+      const exactRows = await db
+        .select(selectCols)
+        .from(validators)
+        .leftJoin(validatorMetadata, joinCond)
+        .where(eq(validators.id, topCandidate.id))
+        .limit(1);
+      row = exactRows[0] ?? null;
+      if (row) resolutionNote = `Resolved '${id}' → '${topCandidate.moniker}'`;
+    } else {
+      // Multiple candidates — return them for user to choose
+      return makeResult(
+        {
+          candidate_matches: candidates.map((c) => ({
+            moniker: c.moniker,
+            slug: c.slug,
+            address: c.id,
+            distance: c.dist,
+          })),
+          resolution_note: null,
+        },
+        { data_class: 1, source: "get_validator" }
+      );
+    }
+  }
+
   if (!row) {
     return makeResult(
-      { error: `Validator not found: ${id}` },
+      { error: `Validator not found: ${id}`, not_found: true },
       { data_class: 1, source: "get_validator" }
     );
   }
@@ -89,7 +199,7 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
 
   // Match watchtower entry by secp pubkey
   const wtEntry: WatchtowerValidator | null = row.secpPubkey
-    ? (wtOverview?.validators.find((v) => v.node_id.slice(2).toLowerCase() === row.secpPubkey) ??
+    ? (wtOverview?.validators.find((v) => v.node_id.slice(2).toLowerCase() === row!.secpPubkey) ??
       null)
     : null;
 
@@ -174,6 +284,28 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
             ? ("At Risk" as const)
             : ("Critical" as const);
 
+  // ── VDP early warning (Class 2 — derived from Watchtower) ────────────────
+  const VDP_WINDOW_WEEKS = 13;
+  const vdpAnalyzed = wt?.vdp_weeks_analyzed ?? null;
+  const vdpWindowRemaining =
+    vdpAnalyzed !== null ? Math.max(0, VDP_WINDOW_WEEKS - vdpAnalyzed) : null;
+  const vdpRiskLevel =
+    vdpWeeks === 0
+      ? ("safe" as const)
+      : vdpWeeks === 1
+        ? ("watch" as const)
+        : vdpWeeks === 2
+          ? ("warning" as const)
+          : ("critical" as const);
+  const vdpProactiveMessage =
+    vdpRiskLevel === "watch"
+      ? `1 flagged week so far — 2 more triggers review.`
+      : vdpRiskLevel === "warning"
+        ? `2 flagged weeks — 1 more away from removal review. Worth a close watch.`
+        : vdpRiskLevel === "critical"
+          ? `Currently in VDP review territory — ${vdpWeeks} flagged weeks observed.`
+          : null;
+
   return makeResult(
     {
       // ── Health score (Class 2 — derived) ───────────────────────────────
@@ -242,6 +374,14 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
       vdp_flagged_weeks: wt?.vdp_flagged_weeks ?? null,
       vdp_weeks_analyzed: wt?.vdp_weeks_analyzed ?? null,
       alert_level: wt?.alert_level ?? null,
+
+      // ── VDP early warning (Class 2 — derived) ──────────────────────────
+      vdp_window_remaining_weeks: vdpWindowRemaining,
+      vdp_risk_level: vdpRiskLevel,
+      vdp_proactive_message: vdpProactiveMessage,
+
+      // ── Fuzzy name resolution ───────────────────────────────────────────
+      resolution_note: resolutionNote,
 
       // ── Legacy metrics (preserved for backward compat) ─────────────────
       metrics: {

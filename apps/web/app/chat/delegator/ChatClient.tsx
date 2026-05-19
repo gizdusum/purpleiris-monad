@@ -34,9 +34,9 @@ const MY_VALIDATOR_QUESTIONS = [
   "What are my last 20 rounds?",
 ];
 
-const DELEGATOR_GREETING = `Hi 👋 — I'm Iris, your Monad validator intelligence agent.
+const DELEGATOR_GREETING = `Hi 👋 — I'm Hermes. Bringing you what the chain says about your validators.
 
-Running or delegating to a validator? Drop your validator address or moniker name and I'll pull the full profile.
+Running or delegating? Drop your validator address or moniker and I'll pull the full profile.
 
 Or pick a quick query below.`;
 
@@ -238,7 +238,7 @@ export function ChatClient() {
           </Link>
           <div className="bg-border h-4 w-px" />
           <div>
-            <p className="text-foreground text-sm font-semibold">Iris — Delegator Mode</p>
+            <p className="text-foreground text-sm font-semibold">Hermes — Delegator Mode</p>
             <p className="text-muted-foreground text-xs">Monad validator intelligence</p>
           </div>
         </div>
