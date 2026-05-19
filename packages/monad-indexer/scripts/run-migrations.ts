@@ -33,6 +33,25 @@ async function main() {
 
   console.log("[verify] secp_pubkey column:", r1[0]?.column_name ?? "MISSING");
   console.log("[verify] validator_metadata table:", r2[0]?.table_name ?? "MISSING");
+
+  // 0004 — epoch_snapshots composite index for validator time-range scans
+  await db`CREATE INDEX IF NOT EXISTS idx_epoch_snapshots_validator_snapshot_at
+    ON epoch_snapshots(validator_id, snapshot_at DESC)`;
+  console.log("[migrate] 0004 idx_epoch_snapshots_validator_snapshot_at: OK");
+
+  // 0005 — monad_releases table + index
+  await db`CREATE TABLE IF NOT EXISTS monad_releases (
+    id SERIAL PRIMARY KEY,
+    tag_name TEXT NOT NULL UNIQUE,
+    published_at TIMESTAMPTZ NOT NULL,
+    html_url TEXT NOT NULL,
+    body TEXT,
+    is_prerelease BOOLEAN NOT NULL DEFAULT FALSE,
+    fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`;
+  await db`CREATE INDEX IF NOT EXISTS idx_monad_releases_published
+    ON monad_releases (published_at DESC)`;
+  console.log("[migrate] 0005 monad_releases: OK");
 }
 
 main().catch((err) => {

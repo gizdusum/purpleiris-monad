@@ -142,8 +142,44 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
     ? Math.floor((Date.now() - new Date(wt.last_seen).getTime()) / 1000)
     : null;
 
+  // ── Health score (Class 2) ────────────────────────────────────────────────
+  const currentEpochRate = wt != null ? wt.current_epoch_success_rate / 100 : null;
+  const rolling30dRate = thisAvg30d;
+  const vdpWeeks = wt?.vdp_flagged_weeks ?? 0;
+  const consecutiveBlocks = wt?.consecutive_proposed ?? null;
+  const status = onlineStatus(wt);
+
+  let score = 100;
+  if (currentEpochRate !== null) score -= (1 - currentEpochRate) * 40;
+  if (rolling30dRate !== null) score -= (1 - rolling30dRate) * 25;
+  if (vdpWeeks > 0) score -= Math.min(20, vdpWeeks * 7);
+  if (consecutiveBlocks !== null) {
+    if (consecutiveBlocks >= 10000) score -= 0;
+    else if (consecutiveBlocks >= 1000) score -= 3;
+    else if (consecutiveBlocks >= 100) score -= 6;
+    else score -= 10;
+  }
+  if (status === "offline" || row.jailed) score -= 5;
+  else if (status === "degraded") score -= 3;
+
+  const healthScore = Math.round(Math.max(0, Math.min(100, score)));
+  const healthBand =
+    healthScore >= 95
+      ? ("Excellent" as const)
+      : healthScore >= 85
+        ? ("Good" as const)
+        : healthScore >= 70
+          ? ("Watch" as const)
+          : healthScore >= 50
+            ? ("At Risk" as const)
+            : ("Critical" as const);
+
   return makeResult(
     {
+      // ── Health score (Class 2 — derived) ───────────────────────────────
+      health_score: healthScore,
+      health_band: healthBand,
+
       // ── Identity (Class 1) ──────────────────────────────────────────────
       id: row.id,
       moniker: row.meta_moniker ?? row.moniker,

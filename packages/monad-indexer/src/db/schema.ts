@@ -6,6 +6,7 @@ import {
   bigint,
   numeric,
   real,
+  serial,
   timestamp,
   uniqueIndex,
   index,
@@ -184,4 +185,19 @@ export const telemetryMetrics = pgTable(
     index("telemetry_metrics_node_ts_idx").on(t.nodeId, t.ts),
     index("telemetry_metrics_ts_idx").on(t.ts),
   ]
+);
+
+// ── Monad protocol releases (synced from GitHub) ──────────────────────────
+export const monadReleases = pgTable(
+  "monad_releases",
+  {
+    id: serial("id").primaryKey(),
+    tagName: text("tag_name").notNull().unique(),
+    publishedAt: timestamp("published_at", { withTimezone: true }).notNull(),
+    htmlUrl: text("html_url").notNull(),
+    body: text("body"),
+    isPrerelease: boolean("is_prerelease").notNull().default(false),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_monad_releases_published").on(t.publishedAt)]
 );

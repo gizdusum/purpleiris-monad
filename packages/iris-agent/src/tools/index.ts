@@ -8,6 +8,7 @@ import { simulateDiversificationTool } from "./simulate-diversification";
 import { estimateStakeRewardTool } from "./estimate-stake-reward";
 import { getRecentAssignmentsTool } from "./get-recent-assignments";
 import { getNetworkOverviewTool } from "./get-network-overview";
+import { getLatestMonadReleaseTool } from "./get-latest-monad-release";
 import type {
   GetValidatorInput,
   ListValidatorsInput,
@@ -180,6 +181,16 @@ export function getDelegatorToolDefinitions(): Anthropic.Tool[] {
         required: [],
       },
     },
+    {
+      name: "get_latest_monad_release",
+      description:
+        "Fetch the latest Monad protocol release from the database (synced from GitHub). Returns the most recent release tag, publication date, summary, and up to 5 previous releases. Use when asked about recent protocol updates, current Monad version, or release history.",
+      input_schema: {
+        type: "object" as const,
+        properties: {},
+        required: [],
+      },
+    },
   ];
 }
 
@@ -216,6 +227,9 @@ export async function executeTool(name: string, input: unknown): Promise<string>
         break;
       case "get_network_overview":
         result = await getNetworkOverviewTool();
+        break;
+      case "get_latest_monad_release":
+        result = await getLatestMonadReleaseTool();
         break;
       default:
         result = {

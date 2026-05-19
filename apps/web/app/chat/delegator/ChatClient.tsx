@@ -24,19 +24,21 @@ type Message = {
 
 const NETWORK_QUESTIONS = [
   "Show me the network overview",
-  "What's the current Nakamoto coefficient?",
-  "Top 5 validators by stake",
-  "Compare Backpack and Chorus One",
-  "How is the network performing today?",
+  "Top validators by stake",
+  "Find underrated validators worth supporting",
 ];
 
 const MY_VALIDATOR_QUESTIONS = [
-  "Show me my full profile",
-  "What are my last 20 assignments?",
-  "What's my current epoch success rate?",
-  "Am I online and healthy?",
-  "How do I compare to similar validators?",
+  "Show me my full health profile",
+  "Am I at VDP risk?",
+  "What are my last 20 rounds?",
 ];
+
+const DELEGATOR_GREETING = `Hi 👋 — I'm Iris, your Monad validator intelligence agent.
+
+Running or delegating to a validator? Drop your validator address or moniker name and I'll pull the full profile.
+
+Or pick a quick query below.`;
 
 function substituteMyRef(q: string, displayName: string): string {
   return q
@@ -277,44 +279,31 @@ export function ChatClient() {
       {/* Message list */}
       <div className="flex-1 overflow-y-auto" style={{ position: "relative", zIndex: 1 }}>
         {isEmpty ? (
-          <div className="flex h-full flex-col items-center justify-center px-4 text-center">
-            <p className="text-foreground mb-2 text-2xl font-bold">What would you like to know?</p>
-            <p className="text-muted-foreground mb-8 max-w-sm text-sm">
-              Ask me about any Monad validator — commission, performance, decentralization, or
-              projected rewards.
-            </p>
+          <div className="mx-auto space-y-6 px-4 py-6" style={{ maxWidth: "920px" }}>
+            {/* Greeting bubble */}
+            <div className="flex flex-col items-start">
+              <div className="border-border bg-card text-foreground max-w-[85%] rounded-2xl border px-4 py-3 text-sm leading-relaxed">
+                <IrisMarkdown text={DELEGATOR_GREETING} streaming={false} />
+              </div>
+            </div>
 
-            <div className="w-full max-w-lg">
-              <p
-                className="text-muted-foreground mb-3 text-xs uppercase"
-                style={{ letterSpacing: "0.3em" }}
-              >
-                About the Network
-              </p>
-              <div className="mb-6 flex flex-wrap justify-center gap-2">
+            {/* Ghost pills */}
+            <div>
+              <p className="iris-ghost-pill-group-label">NETWORK</p>
+              <div className="flex flex-wrap gap-2">
                 {NETWORK_QUESTIONS.map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => void send(q)}
-                    className="border-border bg-card hover:border-iris-primary text-muted-foreground hover:text-foreground rounded-xl border px-3 py-2 text-left text-xs transition-colors"
-                  >
+                  <button key={q} onClick={() => void send(q)} className="iris-ghost-pill">
                     {q}
                   </button>
                 ))}
               </div>
-
-              <p
-                className="text-muted-foreground mb-3 text-xs uppercase"
-                style={{ letterSpacing: "0.3em", marginTop: "24px" }}
-              >
-                About My Validator
-              </p>
-              <div className="flex flex-wrap justify-center gap-2">
+              <p className="iris-ghost-pill-group-label">MY VALIDATOR</p>
+              <div className="flex flex-wrap gap-2">
                 {MY_VALIDATOR_QUESTIONS.map((q) => (
                   <button
                     key={q}
                     onClick={() => handleMyValidatorQuestion(q)}
-                    className="border-border bg-card hover:border-iris-primary text-muted-foreground hover:text-foreground rounded-xl border px-3 py-2 text-left text-xs transition-colors"
+                    className="iris-ghost-pill"
                   >
                     {q}
                   </button>
@@ -323,7 +312,7 @@ export function ChatClient() {
             </div>
           </div>
         ) : (
-          <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
+          <div className="mx-auto space-y-6 px-4 py-6" style={{ maxWidth: "920px" }}>
             {messages.map((m) => (
               <MessageBubble key={m.id} message={m} onSuggest={(s) => void send(s)} />
             ))}
@@ -341,7 +330,8 @@ export function ChatClient() {
       <div className="border-border border-t px-4 py-3" style={{ position: "relative", zIndex: 1 }}>
         <form
           onSubmit={handleSubmit}
-          className="border-border bg-card focus-within:ring-iris-primary/40 mx-auto flex max-w-2xl items-end gap-2 rounded-2xl border px-4 py-3 focus-within:ring-2"
+          className="border-border bg-card focus-within:ring-iris-primary/40 mx-auto flex items-end gap-2 rounded-2xl border px-4 py-3 focus-within:ring-2"
+          style={{ maxWidth: "920px" }}
         >
           <textarea
             ref={textareaRef}
@@ -433,14 +423,6 @@ function MessageBubble({
   );
 }
 
-function extractCodeText(children: React.ReactNode): string {
-  if (typeof children === "string") return children;
-  if (Array.isArray(children)) {
-    return children.map((c) => (typeof c === "string" ? c : "")).join("");
-  }
-  return String(children ?? "");
-}
-
 function IrisMarkdown({ text, streaming }: { text: string; streaming?: boolean }) {
   const displayText = streaming ? stripSuggestionsForStream(text) : text;
   const processed = applyIrisMarkers(displayText);
@@ -524,7 +506,7 @@ function IrisMarkdown({ text, streaming }: { text: string; streaming?: boolean }
           },
           code({ children, className }) {
             const isBlock = Boolean(className);
-            const raw = extractCodeText(children);
+            const raw = String(children ?? "");
             const html = applyIrisMarkers(raw);
             if (isBlock) {
               return (

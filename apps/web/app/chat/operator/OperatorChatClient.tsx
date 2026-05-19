@@ -23,19 +23,19 @@ type Message = {
 
 const NETWORK_QUESTIONS = [
   "Show me the network overview",
-  "What's the current Nakamoto coefficient?",
-  "Top 5 validators by stake",
-  "Compare Backpack and Chorus One",
-  "How is the network performing today?",
+  "Top validators by stake",
+  "Find underrated validators worth supporting",
 ];
 
 const MY_VALIDATOR_QUESTIONS = [
-  "Show me my full profile",
-  "What are my last 20 assignments?",
-  "What's my current epoch success rate?",
-  "Am I online and healthy?",
-  "How do I compare to similar validators?",
+  "Show me my full health profile",
+  "Am I at VDP risk?",
+  "What are my last 20 rounds?",
 ];
+
+const OPERATOR_GREETING = `Hey, operator. I'm Iris — here to help with your Monad node.
+
+Running a validator is real work. Paste your address or moniker and I'll show you what the network sees. Or grab a quick query below.`;
 
 function substituteMyRef(q: string, displayName: string): string {
   return q
@@ -223,44 +223,31 @@ export function OperatorChatClient() {
       {/* Message list */}
       <div className="flex-1 overflow-y-auto" style={{ position: "relative", zIndex: 1 }}>
         {isEmpty ? (
-          <div className="flex h-full flex-col items-center justify-center px-4 text-center">
-            <p className="text-foreground mb-2 text-2xl font-bold">Operator diagnostics.</p>
-            <p className="text-muted-foreground mb-8 max-w-sm text-sm">
-              On-chain validator data, block production history, network metrics. Telemetry ships in
-              v1.5.
-            </p>
+          <div className="mx-auto space-y-6 px-4 py-6" style={{ maxWidth: "920px" }}>
+            {/* Greeting bubble */}
+            <div className="flex flex-col items-start">
+              <div className="border-border bg-card text-foreground max-w-[85%] rounded-2xl border px-4 py-3 text-sm leading-relaxed">
+                <IrisMarkdown text={OPERATOR_GREETING} />
+              </div>
+            </div>
 
-            <div className="w-full max-w-lg">
-              <p
-                className="text-muted-foreground mb-3 text-xs uppercase"
-                style={{ letterSpacing: "0.3em" }}
-              >
-                About the Network
-              </p>
-              <div className="mb-6 flex flex-wrap justify-center gap-2">
+            {/* Ghost pills */}
+            <div>
+              <p className="iris-ghost-pill-group-label">NETWORK</p>
+              <div className="flex flex-wrap gap-2">
                 {NETWORK_QUESTIONS.map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => void send(q)}
-                    className="border-border bg-card hover:border-iris-primary text-muted-foreground hover:text-foreground rounded-xl border px-3 py-2 text-left text-xs transition-colors"
-                  >
+                  <button key={q} onClick={() => void send(q)} className="iris-ghost-pill">
                     {q}
                   </button>
                 ))}
               </div>
-
-              <p
-                className="text-muted-foreground mb-3 text-xs uppercase"
-                style={{ letterSpacing: "0.3em", marginTop: "24px" }}
-              >
-                About My Validator
-              </p>
-              <div className="flex flex-wrap justify-center gap-2">
+              <p className="iris-ghost-pill-group-label">MY VALIDATOR</p>
+              <div className="flex flex-wrap gap-2">
                 {MY_VALIDATOR_QUESTIONS.map((q) => (
                   <button
                     key={q}
                     onClick={() => handleMyValidatorQuestion(q)}
-                    className="border-border bg-card hover:border-iris-primary text-muted-foreground hover:text-foreground rounded-xl border px-3 py-2 text-left text-xs transition-colors"
+                    className="iris-ghost-pill"
                   >
                     {q}
                   </button>
@@ -269,7 +256,7 @@ export function OperatorChatClient() {
             </div>
           </div>
         ) : (
-          <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
+          <div className="mx-auto space-y-6 px-4 py-6" style={{ maxWidth: "920px" }}>
             {messages.map((m) => (
               <OperatorMessageBubble key={m.id} message={m} onSuggest={(s) => void send(s)} />
             ))}
@@ -288,9 +275,10 @@ export function OperatorChatClient() {
       <div className="border-border border-t px-4 py-3" style={{ position: "relative", zIndex: 1 }}>
         <form
           onSubmit={handleSubmit}
-          className="border-border bg-card mx-auto flex max-w-2xl items-end gap-2 rounded-2xl border px-4 py-3 focus-within:ring-2"
+          className="border-border bg-card mx-auto flex items-end gap-2 rounded-2xl border px-4 py-3 focus-within:ring-2"
           style={
             {
+              maxWidth: "920px",
               "--tw-ring-color": "color-mix(in srgb, var(--cat-operator) 40%, transparent)",
             } as React.CSSProperties
           }
@@ -386,14 +374,6 @@ function OperatorMessageBubble({
   );
 }
 
-function extractCodeText(children: React.ReactNode): string {
-  if (typeof children === "string") return children;
-  if (Array.isArray(children)) {
-    return children.map((c) => (typeof c === "string" ? c : "")).join("");
-  }
-  return String(children ?? "");
-}
-
 function IrisMarkdown({ text }: { text: string }) {
   const processed = applyIrisMarkers(text);
 
@@ -471,7 +451,7 @@ function IrisMarkdown({ text }: { text: string }) {
         },
         code({ children, className }) {
           const isBlock = Boolean(className);
-          const raw = extractCodeText(children);
+          const raw = String(children ?? "");
           const html = applyIrisMarkers(raw);
           if (isBlock) {
             return (

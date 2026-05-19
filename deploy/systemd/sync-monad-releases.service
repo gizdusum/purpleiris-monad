@@ -1,0 +1,13 @@
+[Unit]
+Description=PurpleIris — Monad release watcher sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/purpleiris
+EnvironmentFile=/opt/purpleiris/.env
+ExecStart=/usr/bin/pnpm --filter @purpleiris/monad-indexer tsx scripts/sync-monad-releases.ts
+StandardOutput=journal
+StandardError=journal

@@ -1,0 +1,11 @@
+[Unit]
+Description=PurpleIris — Monad release watcher (every 6h)
+Requires=sync-monad-releases.service
+
+[Timer]
+OnCalendar=00/6:15:00
+RandomizedDelaySec=600
+Persistent=true
+
+[Install]
+WantedBy=timers.target
