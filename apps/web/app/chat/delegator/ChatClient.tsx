@@ -51,6 +51,7 @@ function substituteMyRef(q: string, displayName: string): string {
 
 export function ChatClient() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [cachedConversation, setCachedConversation] = useState<Message[] | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -205,6 +206,18 @@ export function ChatClient() {
     }
   }
 
+  function handleBack() {
+    if (messages.length === 0) return;
+    setCachedConversation(messages);
+    setMessages([]);
+  }
+
+  function handleForward() {
+    if (!cachedConversation || cachedConversation.length === 0) return;
+    setMessages(cachedConversation);
+    setCachedConversation(null);
+  }
+
   const isEmpty = messages.length === 0;
   const badgeLabel = remembered
     ? (remembered.moniker ?? `${remembered.address.slice(0, 6)}...${remembered.address.slice(-4)}`)
@@ -310,6 +323,17 @@ export function ChatClient() {
                 ))}
               </div>
             </div>
+            {cachedConversation && cachedConversation.length > 0 && (
+              <div className="iris-nav-row iris-nav-row-empty-state">
+                <button
+                  onClick={handleForward}
+                  className="iris-forward-btn"
+                  aria-label="Restore previous conversation"
+                >
+                  → Resume previous chat
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="mx-auto space-y-6 px-4 py-6" style={{ maxWidth: "920px" }}>
@@ -319,6 +343,7 @@ export function ChatClient() {
                 message={m}
                 isLast={i === messages.length - 1}
                 onSuggest={(s) => void send(s)}
+                onBack={handleBack}
               />
             ))}
             {error && (
@@ -381,10 +406,12 @@ function MessageBubble({
   message,
   isLast,
   onSuggest,
+  onBack,
 }: {
   message: Message;
   isLast: boolean;
   onSuggest: (s: string) => void;
+  onBack: () => void;
 }) {
   const isUser = message.role === "user";
   const showBack = !isUser && isLast && !message.streaming;
@@ -428,10 +455,14 @@ function MessageBubble({
         </div>
       )}
       {showBack && (
-        <div className="mt-2">
-          <Link href="/" className="iris-back-btn">
-            <span style={{ marginRight: "4px" }}>←</span> Back to home
-          </Link>
+        <div className="iris-nav-row">
+          <button
+            onClick={onBack}
+            className="iris-back-btn"
+            aria-label="Clear conversation and return to home view"
+          >
+            ← Back to home
+          </button>
         </div>
       )}
     </div>

@@ -208,3 +208,35 @@
   outline: 2px solid rgba(124, 92, 255, 0.6);
   outline-offset: 2px;
 }
+
+/* ── Nav row (back / forward button container) ── */
+.iris-nav-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  padding-left: 2px;
+}
+
+.iris-nav-row-empty-state {
+  margin-top: 28px;
+  justify-content: center;
+}
+
+/* ── Forward button ── */
+.iris-forward-btn {
+  background: transparent;
+  border: 1px solid rgba(124, 92, 255, 0.35);
+  color: rgba(226, 232, 240, 0.7);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 160ms ease-out;
+}
+.iris-forward-btn:hover {
+  border-color: rgba(124, 92, 255, 0.8);
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(124, 92, 255, 0.08);
+}
