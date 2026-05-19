@@ -127,19 +127,77 @@
 /* ── Streaming cursor ── */
 @keyframes iris-cursor-blink {
   0%,
-  100% {
+  50% {
     opacity: 1;
   }
-  50% {
-    opacity: 0;
+  51%,
+  100% {
+    opacity: 0.2;
   }
 }
 .iris-cursor::after {
   content: "▋";
   display: inline-block;
   color: var(--accent);
-  animation: iris-cursor-blink 0.85s step-end infinite;
+  animation: iris-cursor-blink 1s steps(2) infinite;
   margin-left: 1px;
+}
+
+/* ── Block stream cursor (used as inline element) ── */
+.iris-stream-cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 1em;
+  background: rgba(124, 92, 255, 0.9);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: iris-cursor-blink 1s steps(2) infinite;
+}
+
+/* ── Thinking text animation (animated dots via ::after) ── */
+@keyframes iris-thinking-dots {
+  0%,
+  33% {
+    content: ".";
+  }
+  34%,
+  66% {
+    content: "..";
+  }
+  67%,
+  100% {
+    content: "...";
+  }
+}
+.iris-thinking-text::after {
+  content: "...";
+  animation: iris-thinking-dots 1.4s infinite;
+}
+
+/* ── Channel join event line ── */
+.iris-channel-event {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  color: rgba(226, 232, 240, 0.35);
+  letter-spacing: 0.04em;
+  margin: 12px 0;
+  padding-left: 4px;
+}
+.iris-channel-event-time {
+  color: rgba(226, 232, 240, 0.25);
+}
+.iris-channel-event-name {
+  color: rgba(124, 92, 255, 0.85);
+  font-weight: 500;
+}
+
+/* ── Typing indicator ── */
+.iris-typing-indicator {
+  font-family: var(--font-mono), monospace;
+  font-size: 13px;
+  color: rgba(226, 232, 240, 0.5);
+  margin: 8px 0 16px 0;
+  padding-left: 4px;
 }
 
 /* ── Ghost pills (empty-state suggestions) ── */

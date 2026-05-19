@@ -22,23 +22,37 @@ type Message = {
   suggestions?: string[];
 };
 
-const NETWORK_QUESTIONS = [
+type GreetingStage = "join" | "typing" | "streaming" | "done";
+
+const DELEGATOR_GREETING_FULL = `Hey 👋 I'm Hermes — your messenger from the Monad chain.
+
+Running or delegating? Drop a validator's address or moniker, or pick a query below.`;
+
+const THINKING_PHRASES = [
+  "Hermes is reading the chain",
+  "Pulling validator data",
+  "Cross-referencing metrics",
+] as const;
+
+// Chip sets
+const CHIPS_NETWORK = [
   "Show me the network overview",
-  "Top validators by stake",
-  "Find underrated validators worth supporting",
+  "Top 5 validators by reliability",
+  "Find clean validators with low commission",
 ];
-
-const MY_VALIDATOR_QUESTIONS = [
-  "Show me my full health profile",
-  "Am I at VDP risk?",
-  "What are my last 20 rounds?",
+const CHIPS_COMPARE = [
+  "Compare two validators side by side",
+  "Which validators are safest for long-term staking?",
 ];
+const CHIPS_SIMULATE = ["What would I earn delegating 1000 MON?"];
 
-const DELEGATOR_GREETING = `Hi 👋 — I'm Hermes. Bringing you what the chain says about your validators.
-
-Running or delegating? Drop your validator address or moniker and I'll pull the full profile.
-
-Or pick a quick query below.`;
+function getPostValidatorChips(moniker: string) {
+  return [
+    `Show me ${moniker}'s full profile`,
+    `Walk me through ${moniker}'s risk signals`,
+    `What would I earn delegating to ${moniker}?`,
+  ];
+}
 
 function substituteMyRef(q: string, displayName: string): string {
   return q
@@ -57,8 +71,24 @@ export function ChatClient() {
   const [error, setError] = useState<string | null>(null);
   const [remembered, setRemembered] = useState<RememberedValidator | null>(null);
   const [modal, setModal] = useState<{ pending: string } | null>(null);
+
+  // Greeting animation state
+  const [greetingStage, setGreetingStage] = useState<GreetingStage>("join");
+  const [greetingText, setGreetingText] = useState("");
+  const [greetingTime, setGreetingTime] = useState(() =>
+    new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" })
+  );
+  const greetingTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const greetingRafRef = useRef<number | null>(null);
+
+  // Thinking phase state
+  const [thinkingPhase, setThinkingPhase] = useState<0 | 1 | 2 | null>(null);
+  const thinkingTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const isEmpty = messages.length === 0;
 
   useEffect(() => {
     setRemembered(getRemembered());
@@ -67,6 +97,47 @@ export function ChatClient() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  // Greeting animation: runs whenever the empty state appears
+  useEffect(() => {
+    if (!isEmpty) return;
+    // Clear any previous animation
+    greetingTimersRef.current.forEach(clearTimeout);
+    if (greetingRafRef.current) cancelAnimationFrame(greetingRafRef.current);
+    setGreetingStage("join");
+    setGreetingText("");
+    setGreetingTime(
+      new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" })
+    );
+
+    const t1 = setTimeout(() => setGreetingStage("typing"), 700);
+    const t2 = setTimeout(() => setGreetingStage("streaming"), 2200);
+    greetingTimersRef.current = [t1, t2];
+
+    return () => {
+      [t1, t2].forEach(clearTimeout);
+      if (greetingRafRef.current) cancelAnimationFrame(greetingRafRef.current);
+    };
+  }, [isEmpty]);
+
+  // RAF loop: advance greeting text when stage is "streaming"
+  useEffect(() => {
+    if (greetingStage !== "streaming") return;
+    if (greetingText.length >= DELEGATOR_GREETING_FULL.length) {
+      setGreetingStage("done");
+      return;
+    }
+    greetingRafRef.current = requestAnimationFrame(() => {
+      setGreetingText((prev) => {
+        const gap = DELEGATOR_GREETING_FULL.length - prev.length;
+        const step = Math.max(1, Math.min(5, Math.ceil(gap / 15)));
+        return DELEGATOR_GREETING_FULL.slice(0, prev.length + step);
+      });
+    });
+    return () => {
+      if (greetingRafRef.current) cancelAnimationFrame(greetingRafRef.current);
+    };
+  }, [greetingStage, greetingText]);
 
   function autoResize() {
     const ta = textareaRef.current;
@@ -87,8 +158,16 @@ export function ChatClient() {
     setLoading(true);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
+    // Start thinking phase
+    setThinkingPhase(0);
+    const tp1 = setTimeout(() => setThinkingPhase(1), 3000);
+    const tp2 = setTimeout(() => setThinkingPhase(2), 7000);
+    thinkingTimersRef.current = [tp1, tp2];
+
     const assistantId = crypto.randomUUID();
     setMessages([...history, { id: assistantId, role: "assistant", content: "", streaming: true }]);
+
+    let firstToken = true;
 
     try {
       const res = await fetch("/api/chat/delegator", {
@@ -106,15 +185,15 @@ export function ChatClient() {
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = "";
+      let buf = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
 
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
@@ -135,6 +214,13 @@ export function ChatClient() {
           }
 
           if (event.type === "delta" && event.text) {
+            // Clear thinking phase on first token
+            if (firstToken) {
+              firstToken = false;
+              thinkingTimersRef.current.forEach(clearTimeout);
+              thinkingTimersRef.current = [];
+              setThinkingPhase(null);
+            }
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId ? { ...m, content: m.content + event.text! } : m
@@ -162,18 +248,11 @@ export function ChatClient() {
         }
       }
     } catch (err) {
+      thinkingTimersRef.current.forEach(clearTimeout);
+      setThinkingPhase(null);
       setMessages((prev) => prev.filter((m) => m.id !== assistantId));
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setLoading(false);
-    }
-  }
-
-  function handleMyValidatorQuestion(q: string) {
-    if (remembered) {
-      const displayName = remembered.moniker ?? remembered.address;
-      void send(substituteMyRef(q, displayName));
-    } else {
-      setModal({ pending: q });
     }
   }
 
@@ -218,7 +297,6 @@ export function ChatClient() {
     setCachedConversation(null);
   }
 
-  const isEmpty = messages.length === 0;
   const badgeLabel = remembered
     ? (remembered.moniker ?? `${remembered.address.slice(0, 6)}...${remembered.address.slice(-4)}`)
     : null;
@@ -292,37 +370,79 @@ export function ChatClient() {
       {/* Message list */}
       <div className="flex-1 overflow-y-auto" style={{ position: "relative", zIndex: 1 }}>
         {isEmpty ? (
-          <div className="mx-auto space-y-6 px-4 py-6" style={{ maxWidth: "920px" }}>
-            {/* Greeting bubble */}
-            <div className="flex flex-col items-start">
-              <div className="border-border bg-card text-foreground max-w-[85%] rounded-2xl border px-4 py-3 text-sm leading-relaxed">
-                <IrisMarkdown text={DELEGATOR_GREETING} streaming={false} />
-              </div>
+          <div className="mx-auto px-4 py-6" style={{ maxWidth: "920px" }}>
+            {/* Stage 1: channel join event */}
+            <div className="iris-channel-event">
+              <span className="iris-channel-event-time">[{greetingTime}]</span>
+              {"  "}
+              <span className="iris-channel-event-name">Hermes</span>
+              {" joined the channel"}
             </div>
 
-            {/* Ghost pills */}
-            <div>
-              <p className="iris-ghost-pill-group-label">NETWORK</p>
-              <div className="flex flex-wrap gap-2">
-                {NETWORK_QUESTIONS.map((q) => (
-                  <button key={q} onClick={() => void send(q)} className="iris-ghost-pill">
-                    {q}
-                  </button>
-                ))}
+            {/* Stage 2: typing indicator */}
+            {(greetingStage === "typing" ||
+              greetingStage === "streaming" ||
+              greetingStage === "done") &&
+              (greetingStage === "typing" ? (
+                <div className="iris-typing-indicator iris-thinking-text">Hermes is typing</div>
+              ) : (
+                /* Stage 3 & 4: greeting bubble streaming then done */
+                <div className="mt-2 flex flex-col items-start">
+                  <div className="border-border bg-card text-foreground max-w-[85%] rounded-2xl border px-4 py-3 text-sm leading-relaxed">
+                    <p style={{ whiteSpace: "pre-line" }}>
+                      {greetingText}
+                      {greetingStage === "streaming" && <span className="iris-stream-cursor" />}
+                    </p>
+                  </div>
+                </div>
+              ))}
+
+            {/* Stage 4: chips */}
+            {greetingStage === "done" && (
+              <div className="mt-6">
+                {remembered ? (
+                  <>
+                    <p className="iris-ghost-pill-group-label">ANALYZE</p>
+                    <div className="flex flex-wrap gap-2">
+                      {getPostValidatorChips(remembered.moniker ?? remembered.address).map((q) => (
+                        <button key={q} onClick={() => void send(q)} className="iris-ghost-pill">
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="iris-ghost-pill-group-label">NETWORK</p>
+                    <div className="flex flex-wrap gap-2">
+                      {CHIPS_NETWORK.map((q) => (
+                        <button key={q} onClick={() => void send(q)} className="iris-ghost-pill">
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="iris-ghost-pill-group-label">COMPARE</p>
+                    <div className="flex flex-wrap gap-2">
+                      {CHIPS_COMPARE.map((q) => (
+                        <button key={q} onClick={() => void send(q)} className="iris-ghost-pill">
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="iris-ghost-pill-group-label">SIMULATE</p>
+                    <div className="flex flex-wrap gap-2">
+                      {CHIPS_SIMULATE.map((q) => (
+                        <button key={q} onClick={() => void send(q)} className="iris-ghost-pill">
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
-              <p className="iris-ghost-pill-group-label">MY VALIDATOR</p>
-              <div className="flex flex-wrap gap-2">
-                {MY_VALIDATOR_QUESTIONS.map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => handleMyValidatorQuestion(q)}
-                    className="iris-ghost-pill"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            </div>
+            )}
+
+            {/* Forward button */}
             {cachedConversation && cachedConversation.length > 0 && (
               <div className="iris-nav-row iris-nav-row-empty-state">
                 <button
@@ -344,6 +464,7 @@ export function ChatClient() {
                 isLast={i === messages.length - 1}
                 onSuggest={(s) => void send(s)}
                 onBack={handleBack}
+                thinkingPhase={thinkingPhase}
               />
             ))}
             {error && (
@@ -372,7 +493,7 @@ export function ChatClient() {
               autoResize();
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Ask Iris about validators…"
+            placeholder="Ask Hermes about validators…"
             disabled={loading}
             className="text-foreground placeholder:text-muted-foreground flex-1 resize-none bg-transparent text-sm outline-none disabled:opacity-50"
             style={{ maxHeight: 160 }}
@@ -386,7 +507,7 @@ export function ChatClient() {
           </button>
         </form>
         <p className="text-muted-foreground mt-2 text-center text-xs">
-          Iris does not provide financial advice.{" "}
+          Hermes does not provide financial advice.{" "}
           <Link href="/transparency/new" className="text-iris-primary underline underline-offset-2">
             Report an issue
           </Link>
@@ -407,14 +528,19 @@ function MessageBubble({
   isLast,
   onSuggest,
   onBack,
+  thinkingPhase,
 }: {
   message: Message;
   isLast: boolean;
   onSuggest: (s: string) => void;
   onBack: () => void;
+  thinkingPhase: 0 | 1 | 2 | null;
 }) {
   const isUser = message.role === "user";
   const showBack = !isUser && isLast && !message.streaming;
+  const showThinking =
+    !isUser && (message.streaming ?? false) && message.content === "" && thinkingPhase !== null;
+
   return (
     <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
       <div
@@ -427,6 +553,17 @@ function MessageBubble({
       >
         {isUser ? (
           <p className="whitespace-pre-wrap">{message.content}</p>
+        ) : showThinking ? (
+          <span
+            className="iris-thinking-text"
+            style={{
+              color: "rgba(226,232,240,0.4)",
+              fontFamily: "var(--font-mono), monospace",
+              fontSize: "0.875rem",
+            }}
+          >
+            {THINKING_PHRASES[thinkingPhase ?? 0]}
+          </span>
         ) : (
           <IrisMarkdown text={message.content} streaming={message.streaming ?? false} />
         )}
@@ -470,15 +607,39 @@ function MessageBubble({
 }
 
 function IrisMarkdown({ text, streaming }: { text: string; streaming?: boolean }) {
-  const displayText = streaming ? stripSuggestionsForStream(text) : text;
-  const processed = applyIrisMarkers(displayText);
+  const [displayedText, setDisplayedText] = useState(text);
+  const rafRef = useRef<number | null>(null);
+
+  // When not streaming: snap to full text immediately
+  useEffect(() => {
+    if (!streaming) {
+      setDisplayedText(text);
+      return;
+    }
+    // RAF advance: catch up displayedText to text one step per frame
+    if (displayedText.length >= text.length) return;
+    rafRef.current = requestAnimationFrame(() => {
+      setDisplayedText((prev) => {
+        const gap = text.length - prev.length;
+        const step = Math.max(1, Math.min(3, Math.ceil(gap / 20)));
+        return text.slice(0, prev.length + step);
+      });
+    });
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [streaming, text, displayedText]);
+
+  const effectiveText = streaming ? displayedText : text;
+  const displayContent = streaming ? stripSuggestionsForStream(effectiveText) : effectiveText;
+  const processed = applyIrisMarkers(displayContent);
 
   if (!processed && streaming) {
-    return <span className="iris-cursor" />;
+    return <span className="iris-stream-cursor" />;
   }
 
   return (
-    <span className={streaming ? "iris-cursor" : undefined}>
+    <>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}
@@ -536,9 +697,7 @@ function IrisMarkdown({ text, streaming }: { text: string; streaming?: boolean }
           },
           code({ children, className }) {
             const rawChildren = String(children ?? "");
-            // Detect block code: remark appends \n to fenced block values
             const isBlock = rawChildren.endsWith("\n") || Boolean(className);
-            // HTML-decode entities that rehype-raw may introduce in code content
             const decoded = rawChildren
               .replace(/\n$/, "")
               .replace(/&amp;/g, "&")
@@ -651,6 +810,7 @@ function IrisMarkdown({ text, streaming }: { text: string; streaming?: boolean }
       >
         {processed}
       </ReactMarkdown>
-    </span>
+      {streaming && <span className="iris-stream-cursor" />}
+    </>
   );
 }

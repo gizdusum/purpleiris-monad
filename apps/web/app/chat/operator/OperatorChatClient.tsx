@@ -5,7 +5,6 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import type { IrisResponse } from "@purpleiris/iris-agent";
 import IrisBackdrop from "@/components/IrisBackdrop";
 import { AddressModal } from "@/components/AddressModal";
 import { applyIrisMarkers, parseSuggestions } from "@/lib/iris-markdown";
@@ -17,25 +16,38 @@ type Message = {
   id: string;
   role: Role;
   content: string;
+  streaming?: boolean;
   toolCount?: number;
   suggestions?: string[];
 };
 
-const NETWORK_QUESTIONS = [
-  "Show me the network overview",
-  "Top validators by stake",
-  "Find underrated validators worth supporting",
+type GreetingStage = "join" | "typing" | "streaming" | "done";
+
+const OPERATOR_GREETING_FULL = `Welcome. I'm Hermes — chain-side intel for Monad operators.
+
+Drop your validator address or moniker and I'll pull your operational profile. We'll work from there.`;
+
+const THINKING_PHRASES = [
+  "Hermes is reading the chain",
+  "Pulling validator data",
+  "Cross-referencing metrics",
+] as const;
+
+// Chip sets
+const OP_CHIPS_SETUP = [
+  "I don't run a validator — show me network status",
+  "Help me read someone else's validator profile",
 ];
-
-const MY_VALIDATOR_QUESTIONS = [
-  "Show me my full health profile",
-  "Am I at VDP risk?",
-  "What are my last 20 rounds?",
+const OP_CHIPS_DAILY = [
+  "Anything off in my last 24h?",
+  "When's my next round assignment?",
+  "Show me my recent missed rounds",
 ];
-
-const OPERATOR_GREETING = `Hey, operator. I'm Hermes — here to help with your Monad node. Bringing you what the chain says about your setup.
-
-Paste your address or moniker and I'll show you what the network sees. Or grab a quick query below.`;
+const OP_CHIPS_DIAGNOSE = [
+  "My peer count looks low — walk me through it",
+  "I had a missed block — help me investigate",
+  "Latest Monad release — do I need to upgrade?",
+];
 
 function substituteMyRef(q: string, displayName: string): string {
   return q
@@ -46,6 +58,12 @@ function substituteMyRef(q: string, displayName: string): string {
     .replace(/\bmy\b/g, `${displayName}'s`);
 }
 
+function isIdentityInput(text: string): boolean {
+  const isHex = /^0x[a-f0-9]{64}$/i.test(text);
+  const isSingleWord = /^[a-zA-Z0-9_-]+$/.test(text) && text.length < 40;
+  return isHex || isSingleWord;
+}
+
 export function OperatorChatClient() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [cachedConversation, setCachedConversation] = useState<Message[] | null>(null);
@@ -54,8 +72,24 @@ export function OperatorChatClient() {
   const [error, setError] = useState<string | null>(null);
   const [remembered, setRemembered] = useState<RememberedValidator | null>(null);
   const [modal, setModal] = useState<{ pending: string } | null>(null);
+
+  // Greeting animation state
+  const [greetingStage, setGreetingStage] = useState<GreetingStage>("join");
+  const [greetingText, setGreetingText] = useState("");
+  const [greetingTime, setGreetingTime] = useState(() =>
+    new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" })
+  );
+  const greetingTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const greetingRafRef = useRef<number | null>(null);
+
+  // Thinking phase
+  const [thinkingPhase, setThinkingPhase] = useState<0 | 1 | 2 | null>(null);
+  const thinkingTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const isEmpty = messages.length === 0;
 
   useEffect(() => {
     setRemembered(getRemembered());
@@ -64,6 +98,45 @@ export function OperatorChatClient() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  // Greeting animation: runs whenever the empty state appears
+  useEffect(() => {
+    if (!isEmpty) return;
+    greetingTimersRef.current.forEach(clearTimeout);
+    if (greetingRafRef.current) cancelAnimationFrame(greetingRafRef.current);
+    setGreetingStage("join");
+    setGreetingText("");
+    setGreetingTime(
+      new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" })
+    );
+
+    const t1 = setTimeout(() => setGreetingStage("typing"), 700);
+    const t2 = setTimeout(() => setGreetingStage("streaming"), 2200);
+    greetingTimersRef.current = [t1, t2];
+
+    return () => {
+      [t1, t2].forEach(clearTimeout);
+      if (greetingRafRef.current) cancelAnimationFrame(greetingRafRef.current);
+    };
+  }, [isEmpty]);
+
+  useEffect(() => {
+    if (greetingStage !== "streaming") return;
+    if (greetingText.length >= OPERATOR_GREETING_FULL.length) {
+      setGreetingStage("done");
+      return;
+    }
+    greetingRafRef.current = requestAnimationFrame(() => {
+      setGreetingText((prev) => {
+        const gap = OPERATOR_GREETING_FULL.length - prev.length;
+        const step = Math.max(1, Math.min(5, Math.ceil(gap / 15)));
+        return OPERATOR_GREETING_FULL.slice(0, prev.length + step);
+      });
+    });
+    return () => {
+      if (greetingRafRef.current) cancelAnimationFrame(greetingRafRef.current);
+    };
+  }, [greetingStage, greetingText]);
 
   function autoResize() {
     const ta = textareaRef.current;
@@ -76,6 +149,18 @@ export function OperatorChatClient() {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
 
+    // Auto-detect validator identity on first message
+    if (messages.length === 0 && !remembered && isIdentityInput(trimmed)) {
+      const isHex = /^0x[a-f0-9]{64}$/i.test(trimmed);
+      const v: RememberedValidator = {
+        address: isHex ? trimmed.toLowerCase() : trimmed,
+        ...(!isHex ? { moniker: trimmed } : {}),
+        saved_at: Date.now(),
+      };
+      remember(v);
+      setRemembered(v);
+    }
+
     const userMsg: Message = { id: crypto.randomUUID(), role: "user", content: trimmed };
     const history = [...messages, userMsg];
     setMessages(history);
@@ -83,6 +168,17 @@ export function OperatorChatClient() {
     setError(null);
     setLoading(true);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
+
+    // Start thinking phase
+    setThinkingPhase(0);
+    const tp1 = setTimeout(() => setThinkingPhase(1), 3000);
+    const tp2 = setTimeout(() => setThinkingPhase(2), 7000);
+    thinkingTimersRef.current = [tp1, tp2];
+
+    const assistantId = crypto.randomUUID();
+    setMessages([...history, { id: assistantId, role: "assistant", content: "", streaming: true }]);
+
+    let firstToken = true;
 
     try {
       const res = await fetch("/api/chat/operator", {
@@ -93,24 +189,77 @@ export function OperatorChatClient() {
         }),
       });
 
-      if (!res.ok) {
+      if (!res.ok || !res.body) {
         const err = (await res.json()) as { error?: string };
         throw new Error(err.error ?? `HTTP ${res.status}`);
       }
 
-      const data = (await res.json()) as IrisResponse;
-      const { displayContent, suggestions } = parseSuggestions(data.text);
-      const assistantMsg: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: displayContent,
-        toolCount: data.tool_calls.length,
-        suggestions,
-      };
-      setMessages([...history, assistantMsg]);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6).trim();
+          if (!raw) continue;
+
+          let event: {
+            type: string;
+            text?: string;
+            tool_calls?: number;
+            message?: string;
+          };
+          try {
+            event = JSON.parse(raw) as typeof event;
+          } catch {
+            continue;
+          }
+
+          if (event.type === "delta" && event.text) {
+            if (firstToken) {
+              firstToken = false;
+              thinkingTimersRef.current.forEach(clearTimeout);
+              thinkingTimersRef.current = [];
+              setThinkingPhase(null);
+            }
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId ? { ...m, content: m.content + event.text! } : m
+              )
+            );
+          } else if (event.type === "done") {
+            setMessages((prev) =>
+              prev.map((m) => {
+                if (m.id !== assistantId) return m;
+                const { displayContent, suggestions } = parseSuggestions(m.content);
+                return {
+                  ...m,
+                  content: displayContent,
+                  streaming: false,
+                  toolCount: event.tool_calls ?? 0,
+                  suggestions,
+                };
+              })
+            );
+            setLoading(false);
+          } else if (event.type === "error") {
+            throw new Error(event.message ?? "Stream error");
+          }
+        }
+      }
     } catch (err) {
+      thinkingTimersRef.current.forEach(clearTimeout);
+      setThinkingPhase(null);
+      setMessages((prev) => prev.filter((m) => m.id !== assistantId));
       setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
       setLoading(false);
     }
   }
@@ -165,7 +314,6 @@ export function OperatorChatClient() {
     setCachedConversation(null);
   }
 
-  const isEmpty = messages.length === 0;
   const badgeLabel = remembered
     ? (remembered.moniker ?? `${remembered.address.slice(0, 6)}...${remembered.address.slice(-4)}`)
     : null;
@@ -236,37 +384,78 @@ export function OperatorChatClient() {
       {/* Message list */}
       <div className="flex-1 overflow-y-auto" style={{ position: "relative", zIndex: 1 }}>
         {isEmpty ? (
-          <div className="mx-auto space-y-6 px-4 py-6" style={{ maxWidth: "920px" }}>
-            {/* Greeting bubble */}
-            <div className="flex flex-col items-start">
-              <div className="border-border bg-card text-foreground max-w-[85%] rounded-2xl border px-4 py-3 text-sm leading-relaxed">
-                <IrisMarkdown text={OPERATOR_GREETING} />
-              </div>
+          <div className="mx-auto px-4 py-6" style={{ maxWidth: "920px" }}>
+            {/* Stage 1: channel join event */}
+            <div className="iris-channel-event">
+              <span className="iris-channel-event-time">[{greetingTime}]</span>
+              {"  "}
+              <span className="iris-channel-event-name">Hermes</span>
+              {" joined the channel"}
             </div>
 
-            {/* Ghost pills */}
-            <div>
-              <p className="iris-ghost-pill-group-label">NETWORK</p>
-              <div className="flex flex-wrap gap-2">
-                {NETWORK_QUESTIONS.map((q) => (
-                  <button key={q} onClick={() => void send(q)} className="iris-ghost-pill">
-                    {q}
-                  </button>
-                ))}
+            {/* Stage 2: typing indicator */}
+            {(greetingStage === "typing" ||
+              greetingStage === "streaming" ||
+              greetingStage === "done") &&
+              (greetingStage === "typing" ? (
+                <div className="iris-typing-indicator iris-thinking-text">Hermes is typing</div>
+              ) : (
+                <div className="mt-2 flex flex-col items-start">
+                  <div className="border-border bg-card text-foreground max-w-[85%] rounded-2xl border px-4 py-3 text-sm leading-relaxed">
+                    <p style={{ whiteSpace: "pre-line" }}>
+                      {greetingText}
+                      {greetingStage === "streaming" && <span className="iris-stream-cursor" />}
+                    </p>
+                  </div>
+                </div>
+              ))}
+
+            {/* Stage 4: chips */}
+            {greetingStage === "done" && (
+              <div className="mt-6">
+                {remembered ? (
+                  <>
+                    <p className="iris-ghost-pill-group-label">DAILY CHECKS</p>
+                    <div className="flex flex-wrap gap-2">
+                      {OP_CHIPS_DAILY.map((q) => (
+                        <button
+                          key={q}
+                          onClick={() => handleMyValidatorQuestion(q)}
+                          className="iris-ghost-pill"
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="iris-ghost-pill-group-label">DIAGNOSE</p>
+                    <div className="flex flex-wrap gap-2">
+                      {OP_CHIPS_DIAGNOSE.map((q) => (
+                        <button
+                          key={q}
+                          onClick={() => handleMyValidatorQuestion(q)}
+                          className="iris-ghost-pill"
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="iris-ghost-pill-group-label">SETUP</p>
+                    <div className="flex flex-wrap gap-2">
+                      {OP_CHIPS_SETUP.map((q) => (
+                        <button key={q} onClick={() => void send(q)} className="iris-ghost-pill">
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
-              <p className="iris-ghost-pill-group-label">MY VALIDATOR</p>
-              <div className="flex flex-wrap gap-2">
-                {MY_VALIDATOR_QUESTIONS.map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => handleMyValidatorQuestion(q)}
-                    className="iris-ghost-pill"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            </div>
+            )}
+
+            {/* Forward button */}
             {cachedConversation && cachedConversation.length > 0 && (
               <div className="iris-nav-row iris-nav-row-empty-state">
                 <button
@@ -288,9 +477,9 @@ export function OperatorChatClient() {
                 isLast={i === messages.length - 1}
                 onSuggest={(s) => void send(s)}
                 onBack={handleBack}
+                thinkingPhase={thinkingPhase}
               />
             ))}
-            {loading && <ThinkingIndicator />}
             {error && (
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {error}
@@ -322,8 +511,13 @@ export function OperatorChatClient() {
               autoResize();
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Query validator data…"
+            placeholder={
+              isEmpty && !remembered
+                ? "Paste validator address or moniker…"
+                : "Ask Hermes about validators…"
+            }
             disabled={loading}
+            autoFocus={isEmpty}
             className="text-foreground placeholder:text-muted-foreground flex-1 resize-none bg-transparent text-sm outline-none disabled:opacity-50"
             style={{ maxHeight: 160 }}
           />
@@ -337,7 +531,7 @@ export function OperatorChatClient() {
           </button>
         </form>
         <p className="text-muted-foreground mt-2 text-center text-xs">
-          Read-only access · v1.0 Hermes · No financial advice.{" "}
+          Read-only access · v1.0 Hermes · Hermes does not provide financial advice.{" "}
           <Link
             href="/transparency/new"
             className="underline underline-offset-2"
@@ -362,14 +556,19 @@ function OperatorMessageBubble({
   isLast,
   onSuggest,
   onBack,
+  thinkingPhase,
 }: {
   message: Message;
   isLast: boolean;
   onSuggest: (s: string) => void;
   onBack: () => void;
+  thinkingPhase: 0 | 1 | 2 | null;
 }) {
   const isUser = message.role === "user";
-  const showBack = !isUser && isLast;
+  const showBack = !isUser && isLast && !message.streaming;
+  const showThinking =
+    !isUser && (message.streaming ?? false) && message.content === "" && thinkingPhase !== null;
+
   return (
     <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
       <div
@@ -381,10 +580,21 @@ function OperatorMessageBubble({
       >
         {isUser ? (
           <p className="whitespace-pre-wrap">{message.content}</p>
+        ) : showThinking ? (
+          <span
+            className="iris-thinking-text"
+            style={{
+              color: "rgba(226,232,240,0.4)",
+              fontFamily: "var(--font-mono), monospace",
+              fontSize: "0.875rem",
+            }}
+          >
+            {THINKING_PHRASES[thinkingPhase ?? 0]}
+          </span>
         ) : (
-          <IrisMarkdown text={message.content} />
+          <IrisMarkdown text={message.content} streaming={message.streaming ?? false} />
         )}
-        {!isUser && message.toolCount !== undefined && (
+        {!isUser && !message.streaming && message.toolCount !== undefined && (
           <div className="mt-2 flex items-center gap-2 border-t border-current/10 pt-2 text-xs opacity-60">
             <span>
               {message.toolCount} tool call{message.toolCount !== 1 ? "s" : ""}
@@ -392,7 +602,7 @@ function OperatorMessageBubble({
           </div>
         )}
       </div>
-      {!isUser && message.suggestions && message.suggestions.length > 0 && (
+      {!isUser && !message.streaming && message.suggestions && message.suggestions.length > 0 && (
         <div className="mt-2 flex max-w-[85%] flex-wrap gap-2">
           {message.suggestions.map((s) => (
             <button
@@ -420,198 +630,208 @@ function OperatorMessageBubble({
   );
 }
 
-function IrisMarkdown({ text }: { text: string }) {
-  const processed = applyIrisMarkers(text);
+function IrisMarkdown({ text, streaming }: { text: string; streaming?: boolean }) {
+  const [displayedText, setDisplayedText] = useState(text);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!streaming) {
+      setDisplayedText(text);
+      return;
+    }
+    if (displayedText.length >= text.length) return;
+    rafRef.current = requestAnimationFrame(() => {
+      setDisplayedText((prev) => {
+        const gap = text.length - prev.length;
+        const step = Math.max(1, Math.min(3, Math.ceil(gap / 20)));
+        return text.slice(0, prev.length + step);
+      });
+    });
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [streaming, text, displayedText]);
+
+  const effectiveText = streaming ? displayedText : text;
+  const processed = applyIrisMarkers(effectiveText);
+
+  if (!processed && streaming) {
+    return <span className="iris-stream-cursor" />;
+  }
 
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeRaw]}
-      components={{
-        p({ children }) {
-          return <p style={{ marginBottom: "12px", lineHeight: "1.7" }}>{children}</p>;
-        },
-        table({ children }) {
-          return (
-            <div style={{ overflowX: "auto", marginBottom: "12px" }}>
-              <table
+    <>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
+        components={{
+          p({ children }) {
+            return <p style={{ marginBottom: "12px", lineHeight: "1.7" }}>{children}</p>;
+          },
+          table({ children }) {
+            return (
+              <div style={{ overflowX: "auto", marginBottom: "12px" }}>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontSize: "0.75rem",
+                    fontFamily: "var(--font-mono), monospace",
+                  }}
+                >
+                  {children}
+                </table>
+              </div>
+            );
+          },
+          th({ children }) {
+            return (
+              <th
                 style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: "0.75rem",
-                  fontFamily: "var(--font-mono), monospace",
+                  padding: "8px 12px",
+                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--bg-elev-2)",
+                  color: "var(--text)",
+                  textAlign: "left",
+                  fontWeight: 700,
                 }}
               >
                 {children}
-              </table>
-            </div>
-          );
-        },
-        th({ children }) {
-          return (
-            <th
-              style={{
-                padding: "8px 12px",
-                border: "1px solid var(--border)",
-                backgroundColor: "var(--bg-elev-2)",
-                color: "var(--text)",
-                textAlign: "left",
-                fontWeight: 700,
-              }}
-            >
-              {children}
-            </th>
-          );
-        },
-        td({ children }) {
-          return (
-            <td
-              style={{
-                padding: "8px 12px",
-                border: "1px solid var(--border)",
-                color: "var(--text)",
-              }}
-            >
-              {children}
-            </td>
-          );
-        },
-        pre({ children }) {
-          return <pre className="iris-code-block">{children}</pre>;
-        },
-        code({ children, className }) {
-          const rawChildren = String(children ?? "");
-          const isBlock = rawChildren.endsWith("\n") || Boolean(className);
-          const decoded = rawChildren
-            .replace(/\n$/, "")
-            .replace(/&amp;/g, "&")
-            .replace(/&lt;/g, "<")
-            .replace(/&gt;/g, ">")
-            .replace(/&quot;/g, '"')
-            .replace(/&#39;/g, "'");
-          const html = applyIrisMarkers(decoded);
-          if (isBlock) {
+              </th>
+            );
+          },
+          td({ children }) {
+            return (
+              <td
+                style={{
+                  padding: "8px 12px",
+                  border: "1px solid var(--border)",
+                  color: "var(--text)",
+                }}
+              >
+                {children}
+              </td>
+            );
+          },
+          pre({ children }) {
+            return <pre className="iris-code-block">{children}</pre>;
+          },
+          code({ children, className }) {
+            const rawChildren = String(children ?? "");
+            const isBlock = rawChildren.endsWith("\n") || Boolean(className);
+            const decoded = rawChildren
+              .replace(/\n$/, "")
+              .replace(/&amp;/g, "&")
+              .replace(/&lt;/g, "<")
+              .replace(/&gt;/g, ">")
+              .replace(/&quot;/g, '"')
+              .replace(/&#39;/g, "'");
+            const html = applyIrisMarkers(decoded);
+            if (isBlock) {
+              return (
+                <code
+                  className={className}
+                  style={{ fontFamily: "var(--font-mono), monospace", color: "var(--text)" }}
+                  dangerouslySetInnerHTML={{ __html: html }}
+                />
+              );
+            }
             return (
               <code
-                className={className}
-                style={{ fontFamily: "var(--font-mono), monospace", color: "var(--text)" }}
+                style={{
+                  backgroundColor: "var(--bg-elev-2)",
+                  borderRadius: "3px",
+                  padding: "2px 6px",
+                  fontFamily: "var(--font-mono), monospace",
+                  fontSize: "0.875rem",
+                  color: "var(--text)",
+                }}
                 dangerouslySetInnerHTML={{ __html: html }}
               />
             );
-          }
-          return (
-            <code
-              style={{
-                backgroundColor: "var(--bg-elev-2)",
-                borderRadius: "3px",
-                padding: "2px 6px",
-                fontFamily: "var(--font-mono), monospace",
-                fontSize: "0.875rem",
-                color: "var(--text)",
-              }}
-              dangerouslySetInnerHTML={{ __html: html }}
-            />
-          );
-        },
-        a({ href, children }) {
-          return (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "var(--accent)", textDecoration: "underline" }}
-            >
-              {children}
-            </a>
-          );
-        },
-        ul({ children }) {
-          return (
-            <ul style={{ listStyleType: "disc", paddingLeft: "24px", marginBottom: "12px" }}>
-              {children}
-            </ul>
-          );
-        },
-        ol({ children }) {
-          return (
-            <ol style={{ listStyleType: "decimal", paddingLeft: "24px", marginBottom: "12px" }}>
-              {children}
-            </ol>
-          );
-        },
-        li({ children }) {
-          return <li style={{ marginBottom: "4px" }}>{children}</li>;
-        },
-        strong({ children }) {
-          return <strong style={{ fontWeight: 700, color: "var(--text)" }}>{children}</strong>;
-        },
-        h1({ children }) {
-          return (
-            <h1
-              style={{
-                fontWeight: 700,
-                fontSize: "1.125rem",
-                color: "var(--text)",
-                marginTop: "16px",
-                marginBottom: "8px",
-              }}
-            >
-              {children}
-            </h1>
-          );
-        },
-        h2({ children }) {
-          return (
-            <h2
-              style={{
-                fontWeight: 700,
-                fontSize: "1rem",
-                color: "var(--text)",
-                marginTop: "12px",
-                marginBottom: "8px",
-              }}
-            >
-              {children}
-            </h2>
-          );
-        },
-        h3({ children }) {
-          return (
-            <h3
-              style={{
-                fontWeight: 600,
-                fontSize: "0.875rem",
-                color: "var(--text)",
-                marginTop: "10px",
-                marginBottom: "6px",
-              }}
-            >
-              {children}
-            </h3>
-          );
-        },
-      }}
-    >
-      {processed}
-    </ReactMarkdown>
-  );
-}
-
-function ThinkingIndicator() {
-  return (
-    <div className="flex justify-start">
-      <div className="border-border bg-card flex items-center gap-2 rounded-2xl border px-4 py-3">
-        <div className="flex gap-1">
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className="h-1.5 w-1.5 animate-bounce rounded-full"
-              style={{ backgroundColor: "var(--cat-operator)", animationDelay: `${i * 120}ms` }}
-            />
-          ))}
-        </div>
-        <span className="text-muted-foreground text-xs">Iris is querying…</span>
-      </div>
-    </div>
+          },
+          a({ href, children }) {
+            return (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "var(--accent)", textDecoration: "underline" }}
+              >
+                {children}
+              </a>
+            );
+          },
+          ul({ children }) {
+            return (
+              <ul style={{ listStyleType: "disc", paddingLeft: "24px", marginBottom: "12px" }}>
+                {children}
+              </ul>
+            );
+          },
+          ol({ children }) {
+            return (
+              <ol style={{ listStyleType: "decimal", paddingLeft: "24px", marginBottom: "12px" }}>
+                {children}
+              </ol>
+            );
+          },
+          li({ children }) {
+            return <li style={{ marginBottom: "4px" }}>{children}</li>;
+          },
+          strong({ children }) {
+            return <strong style={{ fontWeight: 700, color: "var(--text)" }}>{children}</strong>;
+          },
+          h1({ children }) {
+            return (
+              <h1
+                style={{
+                  fontWeight: 700,
+                  fontSize: "1.125rem",
+                  color: "var(--text)",
+                  marginTop: "16px",
+                  marginBottom: "8px",
+                }}
+              >
+                {children}
+              </h1>
+            );
+          },
+          h2({ children }) {
+            return (
+              <h2
+                style={{
+                  fontWeight: 700,
+                  fontSize: "1rem",
+                  color: "var(--text)",
+                  marginTop: "12px",
+                  marginBottom: "8px",
+                }}
+              >
+                {children}
+              </h2>
+            );
+          },
+          h3({ children }) {
+            return (
+              <h3
+                style={{
+                  fontWeight: 600,
+                  fontSize: "0.875rem",
+                  color: "var(--text)",
+                  marginTop: "10px",
+                  marginBottom: "6px",
+                }}
+              >
+                {children}
+              </h3>
+            );
+          },
+        }}
+      >
+        {processed}
+      </ReactMarkdown>
+      {streaming && <span className="iris-stream-cursor" />}
+    </>
   );
 }

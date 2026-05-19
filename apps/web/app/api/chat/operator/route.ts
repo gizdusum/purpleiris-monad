@@ -1,6 +1,5 @@
 import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-import { runOperatorIris } from "@purpleiris/iris-agent";
+import { streamOperatorIris } from "@purpleiris/iris-agent";
 import type { IrisMessage } from "@purpleiris/iris-agent";
 import { z } from "zod";
 
@@ -21,29 +20,54 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400 });
   }
 
   const parsed = RequestSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid request", details: parsed.error.flatten() },
+    return new Response(
+      JSON.stringify({ error: "Invalid request", details: parsed.error.flatten() }),
       { status: 400 }
     );
   }
 
   const { messages } = parsed.data;
+  const encoder = new TextEncoder();
 
-  try {
-    const result = await runOperatorIris(messages as IrisMessage[]);
-    return NextResponse.json(result);
-  } catch (err) {
-    console.error("[/api/chat/operator]", err);
-    return NextResponse.json(
-      { error: "Service temporarily unavailable. Please try again." },
-      { status: 500 }
-    );
-  }
+  const stream = new ReadableStream({
+    async start(controller) {
+      function send(obj: object) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+      }
+
+      try {
+        const meta = await streamOperatorIris(messages as IrisMessage[], (chunk) =>
+          send({ type: "delta", text: chunk })
+        );
+
+        send({
+          type: "done",
+          tool_calls: meta.tool_calls.length,
+        });
+      } catch (err) {
+        console.error("[/api/chat/operator stream]", err);
+        send({
+          type: "error",
+          message: "Service temporarily unavailable. Please try again.",
+        });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }
 
 export const runtime = "nodejs";

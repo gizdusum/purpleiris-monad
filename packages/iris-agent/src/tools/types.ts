@@ -61,3 +61,12 @@ export type GetRecentAssignmentsInput = {
 };
 
 export type GetNetworkOverviewInput = Record<string, never>;
+
+export type GetAssignmentPredictorInput = {
+  validator_id: string;
+};
+
+export type GetAnomalyCheckInput = {
+  validator_id: string;
+  window_hours?: number;
+};

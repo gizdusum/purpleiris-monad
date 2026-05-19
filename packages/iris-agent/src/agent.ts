@@ -2,7 +2,11 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
 import { DELEGATOR_SYSTEM_PROMPT } from "./prompts/delegator";
 import { OPERATOR_SYSTEM_PROMPT } from "./prompts/operator";
-import { getDelegatorToolDefinitions, executeTool } from "./tools/index";
+import {
+  getDelegatorToolDefinitions,
+  getOperatorToolDefinitions,
+  executeTool,
+} from "./tools/index";
 import { checkCitations, ensureReportLink } from "./guard";
 
 const MAX_TOOL_ROUNDS = 8;
@@ -145,7 +149,7 @@ export async function runDelegatorIris(messages: IrisMessage[]): Promise<IrisRes
 
 export async function runOperatorIris(messages: IrisMessage[]): Promise<IrisResponse> {
   const client = getClient();
-  const tools = getDelegatorToolDefinitions();
+  const tools = getOperatorToolDefinitions();
   const toolCallLog: IrisResponse["tool_calls"] = [];
 
   let apiMessages: MessageParam[] = messages.map((m) => ({
@@ -217,6 +221,122 @@ export async function runOperatorIris(messages: IrisMessage[]): Promise<IrisResp
     guard_passed: true,
     guard_violations: [],
   };
+}
+
+export type StreamOperatorMeta = {
+  tool_calls: IrisResponse["tool_calls"];
+};
+
+export async function streamOperatorIris(
+  messages: IrisMessage[],
+  onDelta: (chunk: string) => void
+): Promise<StreamOperatorMeta> {
+  const client = getClient();
+  const tools = getOperatorToolDefinitions();
+  const toolCallLog: IrisResponse["tool_calls"] = [];
+
+  let apiMessages: MessageParam[] = messages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  let finalText = "";
+  let rounds = 0;
+  let madeToolCalls = false;
+
+  while (rounds < MAX_TOOL_ROUNDS) {
+    rounds++;
+
+    if (madeToolCalls) {
+      const s = client.messages.stream({
+        model: "claude-sonnet-4-6",
+        max_tokens: 4096,
+        system: [
+          { type: "text", text: OPERATOR_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+        ],
+        tools,
+        messages: apiMessages,
+      });
+
+      for await (const event of s) {
+        if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+          onDelta(event.delta.text);
+          finalText += event.delta.text;
+        }
+      }
+
+      const fm = await s.finalMessage();
+
+      if (fm.stop_reason === "tool_use") {
+        const toolUseBlocks = fm.content.filter((b) => b.type === "tool_use");
+        const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
+          toolUseBlocks.map(async (block) => {
+            if (block.type !== "tool_use") throw new Error("unreachable");
+            const output = await executeTool(block.name, block.input);
+            toolCallLog.push({ tool: block.name, input: block.input, output: JSON.parse(output) });
+            return { type: "tool_result" as const, tool_use_id: block.id, content: output };
+          })
+        );
+        apiMessages = [
+          ...apiMessages,
+          { role: "assistant", content: fm.content },
+          { role: "user", content: toolResults },
+        ];
+        finalText = "";
+        continue;
+      }
+
+      break;
+    }
+
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 4096,
+      system: [
+        { type: "text", text: OPERATOR_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+      ],
+      tools,
+      messages: apiMessages,
+    });
+
+    if (response.stop_reason === "end_turn") {
+      const textBlock = response.content.find((b) => b.type === "text");
+      finalText = textBlock?.type === "text" ? textBlock.text : "";
+      onDelta(finalText);
+      break;
+    }
+
+    if (response.stop_reason === "tool_use") {
+      const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");
+      if (toolUseBlocks.length === 0) break;
+
+      const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
+        toolUseBlocks.map(async (block) => {
+          if (block.type !== "tool_use") throw new Error("unreachable");
+          const output = await executeTool(block.name, block.input);
+          toolCallLog.push({ tool: block.name, input: block.input, output: JSON.parse(output) });
+          return { type: "tool_result" as const, tool_use_id: block.id, content: output };
+        })
+      );
+
+      apiMessages = [
+        ...apiMessages,
+        { role: "assistant", content: response.content },
+        { role: "user", content: toolResults },
+      ];
+      madeToolCalls = true;
+      continue;
+    }
+
+    const textBlock = response.content.find((b) => b.type === "text");
+    finalText = textBlock?.type === "text" ? textBlock.text : "";
+    onDelta(finalText);
+    break;
+  }
+
+  finalText = ensureReportLink(finalText);
+
+  return { tool_calls: toolCallLog };
 }
 
 export type StreamDelegatorMeta = {

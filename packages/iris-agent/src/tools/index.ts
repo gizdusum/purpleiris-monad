@@ -9,6 +9,8 @@ import { estimateStakeRewardTool } from "./estimate-stake-reward";
 import { getRecentAssignmentsTool } from "./get-recent-assignments";
 import { getNetworkOverviewTool } from "./get-network-overview";
 import { getLatestMonadReleaseTool } from "./get-latest-monad-release";
+import { getAssignmentPredictorTool } from "./get-assignment-predictor";
+import { getAnomalyCheckTool } from "./get-anomaly-check";
 import type {
   GetValidatorInput,
   ListValidatorsInput,
@@ -17,12 +19,14 @@ import type {
   SimulateDiversificationInput,
   EstimateStakeRewardInput,
   GetRecentAssignmentsInput,
+  GetAssignmentPredictorInput,
+  GetAnomalyCheckInput,
   ToolResult,
 } from "./types";
 
 export type { ToolResult };
 
-// Anthropic tool definitions — the last one gets prompt cache_control
+// Delegator tool definitions
 export function getDelegatorToolDefinitions(): Anthropic.Tool[] {
   return [
     {
@@ -194,8 +198,58 @@ export function getDelegatorToolDefinitions(): Anthropic.Tool[] {
   ];
 }
 
+// Operator tool definitions — includes all delegator tools plus operator-specific ones
+export function getOperatorToolDefinitions(): Anthropic.Tool[] {
+  // Delegator tools without cache_control (we'll set it on the last operator tool)
+  const delegatorTools = getDelegatorToolDefinitions().map((t) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { cache_control: _cc, ...rest } = t as Anthropic.Tool & {
+      cache_control?: unknown;
+    };
+    return rest as Anthropic.Tool;
+  });
+
+  return [
+    ...delegatorTools,
+    {
+      name: "get_assignment_predictor",
+      description:
+        "Predict round assignment frequency for a validator based on their stake ratio and Monad's ~500ms round time. Returns expected vs actual assignments per hour and 24h, variance %, health signal (normal/below_expected/above_expected), and estimated seconds to next assignment. Use when operator asks about scheduler health, round frequency, or 'when is my next round?'.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          validator_id: {
+            type: "string",
+            description: "Validator address (0x...) or moniker",
+          },
+        },
+        required: ["validator_id"],
+      },
+    },
+    {
+      name: "get_anomaly_check",
+      description:
+        "Scan for operational anomalies in a validator's recent activity window. Detects: timeout clusters, success rate drops, streak breaks, VDP status changes, assignment drops, and extended offline periods. Returns ranked anomaly list with severity (low/medium/high) and a summary. Use when operator asks 'anything off?', 'did anything change?', 'what happened?', or similar pattern-detection questions.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          validator_id: {
+            type: "string",
+            description: "Validator address (0x...) or moniker",
+          },
+          window_hours: {
+            type: "number",
+            description: "Look-back window in hours (default: 24, max: 168)",
+          },
+        },
+        required: ["validator_id"],
+      },
+      cache_control: { type: "ephemeral" },
+    },
+  ];
+}
+
 // Execute a tool by name and return serialized JSON.
-// All errors are caught here — raw DB errors and stack traces never reach the LLM or the client.
 export async function executeTool(name: string, input: unknown): Promise<string> {
   let result: ToolResult;
 
@@ -230,6 +284,12 @@ export async function executeTool(name: string, input: unknown): Promise<string>
         break;
       case "get_latest_monad_release":
         result = await getLatestMonadReleaseTool();
+        break;
+      case "get_assignment_predictor":
+        result = await getAssignmentPredictorTool(input as GetAssignmentPredictorInput);
+        break;
+      case "get_anomaly_check":
+        result = await getAnomalyCheckTool((input as GetAnomalyCheckInput) ?? {});
         break;
       default:
         result = {
