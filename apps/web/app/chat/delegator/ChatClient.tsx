@@ -313,8 +313,13 @@ export function ChatClient() {
           </div>
         ) : (
           <div className="mx-auto space-y-6 px-4 py-6" style={{ maxWidth: "920px" }}>
-            {messages.map((m) => (
-              <MessageBubble key={m.id} message={m} onSuggest={(s) => void send(s)} />
+            {messages.map((m, i) => (
+              <MessageBubble
+                key={m.id}
+                message={m}
+                isLast={i === messages.length - 1}
+                onSuggest={(s) => void send(s)}
+              />
             ))}
             {error && (
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -374,12 +379,15 @@ export function ChatClient() {
 
 function MessageBubble({
   message,
+  isLast,
   onSuggest,
 }: {
   message: Message;
+  isLast: boolean;
   onSuggest: (s: string) => void;
 }) {
   const isUser = message.role === "user";
+  const showBack = !isUser && isLast && !message.streaming;
   return (
     <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
       <div
@@ -417,6 +425,13 @@ function MessageBubble({
               {s}
             </button>
           ))}
+        </div>
+      )}
+      {showBack && (
+        <div className="mt-2">
+          <Link href="/" className="iris-back-btn">
+            <span style={{ marginRight: "4px" }}>←</span> Back to home
+          </Link>
         </div>
       )}
     </div>
@@ -486,28 +501,21 @@ function IrisMarkdown({ text, streaming }: { text: string; streaming?: boolean }
             );
           },
           pre({ children }) {
-            return (
-              <pre
-                style={{
-                  backgroundColor: "var(--bg-elev)",
-                  padding: "12px 16px",
-                  borderRadius: "4px",
-                  overflowX: "auto",
-                  marginBottom: "12px",
-                  fontFamily: "var(--font-mono), monospace",
-                  fontSize: "0.875rem",
-                  color: "var(--text)",
-                  whiteSpace: "pre",
-                }}
-              >
-                {children}
-              </pre>
-            );
+            return <pre className="iris-code-block">{children}</pre>;
           },
           code({ children, className }) {
-            const isBlock = Boolean(className);
-            const raw = String(children ?? "");
-            const html = applyIrisMarkers(raw);
+            const rawChildren = String(children ?? "");
+            // Detect block code: remark appends \n to fenced block values
+            const isBlock = rawChildren.endsWith("\n") || Boolean(className);
+            // HTML-decode entities that rehype-raw may introduce in code content
+            const decoded = rawChildren
+              .replace(/\n$/, "")
+              .replace(/&amp;/g, "&")
+              .replace(/&lt;/g, "<")
+              .replace(/&gt;/g, ">")
+              .replace(/&quot;/g, '"')
+              .replace(/&#39;/g, "'");
+            const html = applyIrisMarkers(decoded);
             if (isBlock) {
               return (
                 <code
