@@ -94,8 +94,9 @@ const cards: CardDef[] = [
 ];
 
 const futureCards = [
-  { version: "v1.1", codename: "ARGUS" },
-  { version: "v1.2", codename: "MNEMOSYNE" },
+  { version: "v1.1", codename: "ATHENA" },
+  { version: "v1.2", codename: "ARGUS" },
+  { version: "v1.3", codename: "MNEMOSYNE" },
   { version: "v2.0", codename: "PYTHIA" },
 ];
 
