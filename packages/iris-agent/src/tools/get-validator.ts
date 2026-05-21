@@ -9,6 +9,7 @@ import {
 import { makeResult } from "./types";
 import type { GetValidatorInput, ToolResult } from "./types";
 import type { WatchtowerValidator } from "@purpleiris/shared-types";
+import { resolveValidatorByName } from "./lib/resolve-validator";
 
 function onlineStatus(wt: WatchtowerValidator | null): "online" | "degraded" | "offline" {
   if (!wt || wt.is_down) return "offline";
@@ -18,31 +19,10 @@ function onlineStatus(wt: WatchtowerValidator | null): "online" | "degraded" | "
   return "offline";
 }
 
-function normalize(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
-function levenshtein(a: string, b: string): number {
-  const n = b.length;
-  let prev = Array.from({ length: n + 1 }, (_, j) => j);
-  for (let i = 1; i <= a.length; i++) {
-    const curr: number[] = [i];
-    for (let j = 1; j <= n; j++) {
-      curr[j] =
-        a[i - 1] === b[j - 1]
-          ? (prev[j - 1] ?? 0)
-          : 1 + Math.min(prev[j] ?? 0, curr[j - 1] ?? 0, prev[j - 1] ?? 0);
-    }
-    prev = curr;
-  }
-  return prev[n] ?? 0;
-}
-
 export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolResult> {
   const db = getDb();
   const isAddr = id.toLowerCase().startsWith("0x");
   const addr = isAddr ? id.toLowerCase() : null;
-  const idLower = id.toLowerCase();
 
   const selectCols = {
     id: validators.id,
@@ -64,99 +44,39 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
 
   const joinCond = sql`${validators.secpPubkey} IS NOT NULL AND ${validators.secpPubkey} = ${validatorMetadata.pubkey}`;
 
-  // Primary lookup: address exact OR case-insensitive slug/moniker
-  const initialRows = addr
-    ? await db
-        .select(selectCols)
-        .from(validators)
-        .leftJoin(validatorMetadata, joinCond)
-        .where(eq(validators.id, addr))
-        .limit(1)
-    : await db
-        .select(selectCols)
-        .from(validators)
-        .leftJoin(validatorMetadata, joinCond)
-        .where(
-          sql`LOWER(${validators.slug}) = ${idLower}
-            OR LOWER(${validators.moniker}) = ${idLower}
-            OR LOWER(${validatorMetadata.moniker}) = ${idLower}`
-        )
-        .limit(1);
-
-  let row = initialRows[0] ?? null;
-  let resolutionNote: string | null = null;
-
-  if (row && !addr) {
-    const matched = (row.meta_moniker ?? row.moniker ?? row.slug ?? "").toLowerCase();
-    if (matched !== idLower) {
-      resolutionNote = `Resolved '${id}' → '${row.meta_moniker ?? row.moniker ?? row.slug}'`;
-    }
-  }
-
-  if (!row && !addr) {
-    // Fuzzy fallback: fetch all active validators and compute Levenshtein distance
-    const allRows = await db
-      .select({
-        id: validators.id,
-        moniker: validators.moniker,
-        slug: validators.slug,
-        meta_moniker: validatorMetadata.moniker,
-      })
+  // Typed helper — both lookup paths use this so TS infers `row` correctly
+  const fetchById = (validatorId: string) =>
+    db
+      .select(selectCols)
       .from(validators)
       .leftJoin(validatorMetadata, joinCond)
-      .where(eq(validators.active, true));
+      .where(eq(validators.id, validatorId))
+      .limit(1);
 
-    const normInput = normalize(id);
-    const candidates = allRows
-      .map((v) => {
-        const label = v.meta_moniker ?? v.moniker ?? v.slug ?? "";
-        const normLabel = normalize(label);
-        const normSlug = normalize(v.slug ?? "");
-        const dist = Math.min(levenshtein(normInput, normLabel), levenshtein(normInput, normSlug));
-        const isSubstring =
-          normLabel.includes(normInput) ||
-          normInput.includes(normLabel) ||
-          normSlug.includes(normInput) ||
-          normInput.includes(normSlug);
-        return { id: v.id, moniker: label, slug: v.slug ?? "", dist, isSubstring };
-      })
-      .filter((c) => c.dist <= 3 || c.isSubstring)
-      .sort((a, b) => a.dist - b.dist || a.moniker.localeCompare(b.moniker))
-      .slice(0, 5);
+  type ValidatorRow = Awaited<ReturnType<typeof fetchById>>[number];
 
-    if (candidates.length === 0) {
+  // Primary lookup: address exact OR name resolution (case-insensitive + fuzzy)
+  let row: ValidatorRow | null = null;
+  let resolutionNote: string | null = null;
+
+  if (addr) {
+    row = (await fetchById(addr))[0] ?? null;
+  } else {
+    const resolved = await resolveValidatorByName(id);
+    if (resolved.kind === "not_found") {
       return makeResult(
         { error: `Validator not found: ${id}`, not_found: true },
         { data_class: 1, source: "get_validator" }
       );
     }
-
-    const topCandidate = candidates[0];
-    if (candidates.length === 1 && topCandidate && topCandidate.dist <= 1) {
-      // Single very close match — auto-resolve
-      const exactRows = await db
-        .select(selectCols)
-        .from(validators)
-        .leftJoin(validatorMetadata, joinCond)
-        .where(eq(validators.id, topCandidate.id))
-        .limit(1);
-      row = exactRows[0] ?? null;
-      if (row) resolutionNote = `Resolved '${id}' → '${topCandidate.moniker}'`;
-    } else {
-      // Multiple candidates — return them for user to choose
+    if (resolved.kind === "candidates") {
       return makeResult(
-        {
-          candidate_matches: candidates.map((c) => ({
-            moniker: c.moniker,
-            slug: c.slug,
-            address: c.id,
-            distance: c.dist,
-          })),
-          resolution_note: null,
-        },
+        { candidate_matches: resolved.candidates, resolution_note: null },
         { data_class: 1, source: "get_validator" }
       );
     }
+    row = (await fetchById(resolved.id))[0] ?? null;
+    resolutionNote = resolved.resolutionNote;
   }
 
   if (!row) {

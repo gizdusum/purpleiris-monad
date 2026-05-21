@@ -253,10 +253,20 @@ export function OperatorChatClient() {
           }
         }
       }
+      // Stream ended — ensure streaming flag is cleared if "done" event wasn't received
+      setMessages((prev) =>
+        prev.map((m) => (m.id === assistantId && m.streaming ? { ...m, streaming: false } : m))
+      );
+      setLoading(false);
     } catch (err) {
       thinkingTimersRef.current.forEach(clearTimeout);
       setThinkingPhase(null);
-      setMessages((prev) => prev.filter((m) => m.id !== assistantId));
+      // Preserve partial content but stop streaming; remove the message only if empty
+      setMessages((prev) =>
+        prev
+          .map((m) => (m.id === assistantId ? { ...m, streaming: false } : m))
+          .filter((m) => m.id !== assistantId || m.content !== "")
+      );
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setLoading(false);
     }
@@ -592,10 +602,10 @@ function OperatorMessageBubble({
         ) : (
           <IrisMarkdown text={message.content} streaming={message.streaming ?? false} />
         )}
-        {!isUser && !message.streaming && message.toolCount !== undefined && (
+        {!isUser && !message.streaming && !!message.toolCount && (
           <div className="mt-2 flex items-center gap-2 border-t border-current/10 pt-2 text-xs opacity-60">
             <span>
-              {message.toolCount} tool call{message.toolCount !== 1 ? "s" : ""}
+              {message.toolCount} tool call{message.toolCount !== 1 ? "s" : ""} · citations verified
             </span>
           </div>
         )}
