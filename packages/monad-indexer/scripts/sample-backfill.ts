@@ -9,8 +9,8 @@ async function main() {
     transport: http(MONAD_MAINNET_RPC_URL, { timeout: 15_000, retryCount: 3 }),
   });
   const head = await client.getBlockNumber();
-  const from = head - 200n;
-  console.log(`[sample] indexing ${from} → ${head} (200 blocks)`);
+  const from = head - 2000n;
+  console.log(`[sample] indexing ${from} → ${head} (2000 blocks)`);
   await backfillExecutionRevenue(from, head);
 }
 main().catch(console.error);
