@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 
 // Get your free access key at https://web3forms.com — enter giznode@gmail.com
 // then replace this constant and redeploy.
-const WEB3FORMS_KEY = "REPLACE_WITH_WEB3FORMS_ACCESS_KEY";
+const WEB3FORMS_KEY = "64ed5b43-b951-4f27-9012-b1e9e6d9e860";
 
 interface FeedbackModalProps {
   open: boolean;
