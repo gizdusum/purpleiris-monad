@@ -2,12 +2,11 @@
 
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import Link from "next/link";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeRaw from "rehype-raw";
 import IrisBackdrop from "@/components/IrisBackdrop";
 import { AddressModal } from "@/components/AddressModal";
-import { applyIrisMarkers, parseSuggestions } from "@/lib/iris-markdown";
+import { IrisMarkdown } from "@/components/IrisMarkdown";
+import { FeedbackModal } from "@/components/FeedbackModal";
+import { parseSuggestions } from "@/lib/iris-markdown";
 import { getRemembered, remember, forget, type RememberedValidator } from "@/lib/validator-memory";
 
 type Role = "user" | "assistant";
@@ -72,6 +71,7 @@ export function OperatorChatClient() {
   const [error, setError] = useState<string | null>(null);
   const [remembered, setRemembered] = useState<RememberedValidator | null>(null);
   const [modal, setModal] = useState<{ pending: string } | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // Greeting animation state
   const [greetingStage, setGreetingStage] = useState<GreetingStage>("join");
@@ -532,13 +532,13 @@ export function OperatorChatClient() {
         </form>
         <p className="text-muted-foreground mt-2 text-center text-xs">
           Read-only access · v1.0 Hermes · Hermes does not provide financial advice.{" "}
-          <Link
-            href="/transparency/new"
-            className="underline underline-offset-2"
+          <button
+            onClick={() => setFeedbackOpen(true)}
+            className="cursor-pointer border-0 bg-transparent underline underline-offset-2"
             style={{ color: "var(--cat-operator)" }}
           >
-            Report an issue
-          </Link>
+            Send feedback
+          </button>
         </p>
       </div>
 
@@ -546,6 +546,13 @@ export function OperatorChatClient() {
         open={modal !== null}
         onClose={() => setModal(null)}
         onSubmit={handleModalSubmit}
+      />
+      <FeedbackModal
+        open={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+        mode="operator"
+        lastAssistantContent={[...messages].reverse().find((m) => m.role === "assistant")?.content}
+        validatorIdentifier={remembered?.moniker ?? remembered?.address}
       />
     </div>
   );
@@ -627,211 +634,5 @@ function OperatorMessageBubble({
         </div>
       )}
     </div>
-  );
-}
-
-function IrisMarkdown({ text, streaming }: { text: string; streaming?: boolean }) {
-  const [displayedText, setDisplayedText] = useState(text);
-  const rafRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!streaming) {
-      setDisplayedText(text);
-      return;
-    }
-    if (displayedText.length >= text.length) return;
-    rafRef.current = requestAnimationFrame(() => {
-      setDisplayedText((prev) => {
-        const gap = text.length - prev.length;
-        const step = Math.max(1, Math.min(3, Math.ceil(gap / 20)));
-        return text.slice(0, prev.length + step);
-      });
-    });
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [streaming, text, displayedText]);
-
-  const effectiveText = streaming ? displayedText : text;
-  const processed = applyIrisMarkers(effectiveText);
-
-  if (!processed && streaming) {
-    return <span className="iris-stream-cursor" />;
-  }
-
-  return (
-    <>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
-        components={{
-          p({ children }) {
-            return <p style={{ marginBottom: "12px", lineHeight: "1.7" }}>{children}</p>;
-          },
-          table({ children }) {
-            return (
-              <div style={{ overflowX: "auto", marginBottom: "12px" }}>
-                <table
-                  style={{
-                    width: "100%",
-                    borderCollapse: "collapse",
-                    fontSize: "0.75rem",
-                    fontFamily: "var(--font-mono), monospace",
-                  }}
-                >
-                  {children}
-                </table>
-              </div>
-            );
-          },
-          th({ children }) {
-            return (
-              <th
-                style={{
-                  padding: "8px 12px",
-                  border: "1px solid var(--border)",
-                  backgroundColor: "var(--bg-elev-2)",
-                  color: "var(--text)",
-                  textAlign: "left",
-                  fontWeight: 700,
-                }}
-              >
-                {children}
-              </th>
-            );
-          },
-          td({ children }) {
-            return (
-              <td
-                style={{
-                  padding: "8px 12px",
-                  border: "1px solid var(--border)",
-                  color: "var(--text)",
-                }}
-              >
-                {children}
-              </td>
-            );
-          },
-          pre({ children }) {
-            return <pre className="iris-code-block">{children}</pre>;
-          },
-          code({ children, className }) {
-            const rawChildren = String(children ?? "");
-            const isBlock = rawChildren.endsWith("\n") || Boolean(className);
-            const decoded = rawChildren
-              .replace(/\n$/, "")
-              .replace(/&amp;/g, "&")
-              .replace(/&lt;/g, "<")
-              .replace(/&gt;/g, ">")
-              .replace(/&quot;/g, '"')
-              .replace(/&#39;/g, "'");
-            const html = applyIrisMarkers(decoded);
-            if (isBlock) {
-              return (
-                <code
-                  className={className}
-                  style={{ fontFamily: "var(--font-mono), monospace", color: "var(--text)" }}
-                  dangerouslySetInnerHTML={{ __html: html }}
-                />
-              );
-            }
-            return (
-              <code
-                style={{
-                  backgroundColor: "var(--bg-elev-2)",
-                  borderRadius: "3px",
-                  padding: "2px 6px",
-                  fontFamily: "var(--font-mono), monospace",
-                  fontSize: "0.875rem",
-                  color: "var(--text)",
-                }}
-                dangerouslySetInnerHTML={{ __html: html }}
-              />
-            );
-          },
-          a({ href, children }) {
-            return (
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: "var(--accent)", textDecoration: "underline" }}
-              >
-                {children}
-              </a>
-            );
-          },
-          ul({ children }) {
-            return (
-              <ul style={{ listStyleType: "disc", paddingLeft: "24px", marginBottom: "12px" }}>
-                {children}
-              </ul>
-            );
-          },
-          ol({ children }) {
-            return (
-              <ol style={{ listStyleType: "decimal", paddingLeft: "24px", marginBottom: "12px" }}>
-                {children}
-              </ol>
-            );
-          },
-          li({ children }) {
-            return <li style={{ marginBottom: "4px" }}>{children}</li>;
-          },
-          strong({ children }) {
-            return <strong style={{ fontWeight: 700, color: "var(--text)" }}>{children}</strong>;
-          },
-          h1({ children }) {
-            return (
-              <h1
-                style={{
-                  fontWeight: 700,
-                  fontSize: "1.125rem",
-                  color: "var(--text)",
-                  marginTop: "16px",
-                  marginBottom: "8px",
-                }}
-              >
-                {children}
-              </h1>
-            );
-          },
-          h2({ children }) {
-            return (
-              <h2
-                style={{
-                  fontWeight: 700,
-                  fontSize: "1rem",
-                  color: "var(--text)",
-                  marginTop: "12px",
-                  marginBottom: "8px",
-                }}
-              >
-                {children}
-              </h2>
-            );
-          },
-          h3({ children }) {
-            return (
-              <h3
-                style={{
-                  fontWeight: 600,
-                  fontSize: "0.875rem",
-                  color: "var(--text)",
-                  marginTop: "10px",
-                  marginBottom: "6px",
-                }}
-              >
-                {children}
-              </h3>
-            );
-          },
-        }}
-      >
-        {processed}
-      </ReactMarkdown>
-      {streaming && <span className="iris-stream-cursor" />}
-    </>
   );
 }

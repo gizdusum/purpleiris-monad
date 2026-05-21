@@ -280,6 +280,32 @@
   justify-content: center;
 }
 
+/* ── Code block copy button ── */
+.iris-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  border: 1px solid rgba(124, 92, 255, 0.15);
+  background: transparent;
+  color: rgba(226, 232, 240, 0.4);
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease;
+}
+.iris-copy-btn:hover {
+  background-color: rgba(124, 92, 255, 0.12);
+  color: rgba(226, 232, 240, 0.9);
+  border-color: rgba(124, 92, 255, 0.35);
+}
+
 /* ── Forward button ── */
 .iris-forward-btn {
   background: transparent;
