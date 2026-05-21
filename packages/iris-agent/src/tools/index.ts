@@ -11,6 +11,7 @@ import { getNetworkOverviewTool } from "./get-network-overview";
 import { getLatestMonadReleaseTool } from "./get-latest-monad-release";
 import { getAssignmentPredictorTool } from "./get-assignment-predictor";
 import { getAnomalyCheckTool } from "./get-anomaly-check";
+import { getExecutionRevenueTool } from "./get-execution-revenue";
 import type {
   GetValidatorInput,
   ListValidatorsInput,
@@ -21,6 +22,7 @@ import type {
   GetRecentAssignmentsInput,
   GetAssignmentPredictorInput,
   GetAnomalyCheckInput,
+  GetExecutionRevenueInput,
   ToolResult,
 } from "./types";
 
@@ -244,7 +246,22 @@ export function getOperatorToolDefinitions(): Anthropic.Tool[] {
         },
         required: ["validator_id"],
       },
-      cache_control: { type: "ephemeral" },
+      cache_control: { type: "ephemeral" as const },
+    },
+    {
+      name: "get_execution_revenue",
+      description:
+        "Returns mainnet execution (transaction fee) revenue for a validator over the last 7 days. Reports total 7d and 24h MON earned from block priority fees, daily average, best/worst day, trend direction (up/down/flat), and rank vs network median. Use when the operator asks about 'how much have I earned in fees', 'execution revenue', 'fee revenue', 'mainnet income', 'what did my validator make last week / 24h', or 'am I earning more or less than other validators'. Data is Class 1 — on-chain block fees.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          validator_identifier: {
+            type: "string",
+            description: "Validator address (0x...), slug, or moniker",
+          },
+        },
+        required: ["validator_identifier"],
+      },
     },
   ];
 }
@@ -290,6 +307,9 @@ export async function executeTool(name: string, input: unknown): Promise<string>
         break;
       case "get_anomaly_check":
         result = await getAnomalyCheckTool((input as GetAnomalyCheckInput) ?? {});
+        break;
+      case "get_execution_revenue":
+        result = await getExecutionRevenueTool(input as GetExecutionRevenueInput);
         break;
       default:
         result = {

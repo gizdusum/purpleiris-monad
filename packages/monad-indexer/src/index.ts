@@ -4,5 +4,6 @@ export * from "./staking-abi";
 export * from "./validators";
 export * from "./watchtower";
 export * from "./slug";
+export * from "./secp-addr";
 export * from "./db/schema";
 export * from "./db/client";

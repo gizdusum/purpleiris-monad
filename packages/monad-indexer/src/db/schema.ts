@@ -7,6 +7,7 @@ import {
   numeric,
   real,
   serial,
+  bigserial,
   timestamp,
   uniqueIndex,
   index,
@@ -26,6 +27,9 @@ export const validators = pgTable(
     stakedAmount: numeric("staked_amount").notNull(),
     // secp256k1 pubkey (66 hex chars, no 0x) — used to JOIN with validator_metadata.pubkey
     secpPubkey: text("secp_pubkey"),
+    // Ethereum address derived from secp_pubkey (keccak256(uncompressed[1:])[12:])
+    // Used to identify the block proposer via the system tx arg in every block
+    secpAddr: text("secp_addr"),
     // Community registry enrichment (Class 3 — geo inference)
     region: text("region"),
     infraProvider: text("infra_provider"),
@@ -35,7 +39,11 @@ export const validators = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [index("validators_active_idx").on(t.active), index("validators_slug_idx").on(t.slug)]
+  (t) => [
+    index("validators_active_idx").on(t.active),
+    index("validators_slug_idx").on(t.slug),
+    index("validators_secp_addr_idx").on(t.secpAddr),
+  ]
 );
 
 // ── Validator profiles (claimed by operators via SIWE) ─────────────────────
@@ -200,4 +208,27 @@ export const monadReleases = pgTable(
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("idx_monad_releases_published").on(t.publishedAt)]
+);
+
+// ── Validator execution revenue (mainnet block fee revenue, Class 1) ──────────
+export const validatorExecutionRevenue = pgTable(
+  "validator_execution_revenue",
+  {
+    id: bigserial("id", { mode: "bigint" }).primaryKey(),
+    // FK to validators.id (auth address, lowercased)
+    validatorId: text("validator_id")
+      .notNull()
+      .references(() => validators.id, { onDelete: "cascade" }),
+    blockNumber: bigint("block_number", { mode: "bigint" }).notNull(),
+    blockTimestamp: timestamp("block_timestamp", { withTimezone: true }).notNull(),
+    // sum(gasUsed × max(0, effectiveGasPrice − baseFeePerGas)) for all user txs
+    feeRevenueWei: numeric("fee_revenue_wei", { precision: 78, scale: 0 }).notNull(),
+    txCount: integer("tx_count").notNull(),
+    indexedAt: timestamp("indexed_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("idx_ver_validator_block").on(t.validatorId, t.blockNumber),
+    index("idx_ver_validator_ts").on(t.validatorId, t.blockTimestamp),
+    index("idx_ver_block_number").on(t.blockNumber),
+  ]
 );

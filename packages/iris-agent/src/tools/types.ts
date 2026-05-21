@@ -70,3 +70,7 @@ export type GetAnomalyCheckInput = {
   validator_id: string;
   window_hours?: number;
 };
+
+export type GetExecutionRevenueInput = {
+  validator_identifier: string;
+};

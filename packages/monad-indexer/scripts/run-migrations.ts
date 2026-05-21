@@ -52,6 +52,28 @@ async function main() {
   await db`CREATE INDEX IF NOT EXISTS idx_monad_releases_published
     ON monad_releases (published_at DESC)`;
   console.log("[migrate] 0005 monad_releases: OK");
+
+  // 0006 — secp_addr column on validators + validator_execution_revenue table
+  await db`ALTER TABLE "validators" ADD COLUMN IF NOT EXISTS "secp_addr" text`;
+  await db`CREATE INDEX IF NOT EXISTS idx_validators_secp_addr ON "validators" ("secp_addr")`;
+  console.log("[migrate] 0006 secp_addr column + index: OK");
+
+  await db`CREATE TABLE IF NOT EXISTS "validator_execution_revenue" (
+    "id" bigserial PRIMARY KEY,
+    "validator_id" text NOT NULL REFERENCES "validators"("id") ON DELETE CASCADE,
+    "block_number" bigint NOT NULL,
+    "block_timestamp" timestamptz NOT NULL,
+    "fee_revenue_wei" numeric(78,0) NOT NULL,
+    "tx_count" integer NOT NULL,
+    "indexed_at" timestamptz DEFAULT now()
+  )`;
+  await db`CREATE UNIQUE INDEX IF NOT EXISTS idx_ver_validator_block
+    ON "validator_execution_revenue" ("validator_id", "block_number")`;
+  await db`CREATE INDEX IF NOT EXISTS idx_ver_validator_ts
+    ON "validator_execution_revenue" ("validator_id", "block_timestamp" DESC)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_ver_block_number
+    ON "validator_execution_revenue" ("block_number")`;
+  console.log("[migrate] 0006 validator_execution_revenue table + indexes: OK");
 }
 
 main().catch((err) => {
