@@ -5,7 +5,7 @@ import Link from "next/link";
 import IrisBackdrop from "@/components/IrisBackdrop";
 import { AddressModal } from "@/components/AddressModal";
 import { IrisMarkdown } from "@/components/IrisMarkdown";
-import { FeedbackModal } from "@/components/FeedbackModal";
+
 import { parseSuggestions } from "@/lib/iris-markdown";
 import { getRemembered, remember, forget, type RememberedValidator } from "@/lib/validator-memory";
 
@@ -71,8 +71,6 @@ export function OperatorChatClient() {
   const [error, setError] = useState<string | null>(null);
   const [remembered, setRemembered] = useState<RememberedValidator | null>(null);
   const [modal, setModal] = useState<{ pending: string } | null>(null);
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
-
   // Greeting animation state
   const [greetingStage, setGreetingStage] = useState<GreetingStage>("join");
   const [greetingText, setGreetingText] = useState("");
@@ -532,13 +530,13 @@ export function OperatorChatClient() {
         </form>
         <p className="text-muted-foreground mt-2 text-center text-xs">
           Read-only access · v1.0 Hermes · Hermes does not provide financial advice.{" "}
-          <button
-            onClick={() => setFeedbackOpen(true)}
-            className="cursor-pointer border-0 bg-transparent underline underline-offset-2"
+          <Link
+            href="/transparency/new"
+            className="underline underline-offset-2"
             style={{ color: "var(--cat-operator)" }}
           >
             Send feedback
-          </button>
+          </Link>
         </p>
       </div>
 
@@ -546,13 +544,6 @@ export function OperatorChatClient() {
         open={modal !== null}
         onClose={() => setModal(null)}
         onSubmit={handleModalSubmit}
-      />
-      <FeedbackModal
-        open={feedbackOpen}
-        onClose={() => setFeedbackOpen(false)}
-        mode="operator"
-        lastAssistantContent={[...messages].reverse().find((m) => m.role === "assistant")?.content}
-        validatorIdentifier={remembered?.moniker ?? remembered?.address}
       />
     </div>
   );
