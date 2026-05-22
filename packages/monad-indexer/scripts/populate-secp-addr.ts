@@ -43,7 +43,7 @@ async function main() {
     sql`SELECT COUNT(*) as c FROM validators WHERE secp_addr IS NOT NULL`
   );
   console.log(
-    `[populate-secp-addr] validators total: ${(total as { rows: Array<{ c: unknown }> }).rows[0]?.c}, with secp_addr: ${(withAddr as { rows: Array<{ c: unknown }> }).rows[0]?.c}`
+    `[populate-secp-addr] validators total: ${(total as unknown as { rows: Array<{ c: unknown }> }).rows[0]?.c}, with secp_addr: ${(withAddr as unknown as { rows: Array<{ c: unknown }> }).rows[0]?.c}`
   );
 }
 

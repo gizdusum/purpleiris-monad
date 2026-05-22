@@ -1,4 +1,4 @@
-import { createPublicClient, http } from "viem";
+import { createPublicClient, http, HttpRequestError } from "viem";
 import { monadMainnet, MONAD_MAINNET_RPC_URL } from "./config";
 import { getDb } from "./db/client";
 import { validators, validatorExecutionRevenue } from "./db/schema";
@@ -7,27 +7,90 @@ import { sql } from "drizzle-orm";
 const STAKING_PRECOMPILE = "0x0000000000000000000000000000000000001000" as const;
 const PROTOCOL_ADDR = "0x6f49a8f621353f12378d0046e7d7e4b9b249dc9e" as const;
 const BATCH_SIZE = 500; // blocks per DB insert batch
-// Rate limits: Alchemy free tier = 300 CU/sec (91 CU/block: getBlock=16 + getReceipts=75)
-// Public rpc.monad.xyz has no CU billing — use INDEXER_CONCURRENCY/INDEXER_INTER_DELAY_MS to tune.
-// Defaults are conservative (Alchemy-safe): 1 sequential block, 350ms delay → ~165 CU/sec.
-// For public RPC backfill: INDEXER_CONCURRENCY=8 INDEXER_INTER_DELAY_MS=100
+const MAX_RETRIES = 6; // per-block 429 retry limit
+
 const RPC_CONCURRENCY = parseInt(process.env["INDEXER_CONCURRENCY"] ?? "1");
 const INTER_PAIR_DELAY_MS = parseInt(process.env["INDEXER_INTER_DELAY_MS"] ?? "350");
 const BATCH_DELAY_MS = parseInt(process.env["INDEXER_BATCH_DELAY_MS"] ?? "200");
+const MAX_RPS = parseFloat(process.env["INDEXER_MAX_RPS"] ?? "5");
 const PROGRESS_EVERY = 50_000; // log progress every N blocks
+
+// ── Rate Limiter ─────────────────────────────────────────────────────────────
+// Leaky-bucket: spreads exactly MAX_RPS requests/second across all concurrent
+// workers. acquire() is sync-safe — JS single-threaded guarantees atomic slot
+// reservation before any await.
+class RateLimiter {
+  private nextSlot: number;
+  private readonly intervalMs: number;
+
+  constructor(rps: number) {
+    this.intervalMs = 1000 / rps;
+    this.nextSlot = Date.now();
+  }
+
+  async acquire(): Promise<void> {
+    const now = Date.now();
+    if (this.nextSlot < now) this.nextSlot = now; // reset after idle
+    const slot = this.nextSlot;
+    this.nextSlot += this.intervalMs;
+    const delay = slot - now;
+    if (delay > 0) {
+      await new Promise<void>((r) => setTimeout(r, delay));
+    }
+  }
+}
+
+const rateLimiter = new RateLimiter(MAX_RPS);
+
+// ── 429 helpers ───────────────────────────────────────────────────────────────
+
+function is429(err: unknown): boolean {
+  if (err instanceof HttpRequestError && err.status === 429) return true;
+  // duck-type check for viem errors across dual module instances
+  if (
+    typeof err === "object" &&
+    err !== null &&
+    "status" in err &&
+    (err as { status: unknown }).status === 429
+  )
+    return true;
+  const msg = String(err);
+  return (
+    msg.includes("429") ||
+    msg.toLowerCase().includes("too many requests") ||
+    msg.toLowerCase().includes("rate limit")
+  );
+}
+
+function getRetryAfterMs(err: unknown): number | null {
+  try {
+    if (err instanceof HttpRequestError) {
+      const val = err.headers?.get("retry-after");
+      if (val) {
+        const secs = parseInt(val, 10);
+        if (!isNaN(secs)) return secs * 1000;
+      }
+    }
+  } catch {
+    // headers API unavailable — fall through to exponential backoff
+  }
+  return null;
+}
+
+// ── RPC client ────────────────────────────────────────────────────────────────
 
 function getRpcClient() {
   return createPublicClient({
     chain: monadMainnet,
     transport: http(MONAD_MAINNET_RPC_URL, {
       timeout: 15_000,
-      retryCount: 3,
-      retryDelay: ({ count }) => Math.min(1000 * 2 ** count, 8000),
+      retryCount: 0, // disable viem retries — our own retry wrapper handles everything
     }),
   });
 }
 
-// Return true if this tx is a system/protocol transaction that should be excluded from fee revenue
+// ── System-tx helpers ─────────────────────────────────────────────────────────
+
 function isSystemTx(tx: {
   to?: string | null;
   from?: string | null;
@@ -45,7 +108,6 @@ function isSystemTx(tx: {
   );
 }
 
-// Extract the system tx secp_addr argument from a block's transactions
 function extractProposerSecpAddr(
   txs: Array<{
     to?: string | null;
@@ -61,12 +123,11 @@ function extractProposerSecpAddr(
   }
   const sysTx = systemTxs[0];
   if (!sysTx?.input || sysTx.input.length < 74) return null;
-  // input: 0x<selector4bytes><padded_address32bytes>
-  // secp_addr is the last 20 bytes of the 32-byte arg
   return "0x" + sysTx.input.slice(-40);
 }
 
-// Build secp_addr → validator_id lookup map from DB
+// ── DB helpers ────────────────────────────────────────────────────────────────
+
 async function buildSecpAddrMap(): Promise<Map<string, string>> {
   const db = getDb();
   const rows = await db
@@ -83,27 +144,34 @@ async function buildSecpAddrMap(): Promise<Map<string, string>> {
   return map;
 }
 
-// Fetch one block's revenue data with retry
-async function fetchBlockRevenue(
-  client: ReturnType<typeof getRpcClient>,
-  blockNumber: bigint,
-  secpAddrMap: Map<string, string>
-): Promise<{
+// ── Per-block fetch ───────────────────────────────────────────────────────────
+
+type BlockRevenue = {
   validatorId: string;
   feeRevenueWei: bigint;
   txCount: number;
   blockTimestamp: Date;
-} | null> {
+};
+
+async function fetchBlockRevenue(
+  client: ReturnType<typeof getRpcClient>,
+  blockNumber: bigint,
+  secpAddrMap: Map<string, string>
+): Promise<BlockRevenue | null> {
+  // Both RPC calls count against the rate limiter independently
   const [block, receipts] = await Promise.all([
-    client.getBlock({ blockNumber, includeTransactions: true }),
-    client.request({
-      method: "eth_getBlockReceipts" as Parameters<typeof client.request>[0]["method"],
-      params: [("0x" + blockNumber.toString(16)) as `0x${string}`],
-    }) as Promise<Array<{
-      gasUsed: `0x${string}`;
-      effectiveGasPrice: `0x${string}`;
-      transactionIndex: `0x${string}`;
-    }> | null>,
+    rateLimiter.acquire().then(() => client.getBlock({ blockNumber, includeTransactions: true })),
+    rateLimiter.acquire().then(
+      () =>
+        client.request({
+          method: "eth_getBlockReceipts" as Parameters<typeof client.request>[0]["method"],
+          params: [("0x" + blockNumber.toString(16)) as `0x${string}`],
+        }) as Promise<Array<{
+          gasUsed: `0x${string}`;
+          effectiveGasPrice: `0x${string}`;
+          transactionIndex: `0x${string}`;
+        }> | null>
+    ),
   ]);
 
   if (!block || !receipts) return null;
@@ -117,21 +185,19 @@ async function fetchBlockRevenue(
     input?: string;
   }>;
 
-  // Identify block proposer via system tx secp_addr
   const proposerSecpAddr = extractProposerSecpAddr(txs);
   if (!proposerSecpAddr) return null;
 
   const validatorId = secpAddrMap.get(proposerSecpAddr.toLowerCase());
-  if (!validatorId) return null; // proposer not in our validator set, skip
+  if (!validatorId) return null;
 
-  // Sum priority fees for all user txs
   let feeRevenueWei = 0n;
   let txCount = 0;
 
   for (const receipt of receipts) {
     const gasUsed = BigInt(receipt.gasUsed);
     const effectiveGasPrice = BigInt(receipt.effectiveGasPrice);
-    if (gasUsed === 0n && effectiveGasPrice === 0n) continue; // system tx receipt, skip
+    if (gasUsed === 0n && effectiveGasPrice === 0n) continue;
     const priorityFee = effectiveGasPrice > baseFeePerGas ? effectiveGasPrice - baseFeePerGas : 0n;
     feeRevenueWei += gasUsed * priorityFee;
     txCount++;
@@ -145,7 +211,43 @@ async function fetchBlockRevenue(
   };
 }
 
-// Process a chunk of block numbers with bounded concurrency and inter-pair delay
+// Retry wrapper — retries ALL errors (429 and other transient RPC failures).
+// Any exception from fetchBlockRevenue is transient: viem returns null (not throw) for
+// non-existent blocks, so exceptions always mean a network / rate-limit issue worth retrying.
+async function fetchBlockRevenueWithRetry(
+  client: ReturnType<typeof getRpcClient>,
+  blockNumber: bigint,
+  secpAddrMap: Map<string, string>
+): Promise<BlockRevenue | null> {
+  const backoffMs = [2000, 4000, 8000, 16000, 32000, 60000];
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await fetchBlockRevenue(client, blockNumber, secpAddrMap);
+    } catch (err) {
+      if (attempt >= MAX_RETRIES) {
+        const msg = err instanceof Error ? err.message.split("\n")[0]?.trim() : String(err);
+        console.warn(
+          `[backfill] block ${blockNumber} failed after ${MAX_RETRIES} retries — skipping (${msg?.slice(0, 80)})`
+        );
+        return null;
+      }
+      const is429err = is429(err);
+      const retryAfterMs = is429err ? getRetryAfterMs(err) : null;
+      const delay = retryAfterMs ?? backoffMs[attempt] ?? 60000;
+      const reason = is429err ? "rate limited" : "fetch error";
+      console.log(
+        `[backfill] ${reason} at block ${blockNumber}, backing off ${(delay / 1000).toFixed(0)}s (retry ${attempt + 1}/${MAX_RETRIES})`
+      );
+      await new Promise<void>((r) => setTimeout(r, delay));
+    }
+  }
+
+  return null;
+}
+
+// ── Batch processor ───────────────────────────────────────────────────────────
+
 async function processBlockChunk(
   client: ReturnType<typeof getRpcClient>,
   blockNums: bigint[],
@@ -170,7 +272,7 @@ async function processBlockChunk(
   for (let i = 0; i < blockNums.length; i += RPC_CONCURRENCY) {
     const slice = blockNums.slice(i, i + RPC_CONCURRENCY);
     const settled = await Promise.allSettled(
-      slice.map((bn) => fetchBlockRevenue(client, bn, secpAddrMap))
+      slice.map((bn) => fetchBlockRevenueWithRetry(client, bn, secpAddrMap))
     );
 
     for (let j = 0; j < settled.length; j++) {
@@ -179,25 +281,30 @@ async function processBlockChunk(
       if (s.status === "fulfilled" && s.value !== null) {
         results.push({ blockNumber: bn, ...s.value });
       } else if (s.status === "rejected") {
-        console.warn(`[execution-revenue] block ${bn} fetch failed: ${String(s.reason)}`);
+        // Should not happen — fetchBlockRevenueWithRetry catches all errors internally
+        const msg =
+          s.reason instanceof Error ? s.reason.message.split("\n")[0]?.trim() : String(s.reason);
+        console.warn(`[execution-revenue] block ${bn} unexpected rejection: ${msg?.slice(0, 100)}`);
       }
     }
 
-    // Inter-pair delay to stay under Alchemy 300 CU/sec limit
     if (i + RPC_CONCURRENCY < blockNums.length) {
-      await new Promise((r) => setTimeout(r, INTER_PAIR_DELAY_MS));
+      await new Promise<void>((r) => setTimeout(r, INTER_PAIR_DELAY_MS));
     }
   }
 
   return results;
 }
 
+// ── Public API ────────────────────────────────────────────────────────────────
+
 export async function backfillExecutionRevenue(fromBlock: bigint, toBlock: bigint): Promise<void> {
   const client = getRpcClient();
   const db = getDb();
 
   console.log(
-    `[execution-revenue] backfill ${fromBlock}→${toBlock} (${toBlock - fromBlock + 1n} blocks)`
+    `[execution-revenue] backfill ${fromBlock}→${toBlock} (${toBlock - fromBlock + 1n} blocks) ` +
+      `| concurrency=${RPC_CONCURRENCY} max_rps=${MAX_RPS} inter_delay=${INTER_PAIR_DELAY_MS}ms`
   );
 
   const secpAddrMap = await buildSecpAddrMap();
@@ -239,20 +346,21 @@ export async function backfillExecutionRevenue(fromBlock: bigint, toBlock: bigin
           }))
         )
         .onConflictDoNothing();
+
+      console.log(
+        `[execution-revenue] block ${batchEnd} indexed (${rows.length} blocks with revenue)`
+      );
     }
 
     processedTotal += batchEnd - batchStart + 1n;
 
     if (batchStart - lastProgressAt >= BigInt(PROGRESS_EVERY)) {
-      console.log(
-        `[execution-revenue] progress: ${batchStart}/${toBlock} ` +
-          `(${((Number(batchStart - fromBlock) / Number(toBlock - fromBlock)) * 100).toFixed(1)}%) ` +
-          `rows inserted in this batch: ${rows.length}`
-      );
+      const pct = ((Number(batchStart - fromBlock) / Number(toBlock - fromBlock)) * 100).toFixed(1);
+      console.log(`[execution-revenue] progress: ${batchStart}/${toBlock} (${pct}%)`);
       lastProgressAt = batchStart;
     }
 
-    await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
+    await new Promise<void>((r) => setTimeout(r, BATCH_DELAY_MS));
   }
 
   console.log(`[execution-revenue] backfill complete. ${processedTotal} blocks processed.`);
