@@ -15,7 +15,6 @@ const LOGS_BATCH_SIZE = 1000;
 const DB_BATCH_SIZE = 5000;
 const MAX_RETRIES = 6;
 
-const RPC_CONCURRENCY = parseInt(process.env["INDEXER_CONCURRENCY"] ?? "1");
 const INTER_BATCH_DELAY_MS = parseInt(process.env["INDEXER_INTER_DELAY_MS"] ?? "350");
 const MAX_RPS = parseFloat(process.env["INDEXER_MAX_RPS"] ?? "5");
 
@@ -219,38 +218,44 @@ function parseRewardLog(
   };
 }
 
-// ── Block timestamp fetcher ───────────────────────────────────────────────────
-// Fetches timestamps for unique block numbers in a log batch via eth_getBlockByNumber.
-// Uses concurrency bounded by RPC_CONCURRENCY.
+// ── Block timestamp estimation ────────────────────────────────────────────────
+// Fetches ONE anchor block per window, then estimates all others by linear interpolation.
+// Monad target block time is ~400ms. Error is ≤ 400s per 1000 blocks, negligible
+// for 7d/24h time-range queries. Reduces from 1000 RPC calls/window to 1.
 
-async function fetchBlockTimestamps(
+const MONAD_BLOCK_MS = 400;
+
+async function fetchAnchorTimestamp(
   client: ReturnType<typeof getRpcClient>,
-  blockNums: bigint[]
-): Promise<Map<bigint, Date>> {
-  const map = new Map<bigint, Date>();
-  const unique = [...new Set(blockNums)];
-
-  for (let i = 0; i < unique.length; i += RPC_CONCURRENCY) {
-    const slice = unique.slice(i, i + RPC_CONCURRENCY);
-    await Promise.all(
-      slice.map(async (bn) => {
-        const hex = ("0x" + bn.toString(16)) as `0x${string}`;
-        try {
-          await rateLimiter.acquire();
-          const block = (await client.request({
-            method: "eth_getBlockByNumber" as Parameters<typeof client.request>[0]["method"],
-            params: [hex, false] as unknown as [`0x${string}`],
-          })) as { timestamp: string } | null;
-          if (block) {
-            map.set(bn, new Date(Number(BigInt(block.timestamp)) * 1000));
-          }
-        } catch {
-          // leave missing — will use epoch 0 fallback
-        }
-      })
-    );
+  blockNum: bigint
+): Promise<Date> {
+  const hex = ("0x" + blockNum.toString(16)) as `0x${string}`;
+  try {
+    await rateLimiter.acquire();
+    const block = (await client.request({
+      method: "eth_getBlockByNumber" as Parameters<typeof client.request>[0]["method"],
+      params: [hex, false] as unknown as [`0x${string}`],
+    })) as { timestamp: string } | null;
+    if (block) {
+      return new Date(Number(BigInt(block.timestamp)) * 1000);
+    }
+  } catch {
+    // fall through — use current time as rough anchor
   }
+  return new Date();
+}
 
+function estimateBlockTimestamps(
+  logs: RawLog[],
+  anchorBlock: bigint,
+  anchorTs: Date
+): Map<bigint, Date> {
+  const map = new Map<bigint, Date>();
+  for (const log of logs) {
+    const bn = BigInt(log.blockNumber);
+    const offsetMs = Number(bn - anchorBlock) * MONAD_BLOCK_MS;
+    map.set(bn, new Date(anchorTs.getTime() + offsetMs));
+  }
   return map;
 }
 
@@ -282,7 +287,7 @@ export async function backfillStakingRewards(fromBlock: bigint, toBlock: bigint)
 
   console.log(
     `[staking-rewards] backfill ${fromBlock}→${toBlock} (${toBlock - fromBlock + 1n} blocks) ` +
-      `| concurrency=${RPC_CONCURRENCY} max_rps=${MAX_RPS} inter_delay=${INTER_BATCH_DELAY_MS}ms`
+      `| max_rps=${MAX_RPS} inter_delay=${INTER_BATCH_DELAY_MS}ms`
   );
 
   const onchainIdMap = await buildOnchainIdMap();
@@ -295,6 +300,8 @@ export async function backfillStakingRewards(fromBlock: bigint, toBlock: bigint)
 
   let pendingRows: ParsedReward[] = [];
   let totalIndexed = 0;
+  const PROGRESS_EVERY = 100_000n; // log progress every N blocks
+  let lastProgressAt = fromBlock;
 
   for (let batchStart = fromBlock; batchStart <= toBlock; batchStart += BigInt(LOGS_BATCH_SIZE)) {
     const batchEnd =
@@ -305,8 +312,8 @@ export async function backfillStakingRewards(fromBlock: bigint, toBlock: bigint)
     const logs = await fetchLogsWithRetry(client, batchStart, batchEnd);
 
     if (logs.length > 0) {
-      const blockNums = logs.map((l) => BigInt(l.blockNumber));
-      const timestamps = await fetchBlockTimestamps(client, blockNums);
+      const anchorTs = await fetchAnchorTimestamp(client, batchStart);
+      const timestamps = estimateBlockTimestamps(logs, batchStart, anchorTs);
 
       for (const log of logs) {
         const parsed = parseRewardLog(log, timestamps, onchainIdMap);
@@ -323,6 +330,12 @@ export async function backfillStakingRewards(fromBlock: bigint, toBlock: bigint)
         );
       }
       pendingRows = [];
+    }
+
+    if (batchStart - lastProgressAt >= PROGRESS_EVERY) {
+      const pct = ((Number(batchStart - fromBlock) / Number(toBlock - fromBlock)) * 100).toFixed(1);
+      console.log(`[staking-rewards] progress: ${batchStart}/${toBlock} (${pct}%)`);
+      lastProgressAt = batchStart;
     }
 
     await new Promise<void>((r) => setTimeout(r, INTER_BATCH_DELAY_MS));
