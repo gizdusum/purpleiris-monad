@@ -33,6 +33,12 @@ const THINKING_PHRASES = [
 ] as const;
 
 // Chip sets
+const OP_CHIPS_MY_VALIDATOR = [
+  "Is anything wrong with my validator?",
+  "Have I missed any blocks recently?",
+  "How are my staking rewards?",
+  "What's my execution (fee) revenue?",
+];
 const OP_CHIPS_SETUP = [
   "I don't run a validator — show me network status",
   "Help me read someone else's validator profile",
@@ -41,6 +47,8 @@ const OP_CHIPS_DAILY = [
   "Anything off in my last 24h?",
   "When's my next round assignment?",
   "Show me my recent missed rounds",
+  "How are my staking rewards?",
+  "What has my validator earned in fees (7d)?",
 ];
 const OP_CHIPS_DIAGNOSE = [
   "My peer count looks low — walk me through it",
@@ -450,7 +458,22 @@ export function OperatorChatClient() {
                   </>
                 ) : (
                   <>
-                    <p className="iris-ghost-pill-group-label">SETUP</p>
+                    <p className="iris-ghost-pill-group-label">YOUR VALIDATOR</p>
+                    <p className="text-muted-foreground mb-2 text-xs">
+                      Paste your validator address (0x…) or moniker to begin
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {OP_CHIPS_MY_VALIDATOR.map((q) => (
+                        <button
+                          key={q}
+                          onClick={() => handleMyValidatorQuestion(q)}
+                          className="iris-ghost-pill"
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="iris-ghost-pill-group-label">EXPLORE</p>
                     <div className="flex flex-wrap gap-2">
                       {OP_CHIPS_SETUP.map((q) => (
                         <button key={q} onClick={() => void send(q)} className="iris-ghost-pill">

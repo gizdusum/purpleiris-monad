@@ -486,6 +486,9 @@ Format exactly:
 Anything off in <moniker>'s last 24h?
 When is <moniker>'s next round assignment?
 Show <moniker>'s epoch history — last 20 epochs
+How are <moniker>'s staking rewards?
+What has <moniker> earned in fees (7d)?
+Any missed blocks or issues for <moniker> in the last 24h?
 %%END%%
 
 ─── EDITORIAL STYLE ─────────────────────────────────────────────────────────────
