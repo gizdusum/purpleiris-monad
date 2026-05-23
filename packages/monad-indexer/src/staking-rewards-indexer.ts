@@ -118,6 +118,33 @@ async function buildOnchainIdMap(): Promise<Map<bigint, ValidatorInfo>> {
   return map;
 }
 
+// ── High-water-mark loader ────────────────────────────────────────────────────
+// Loads the last committed block per (validator_id, day) from the DB into a
+// Map<"validatorId:day", bigint>. Used by accumulateLog to skip events that
+// have already been counted, making additive upserts idempotent on re-runs.
+// Guarantees: a block processed in a prior run is never double-counted.
+// Limitation: two CONCURRENT processes with overlapping ranges can still race;
+// prevent this operationally by stopping the sync timer before running backfill.
+
+async function loadHighWaterMarks(): Promise<Map<string, bigint>> {
+  const db = getDb();
+  const rows = await db
+    .select({
+      validatorId: validatorStakingRewards.validatorId,
+      day: validatorStakingRewards.day,
+      lastBlockNumber: validatorStakingRewards.lastBlockNumber,
+    })
+    .from(validatorStakingRewards);
+
+  const hwm = new Map<string, bigint>();
+  for (const row of rows) {
+    if (row.lastBlockNumber !== null) {
+      hwm.set(`${row.validatorId}:${row.day}`, row.lastBlockNumber);
+    }
+  }
+  return hwm;
+}
+
 // ── Log fetcher with retry ────────────────────────────────────────────────────
 
 async function fetchLogsWithRetry(
@@ -233,7 +260,8 @@ function accumulateLog(
   log: RawLog,
   blockTimestamps: Map<bigint, Date>,
   onchainIdMap: Map<bigint, ValidatorInfo>,
-  dayMap: Map<string, DayAggregate>
+  dayMap: Map<string, DayAggregate>,
+  hwm: Map<string, bigint>
 ): void {
   if (!log.topics[0]?.startsWith(PROPOSER_REWARD_TOPIC_PREFIX)) return;
   if (log.topics.length < 2) return;
@@ -255,6 +283,10 @@ function accumulateLog(
   const day = toUtcDay(blockTs);
 
   const key = `${onchainId}:${day}`;
+
+  // Skip blocks already committed to this day-row (idempotency via high-water-mark).
+  const committedHwm = hwm.get(key);
+  if (committedHwm !== undefined && blockNum <= committedHwm) return;
   const existing = dayMap.get(key);
   if (existing) {
     existing.grossRewardWei += grossRewardWei;
@@ -356,6 +388,13 @@ export async function backfillStakingRewards(fromBlock: bigint, toBlock: bigint)
     return;
   }
 
+  // Load high-water-marks so re-runs (resume after crash, accidental re-trigger)
+  // never double-count blocks already committed in a prior run.
+  const hwm = await loadHighWaterMarks();
+  if (hwm.size > 0) {
+    console.log(`[staking-rewards] loaded ${hwm.size} high-water-marks from DB`);
+  }
+
   let totalRows = 0;
   let totalBlocks = 0;
   const PROGRESS_EVERY = 100_000n;
@@ -377,12 +416,19 @@ export async function backfillStakingRewards(fromBlock: bigint, toBlock: bigint)
       const timestamps = estimateBlockTimestamps(logs, batchStart, anchorTs);
 
       for (const log of logs) {
-        accumulateLog(log, timestamps, onchainIdMap, dayMap);
+        accumulateLog(log, timestamps, onchainIdMap, dayMap, hwm);
       }
     }
 
     if (dayMap.size > 0) {
       await flushDayMap(dayMap);
+      // Extend in-memory HWM so later windows in this run also skip committed blocks.
+      for (const [key, agg] of dayMap) {
+        const existing = hwm.get(key);
+        if (existing === undefined || agg.lastBlockNumber > existing) {
+          hwm.set(key, agg.lastBlockNumber);
+        }
+      }
       totalRows += dayMap.size;
       console.log(
         `[staking-rewards] block ${batchEnd} — flushed ${dayMap.size} day-rows from ${logs.length} events`
