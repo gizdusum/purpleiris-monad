@@ -175,19 +175,29 @@ export default function HomePage() {
         }}
       >
         <div className="text-xs">
-          <p className="text-center" style={{ color: "var(--text-dim)" }}>
-            All Hermes responses carry data-class labels:{" "}
-            <span style={{ color: "var(--text)" }}>CLASS 1</span> on-chain{" · "}
-            <span style={{ color: "var(--text)" }}>CLASS 2</span> derived{" · "}
-            <span style={{ color: "var(--text)" }}>CLASS 3</span> estimated.{" "}
-            <Link
-              href="/methodology"
-              className="iris-nav-link"
-              style={{ textDecoration: "underline" }}
-            >
-              Read the methodology →
-            </Link>
-          </p>
+          <div className="flex flex-col items-center gap-2 text-center">
+            <span className="tracking-wider uppercase" style={{ color: "var(--text-mute)" }}>
+              DEV
+            </span>
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-1">
+              <a
+                href="https://twitter.com/gizdusumandnode"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="iris-nav-link"
+              >
+                Twitter — gizdusumandnode
+              </a>
+              <a
+                href="https://github.com/gizdusum"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="iris-nav-link"
+              >
+                GitHub — gizdusum
+              </a>
+            </div>
+          </div>
           <div
             className="flex flex-wrap items-center justify-between gap-4 tracking-wider uppercase"
             style={{ marginTop: "20px" }}
