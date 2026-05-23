@@ -134,7 +134,7 @@ export default function HomePage() {
             GITHUB
           </a>
           <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
-          <Link href="/api/health" className="iris-nav-link">
+          <Link href="/status" className="iris-nav-link">
             STATUS
           </Link>
         </nav>
