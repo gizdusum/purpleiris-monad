@@ -11,9 +11,8 @@ const STAKING_PRECOMPILE = "0x0000000000000000000000000000000000001000" as const
 
 // Alchemy hard limit for eth_getLogs range
 const LOGS_BATCH_SIZE = 1000;
-// DB insert batch — keep under Neon HTTP payload limit (~3500 params max).
-// Each row uses 7 params; 500 rows = 3500 params, safely below the limit.
-const DB_BATCH_SIZE = 500;
+// Flush accumulated rows to DB after each getLogs window.
+const DB_BATCH_SIZE = 1000; // trigger flush every N pending rows (sub-batched in flushRows)
 const MAX_RETRIES = 6;
 
 const INTER_BATCH_DELAY_MS = parseInt(process.env["INDEXER_INTER_DELAY_MS"] ?? "350");
@@ -261,24 +260,44 @@ function estimateBlockTimestamps(
 }
 
 // ── DB insert helper ──────────────────────────────────────────────────────────
+// Sub-batches to 200 rows (1400 params) — well within Neon HTTP limits.
+// Retries transient errors (connection timeouts, overload) up to 4 times.
+
+const DB_SUB_BATCH = 200;
+const DB_RETRY_DELAYS = [1000, 2000, 4000, 8000];
 
 async function flushRows(rows: ParsedReward[]): Promise<void> {
   if (rows.length === 0) return;
   const db = getDb();
-  await db
-    .insert(validatorStakingRewards)
-    .values(
-      rows.map((r) => ({
-        onchainValidatorId: r.onchainValidatorId,
-        validatorAuthAddress: r.validatorAuthAddress,
-        blockNumber: r.blockNumber,
-        blockTimestamp: r.blockTimestamp,
-        grossRewardWei: r.grossRewardWei.toString(),
-        commissionEarnedWei: r.commissionEarnedWei.toString(),
-        epoch: r.epoch,
-      }))
-    )
-    .onConflictDoNothing();
+  for (let i = 0; i < rows.length; i += DB_SUB_BATCH) {
+    const chunk = rows.slice(i, i + DB_SUB_BATCH);
+    const values = chunk.map((r) => ({
+      onchainValidatorId: r.onchainValidatorId,
+      validatorAuthAddress: r.validatorAuthAddress,
+      blockNumber: r.blockNumber,
+      blockTimestamp: r.blockTimestamp,
+      grossRewardWei: r.grossRewardWei.toString(),
+      commissionEarnedWei: r.commissionEarnedWei.toString(),
+      epoch: r.epoch,
+    }));
+    for (let attempt = 0; attempt <= DB_RETRY_DELAYS.length; attempt++) {
+      try {
+        await db.insert(validatorStakingRewards).values(values).onConflictDoNothing();
+        break;
+      } catch (err) {
+        if (attempt >= DB_RETRY_DELAYS.length) throw err;
+        const delay = DB_RETRY_DELAYS[attempt] ?? 8000;
+        const msg =
+          err instanceof Error
+            ? err.message.split("\n")[0]?.trim().slice(0, 80)
+            : String(err).slice(0, 80);
+        console.warn(
+          `[staking-rewards] DB insert retry ${attempt + 1}/${DB_RETRY_DELAYS.length} — ${msg}`
+        );
+        await new Promise<void>((r) => setTimeout(r, delay));
+      }
+    }
+  }
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
