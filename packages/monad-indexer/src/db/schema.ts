@@ -12,6 +12,8 @@ import {
   uniqueIndex,
   index,
   jsonb,
+  date,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 // ── Validators ────────────────────────────────────────────────────────────────
@@ -212,26 +214,31 @@ export const monadReleases = pgTable(
   (t) => [index("idx_monad_releases_published").on(t.publishedAt)]
 );
 
-// ── Validator staking rewards (per-block proposer reward events, Class 1) ────
+// ── Validator staking rewards (daily aggregate, proposer reward events, Class 1) ────
+// One row per (validator, UTC calendar day). Idempotency: blocks are processed
+// exactly once via the last_block_number resume cursor; additive upsert is safe.
+// Re-running with FORCE_FROM_BLOCK would double-count — TRUNCATE first in that case.
 export const validatorStakingRewards = pgTable(
   "validator_staking_rewards",
   {
-    id: bigserial("id", { mode: "bigint" }).primaryKey(),
-    onchainValidatorId: bigint("onchain_validator_id", { mode: "bigint" }).notNull(),
+    validatorId: bigint("validator_id", { mode: "bigint" }).notNull(),
     validatorAuthAddress: text("validator_auth_address")
       .notNull()
       .references(() => validators.id, { onDelete: "cascade" }),
-    blockNumber: bigint("block_number", { mode: "bigint" }).notNull(),
-    blockTimestamp: timestamp("block_timestamp", { withTimezone: true }).notNull(),
-    grossRewardWei: numeric("gross_reward_wei", { precision: 78, scale: 0 }).notNull(),
-    commissionEarnedWei: numeric("commission_earned_wei", { precision: 78, scale: 0 }).notNull(),
-    epoch: bigint("epoch", { mode: "bigint" }).notNull(),
-    indexedAt: timestamp("indexed_at", { withTimezone: true }).defaultNow(),
+    day: date("day").notNull(), // UTC calendar day, 'YYYY-MM-DD'
+    grossRewardWei: numeric("gross_reward_wei", { precision: 78, scale: 0 }).notNull().default("0"),
+    commissionEarnedWei: numeric("commission_earned_wei", { precision: 78, scale: 0 })
+      .notNull()
+      .default("0"),
+    blocksProposed: integer("blocks_proposed").notNull().default(0),
+    epochMin: bigint("epoch_min", { mode: "bigint" }),
+    epochMax: bigint("epoch_max", { mode: "bigint" }),
+    lastBlockNumber: bigint("last_block_number", { mode: "bigint" }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (t) => [
-    uniqueIndex("idx_vsr_validator_block").on(t.onchainValidatorId, t.blockNumber),
-    index("idx_vsr_auth_ts").on(t.validatorAuthAddress, t.blockTimestamp),
-    index("idx_vsr_block_number").on(t.blockNumber),
+    primaryKey({ columns: [t.validatorId, t.day] }),
+    index("idx_vsr_auth_day").on(t.validatorAuthAddress, t.day),
   ]
 );
 

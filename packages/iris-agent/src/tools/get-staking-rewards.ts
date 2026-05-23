@@ -67,34 +67,36 @@ export async function getStakingRewardsTool({
   const commissionRatePct = (valRow?.commissionBps ?? 0) / 100;
   const stakeMon = weiToMon(valRow?.stakedAmount ?? null);
 
-  // ── Tier 2: cumulative history from validator_staking_rewards ─────────────
-  const now = new Date();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  // ── Tier 2: daily aggregate from validator_staking_rewards ────────────────
+  // One row per validator per UTC calendar day. Querying last 7 days (today + 6 prior).
+  const todayUtc = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
+  const sevenDaysAgoDate = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
 
   const [agg7d] = await db
     .select({
       total: sql<string>`COALESCE(SUM(commission_earned_wei::numeric), 0)`,
-      day_count: sql<string>`COUNT(DISTINCT DATE_TRUNC('day', block_timestamp))`,
+      day_count: sql<string>`COUNT(*)`,
     })
     .from(validatorStakingRewards)
     .where(
       sql`${validatorStakingRewards.validatorAuthAddress} = ${validatorId}
-        AND ${validatorStakingRewards.blockTimestamp} >= ${sevenDaysAgo}`
+        AND ${validatorStakingRewards.day} >= ${sevenDaysAgoDate}`
     );
 
-  const [agg24h] = await db
+  const [todayRow] = await db
     .select({
-      total: sql<string>`COALESCE(SUM(commission_earned_wei::numeric), 0)`,
+      total: sql<string>`COALESCE(commission_earned_wei::numeric::text, '0')`,
     })
     .from(validatorStakingRewards)
     .where(
       sql`${validatorStakingRewards.validatorAuthAddress} = ${validatorId}
-        AND ${validatorStakingRewards.blockTimestamp} >= ${oneDayAgo}`
+        AND ${validatorStakingRewards.day} = ${todayUtc}`
     );
 
   const total7dMon = weiToMon(agg7d?.total ?? "0");
-  const total24hMon = weiToMon(agg24h?.total ?? "0");
+  const todayMon = weiToMon(todayRow?.total ?? "0");
   const dayCount = Number(agg7d?.day_count ?? 0);
   const avgPerDayMon = dayCount > 0 ? total7dMon / dayCount : 0;
 
@@ -113,9 +115,9 @@ export async function getStakingRewardsTool({
       commission_rate_pct: commissionRatePct,
       stake_mon: Math.round(stakeMon * 1e4) / 1e4,
       tier1_updated_at: valRow?.updatedAt?.toISOString() ?? null,
-      // Tier 2
+      // Tier 2 (daily aggregate)
       total_7d_commission_mon: Math.round(total7dMon * 1e6) / 1e6,
-      total_24h_commission_mon: Math.round(total24hMon * 1e6) / 1e6,
+      today_commission_mon: Math.round(todayMon * 1e6) / 1e6, // current day's accumulation so far
       avg_per_day_mon: Math.round(avgPerDayMon * 1e6) / 1e6,
       estimated_monthly_mon:
         estimatedMonthlyMon !== null ? Math.round(estimatedMonthlyMon * 1e2) / 1e2 : null,

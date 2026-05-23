@@ -11,8 +11,6 @@ const STAKING_PRECOMPILE = "0x0000000000000000000000000000000000001000" as const
 
 // Alchemy hard limit for eth_getLogs range
 const LOGS_BATCH_SIZE = 1000;
-// Flush accumulated rows to DB after each getLogs window.
-const DB_BATCH_SIZE = 1000; // trigger flush every N pending rows (sub-batched in flushRows)
 const MAX_RETRIES = 6;
 
 const INTER_BATCH_DELAY_MS = parseInt(process.env["INDEXER_INTER_DELAY_MS"] ?? "350");
@@ -170,54 +168,6 @@ async function fetchLogsWithRetry(
   return [];
 }
 
-// ── Log parser ────────────────────────────────────────────────────────────────
-
-type ParsedReward = {
-  onchainValidatorId: bigint;
-  validatorAuthAddress: string;
-  blockNumber: bigint;
-  blockTimestamp: Date;
-  grossRewardWei: bigint;
-  commissionEarnedWei: bigint;
-  epoch: bigint;
-};
-
-function parseRewardLog(
-  log: RawLog,
-  blockTimestamps: Map<bigint, Date>,
-  onchainIdMap: Map<bigint, ValidatorInfo>
-): ParsedReward | null {
-  // Filter: must be proposer reward event
-  if (!log.topics[0]?.startsWith(PROPOSER_REWARD_TOPIC_PREFIX)) return null;
-  if (log.topics.length < 2) return null;
-  if (log.removed) return null;
-
-  const onchainId = BigInt(log.topics[1]!);
-  const info = onchainIdMap.get(onchainId);
-  if (!info) return null; // unknown validator
-
-  const data = log.data;
-  if (!data || data.length < 130) return null; // need at least 64 bytes of data
-
-  const grossRewardWei = BigInt("0x" + data.slice(2, 66));
-  const epoch = BigInt("0x" + data.slice(66, 130));
-
-  const commissionEarnedWei = (grossRewardWei * BigInt(info.commissionBps)) / 10000n;
-
-  const blockNum = BigInt(log.blockNumber);
-  const blockTs = blockTimestamps.get(blockNum) ?? new Date(0);
-
-  return {
-    onchainValidatorId: onchainId,
-    validatorAuthAddress: info.authAddress,
-    blockNumber: blockNum,
-    blockTimestamp: blockTs,
-    grossRewardWei,
-    commissionEarnedWei,
-    epoch,
-  };
-}
-
 // ── Block timestamp estimation ────────────────────────────────────────────────
 // Fetches ONE anchor block per window, then estimates all others by linear interpolation.
 // Monad target block time is ~400ms. Error is ≤ 400s per 1000 blocks, negligible
@@ -259,30 +209,118 @@ function estimateBlockTimestamps(
   return map;
 }
 
-// ── DB insert helper ──────────────────────────────────────────────────────────
-// Sub-batches to 200 rows (1400 params) — well within Neon HTTP limits.
-// Retries transient errors (connection timeouts, overload) up to 4 times.
+// ── UTC day helper ────────────────────────────────────────────────────────────
+
+function toUtcDay(ts: Date): string {
+  return ts.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+}
+
+// ── Daily aggregate types ─────────────────────────────────────────────────────
+
+type DayAggregate = {
+  validatorId: bigint;
+  validatorAuthAddress: string;
+  day: string; // 'YYYY-MM-DD'
+  grossRewardWei: bigint;
+  commissionEarnedWei: bigint;
+  blocksProposed: number;
+  epochMin: bigint;
+  epochMax: bigint;
+  lastBlockNumber: bigint;
+};
+
+function accumulateLog(
+  log: RawLog,
+  blockTimestamps: Map<bigint, Date>,
+  onchainIdMap: Map<bigint, ValidatorInfo>,
+  dayMap: Map<string, DayAggregate>
+): void {
+  if (!log.topics[0]?.startsWith(PROPOSER_REWARD_TOPIC_PREFIX)) return;
+  if (log.topics.length < 2) return;
+  if (log.removed) return;
+
+  const onchainId = BigInt(log.topics[1]!);
+  const info = onchainIdMap.get(onchainId);
+  if (!info) return;
+
+  const data = log.data;
+  if (!data || data.length < 130) return;
+
+  const grossRewardWei = BigInt("0x" + data.slice(2, 66));
+  const epoch = BigInt("0x" + data.slice(66, 130));
+  const commissionEarnedWei = (grossRewardWei * BigInt(info.commissionBps)) / 10000n;
+
+  const blockNum = BigInt(log.blockNumber);
+  const blockTs = blockTimestamps.get(blockNum) ?? new Date();
+  const day = toUtcDay(blockTs);
+
+  const key = `${onchainId}:${day}`;
+  const existing = dayMap.get(key);
+  if (existing) {
+    existing.grossRewardWei += grossRewardWei;
+    existing.commissionEarnedWei += commissionEarnedWei;
+    existing.blocksProposed += 1;
+    if (epoch < existing.epochMin) existing.epochMin = epoch;
+    if (epoch > existing.epochMax) existing.epochMax = epoch;
+    if (blockNum > existing.lastBlockNumber) existing.lastBlockNumber = blockNum;
+  } else {
+    dayMap.set(key, {
+      validatorId: onchainId,
+      validatorAuthAddress: info.authAddress,
+      day,
+      grossRewardWei,
+      commissionEarnedWei,
+      blocksProposed: 1,
+      epochMin: epoch,
+      epochMax: epoch,
+      lastBlockNumber: blockNum,
+    });
+  }
+}
+
+// ── DB upsert helper ──────────────────────────────────────────────────────────
+// Additive upsert: safe because blocks are processed exactly once via resume cursor.
+// Sub-batches to 200 rows (well within Neon HTTP limits). Retries transient errors.
 
 const DB_SUB_BATCH = 200;
 const DB_RETRY_DELAYS = [1000, 2000, 4000, 8000];
 
-async function flushRows(rows: ParsedReward[]): Promise<void> {
-  if (rows.length === 0) return;
+async function flushDayMap(dayMap: Map<string, DayAggregate>): Promise<void> {
+  if (dayMap.size === 0) return;
   const db = getDb();
+  const rows = [...dayMap.values()];
+
   for (let i = 0; i < rows.length; i += DB_SUB_BATCH) {
     const chunk = rows.slice(i, i + DB_SUB_BATCH);
-    const values = chunk.map((r) => ({
-      onchainValidatorId: r.onchainValidatorId,
-      validatorAuthAddress: r.validatorAuthAddress,
-      blockNumber: r.blockNumber,
-      blockTimestamp: r.blockTimestamp,
-      grossRewardWei: r.grossRewardWei.toString(),
-      commissionEarnedWei: r.commissionEarnedWei.toString(),
-      epoch: r.epoch,
+    const values = chunk.map((agg) => ({
+      validatorId: agg.validatorId,
+      validatorAuthAddress: agg.validatorAuthAddress,
+      day: agg.day,
+      grossRewardWei: agg.grossRewardWei.toString(),
+      commissionEarnedWei: agg.commissionEarnedWei.toString(),
+      blocksProposed: agg.blocksProposed,
+      epochMin: agg.epochMin,
+      epochMax: agg.epochMax,
+      lastBlockNumber: agg.lastBlockNumber,
     }));
+
     for (let attempt = 0; attempt <= DB_RETRY_DELAYS.length; attempt++) {
       try {
-        await db.insert(validatorStakingRewards).values(values).onConflictDoNothing();
+        await db
+          .insert(validatorStakingRewards)
+          .values(values)
+          .onConflictDoUpdate({
+            target: [validatorStakingRewards.validatorId, validatorStakingRewards.day],
+            set: {
+              grossRewardWei: sql`${validatorStakingRewards.grossRewardWei} + excluded.gross_reward_wei`,
+              commissionEarnedWei: sql`${validatorStakingRewards.commissionEarnedWei} + excluded.commission_earned_wei`,
+              blocksProposed: sql`${validatorStakingRewards.blocksProposed} + excluded.blocks_proposed`,
+              epochMin: sql`LEAST(COALESCE(${validatorStakingRewards.epochMin}, excluded.epoch_min), excluded.epoch_min)`,
+              epochMax: sql`GREATEST(COALESCE(${validatorStakingRewards.epochMax}, excluded.epoch_max), excluded.epoch_max)`,
+              lastBlockNumber: sql`GREATEST(${validatorStakingRewards.lastBlockNumber}, excluded.last_block_number)`,
+              updatedAt: sql`NOW()`,
+            },
+          });
         break;
       } catch (err) {
         if (attempt >= DB_RETRY_DELAYS.length) throw err;
@@ -292,7 +330,7 @@ async function flushRows(rows: ParsedReward[]): Promise<void> {
             ? err.message.split("\n")[0]?.trim().slice(0, 80)
             : String(err).slice(0, 80);
         console.warn(
-          `[staking-rewards] DB insert retry ${attempt + 1}/${DB_RETRY_DELAYS.length} — ${msg}`
+          `[staking-rewards] DB upsert retry ${attempt + 1}/${DB_RETRY_DELAYS.length} — ${msg}`
         );
         await new Promise<void>((r) => setTimeout(r, delay));
       }
@@ -318,9 +356,9 @@ export async function backfillStakingRewards(fromBlock: bigint, toBlock: bigint)
     return;
   }
 
-  let pendingRows: ParsedReward[] = [];
-  let totalIndexed = 0;
-  const PROGRESS_EVERY = 100_000n; // log progress every N blocks
+  let totalRows = 0;
+  let totalBlocks = 0;
+  const PROGRESS_EVERY = 100_000n;
   let lastProgressAt = fromBlock;
 
   for (let batchStart = fromBlock; batchStart <= toBlock; batchStart += BigInt(LOGS_BATCH_SIZE)) {
@@ -330,26 +368,25 @@ export async function backfillStakingRewards(fromBlock: bigint, toBlock: bigint)
         : toBlock;
 
     const logs = await fetchLogsWithRetry(client, batchStart, batchEnd);
+    totalBlocks += Number(batchEnd - batchStart + 1n);
+
+    const dayMap = new Map<string, DayAggregate>();
 
     if (logs.length > 0) {
       const anchorTs = await fetchAnchorTimestamp(client, batchStart);
       const timestamps = estimateBlockTimestamps(logs, batchStart, anchorTs);
 
       for (const log of logs) {
-        const parsed = parseRewardLog(log, timestamps, onchainIdMap);
-        if (parsed) pendingRows.push(parsed);
+        accumulateLog(log, timestamps, onchainIdMap, dayMap);
       }
     }
 
-    if (pendingRows.length >= DB_BATCH_SIZE || batchEnd >= toBlock) {
-      await flushRows(pendingRows);
-      totalIndexed += pendingRows.length;
-      if (pendingRows.length > 0) {
-        console.log(
-          `[staking-rewards] block ${batchEnd} — flushed ${pendingRows.length} rows (total: ${totalIndexed})`
-        );
-      }
-      pendingRows = [];
+    if (dayMap.size > 0) {
+      await flushDayMap(dayMap);
+      totalRows += dayMap.size;
+      console.log(
+        `[staking-rewards] block ${batchEnd} — flushed ${dayMap.size} day-rows from ${logs.length} events`
+      );
     }
 
     if (batchStart - lastProgressAt >= PROGRESS_EVERY) {
@@ -361,7 +398,9 @@ export async function backfillStakingRewards(fromBlock: bigint, toBlock: bigint)
     await new Promise<void>((r) => setTimeout(r, INTER_BATCH_DELAY_MS));
   }
 
-  console.log(`[staking-rewards] backfill complete. ${totalIndexed} reward rows indexed.`);
+  console.log(
+    `[staking-rewards] backfill complete. ${totalBlocks} blocks processed, ${totalRows} day-row upserts.`
+  );
 }
 
 export async function syncRecentStakingRewards(): Promise<void> {
@@ -370,7 +409,7 @@ export async function syncRecentStakingRewards(): Promise<void> {
 
   const currentHead = await client.getBlockNumber();
   const maxIndexedResult = await db
-    .select({ maxBlock: sql<string>`MAX(block_number)` })
+    .select({ maxBlock: sql<string>`MAX(last_block_number)` })
     .from(validatorStakingRewards);
 
   const maxIndexed = maxIndexedResult[0]?.maxBlock ? BigInt(maxIndexedResult[0].maxBlock) : null;

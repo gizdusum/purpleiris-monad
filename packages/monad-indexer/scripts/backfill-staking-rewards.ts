@@ -46,7 +46,7 @@ async function main() {
 
   const db = getDb();
   const maxIndexedResult = await db
-    .select({ maxBlock: sql<string>`MAX(block_number)` })
+    .select({ maxBlock: sql<string>`MAX(last_block_number)` })
     .from(validatorStakingRewards);
   const maxIndexed = maxIndexedResult[0]?.maxBlock ? BigInt(maxIndexedResult[0].maxBlock) : null;
 
@@ -91,11 +91,11 @@ async function main() {
   const elapsedS = ((Date.now() - startMs) / 1000).toFixed(1);
 
   const finalCount = await db
-    .select({ count: sql<string>`COUNT(*)`, maxB: sql<string>`MAX(block_number)` })
+    .select({ count: sql<string>`COUNT(*)`, maxB: sql<string>`MAX(last_block_number)` })
     .from(validatorStakingRewards);
   console.log(
     `[backfill-sr] finished in ${elapsedS}s — ` +
-      `${finalCount[0]?.count ?? "?"} total rows, ` +
+      `${finalCount[0]?.count ?? "?"} total day-rows, ` +
       `last indexed block: ${finalCount[0]?.maxB ?? "?"}`
   );
 }

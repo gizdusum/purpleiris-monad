@@ -97,6 +97,27 @@ async function main() {
   await db`CREATE INDEX IF NOT EXISTS idx_vsr_block_number
     ON "validator_staking_rewards" ("block_number")`;
   console.log("[migrate] 0007 validator_staking_rewards table + indexes: OK");
+
+  // 0008 — redesign validator_staking_rewards as daily aggregate (Neon free-tier storage fix)
+  // Drops the per-block table (~462 MB, 1 row/block) and replaces it with a daily aggregate
+  // (~1 MB, 1 row per validator per calendar day). Idempotent via DROP IF EXISTS + CREATE.
+  await db`DROP TABLE IF EXISTS "validator_staking_rewards"`;
+  await db`CREATE TABLE "validator_staking_rewards" (
+    "validator_id" bigint NOT NULL,
+    "validator_auth_address" text NOT NULL REFERENCES "validators"("id") ON DELETE CASCADE,
+    "day" date NOT NULL,
+    "gross_reward_wei" numeric(78,0) NOT NULL DEFAULT 0,
+    "commission_earned_wei" numeric(78,0) NOT NULL DEFAULT 0,
+    "blocks_proposed" integer NOT NULL DEFAULT 0,
+    "epoch_min" bigint,
+    "epoch_max" bigint,
+    "last_block_number" bigint NOT NULL,
+    "updated_at" timestamptz DEFAULT NOW(),
+    PRIMARY KEY ("validator_id", "day")
+  )`;
+  await db`CREATE INDEX IF NOT EXISTS idx_vsr_auth_day
+    ON "validator_staking_rewards" ("validator_auth_address", "day" DESC)`;
+  console.log("[migrate] 0008 validator_staking_rewards daily aggregate: OK");
 }
 
 main().catch((err) => {
