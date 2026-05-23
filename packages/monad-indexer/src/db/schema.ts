@@ -154,7 +154,7 @@ export type TriageResult = {
 
 // ── Validator metadata (community registry enrichment) ────────────────────
 export const validatorMetadata = pgTable("validator_metadata", {
-  pubkey: text("pubkey").primaryKey(), // validator address (lowercased), matches validators.id
+  pubkey: text("pubkey").primaryKey(), // secp256k1 pubkey (66 hex, no 0x) — matches validators.secp_pubkey
   moniker: text("moniker"),
   logoUrl: text("logo_url"),
   website: text("website"),

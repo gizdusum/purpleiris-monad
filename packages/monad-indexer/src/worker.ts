@@ -57,7 +57,7 @@ async function indexOnce() {
     .onConflictDoUpdate({
       target: validators.id,
       set: {
-        secpPubkey: sql`excluded.secp_pubkey`,
+        secpPubkey: sql`COALESCE(excluded.secp_pubkey, ${validators.secpPubkey})`,
         moniker: sql`excluded.moniker`,
         website: sql`excluded.website`,
         commissionBps: sql`excluded.commission_bps`,
