@@ -11,8 +11,9 @@ const STAKING_PRECOMPILE = "0x0000000000000000000000000000000000001000" as const
 
 // Alchemy hard limit for eth_getLogs range
 const LOGS_BATCH_SIZE = 1000;
-// DB insert batch (how many rows to accumulate before inserting)
-const DB_BATCH_SIZE = 5000;
+// DB insert batch — keep under Neon HTTP payload limit (~3500 params max).
+// Each row uses 7 params; 500 rows = 3500 params, safely below the limit.
+const DB_BATCH_SIZE = 500;
 const MAX_RETRIES = 6;
 
 const INTER_BATCH_DELAY_MS = parseInt(process.env["INDEXER_INTER_DELAY_MS"] ?? "350");
