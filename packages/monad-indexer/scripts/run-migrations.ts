@@ -79,24 +79,23 @@ async function main() {
   await db`ALTER TABLE "validators" ADD COLUMN IF NOT EXISTS "unclaimed_rewards_wei" numeric(78,0)`;
   console.log("[migrate] 0007 unclaimed_rewards_wei column: OK");
 
-  await db`CREATE TABLE IF NOT EXISTS "validator_staking_rewards" (
-    "id" bigserial PRIMARY KEY,
-    "onchain_validator_id" bigint NOT NULL,
-    "validator_auth_address" text NOT NULL REFERENCES "validators"("id") ON DELETE CASCADE,
-    "block_number" bigint NOT NULL,
-    "block_timestamp" timestamptz NOT NULL,
-    "gross_reward_wei" numeric(78,0) NOT NULL,
-    "commission_earned_wei" numeric(78,0) NOT NULL,
-    "epoch" bigint NOT NULL,
-    "indexed_at" timestamptz NOT NULL DEFAULT NOW()
-  )`;
-  await db`CREATE UNIQUE INDEX IF NOT EXISTS idx_vsr_validator_block
-    ON "validator_staking_rewards" ("onchain_validator_id", "block_number")`;
-  await db`CREATE INDEX IF NOT EXISTS idx_vsr_auth_ts
-    ON "validator_staking_rewards" ("validator_auth_address", "block_timestamp" DESC)`;
-  await db`CREATE INDEX IF NOT EXISTS idx_vsr_block_number
-    ON "validator_staking_rewards" ("block_number")`;
-  console.log("[migrate] 0007 validator_staking_rewards table + indexes: OK");
+  // 0007 table + indexes: only create the old per-block schema if the daily-aggregate
+  // schema (from 0008) doesn't already exist. 0008's DROP IF EXISTS + CREATE supersedes this.
+  const hasOldCol = await db`
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'validator_staking_rewards' AND column_name = 'onchain_validator_id'`;
+  if (hasOldCol.length === 0) {
+    // Table either doesn't exist yet or was already upgraded by 0008 — skip old indexes.
+    console.log("[migrate] 0007 validator_staking_rewards: skipped (superseded by 0008)");
+  } else {
+    await db`CREATE UNIQUE INDEX IF NOT EXISTS idx_vsr_validator_block
+      ON "validator_staking_rewards" ("onchain_validator_id", "block_number")`;
+    await db`CREATE INDEX IF NOT EXISTS idx_vsr_auth_ts
+      ON "validator_staking_rewards" ("validator_auth_address", "block_timestamp" DESC)`;
+    await db`CREATE INDEX IF NOT EXISTS idx_vsr_block_number
+      ON "validator_staking_rewards" ("block_number")`;
+    console.log("[migrate] 0007 validator_staking_rewards table + indexes: OK");
+  }
 
   // 0008 — redesign validator_staking_rewards as daily aggregate (Neon free-tier storage fix)
   // Drops the per-block table (~462 MB, 1 row/block) and replaces it with a daily aggregate
