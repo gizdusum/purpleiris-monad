@@ -532,4 +532,49 @@ GOOD RESPONSE FORMAT (execution revenue):
   \`\`\`
 
   Best day: 2026-05-18 · [num]71.4 MON[/num]. Worst: 2026-05-14 · [num]38.9 MON[/num].
+
+─── STAKING REWARDS (Class 1 / Class 3 estimate) ────────────────────────────
+Operators can ask about commission earned from block proposal rewards (consensus layer).
+This is DIFFERENT from execution revenue (priority fees). Staking rewards are the
+~21.25 MON/block gross reward × the validator's commission rate.
+
+Use get_staking_rewards when they ask about:
+- "staking rewards", "consensus rewards", "block proposal rewards"
+- "commission earned", "how much MON have I earned from staking"
+- "pending rewards", "unclaimed rewards"
+- Monthly or cumulative earning questions not scoped to fee revenue
+
+The tool returns two tiers:
+- Tier 1 (pending_commission_mon): live unclaimed commission in the staking precompile,
+  resets on each claim. Always label "Class 1 · on-chain precompile".
+- Tier 2 (total_7d_commission_mon, total_24h_commission_mon, avg_per_day_mon):
+  cumulative history from indexed on-chain events. Label "Class 1 · on-chain events".
+- estimated_monthly_mon: 30-day linear extrapolation from 7d average. ALWAYS label
+  "Class 3 · linear extrapolation — actual rewards vary with network activity".
+
+If has_historical_data=false, Tier 2 is not available — note:
+  "Cumulative history not yet indexed — run staking rewards backfill first."
+If data_complete=false, note: "partial data — [window_days] of 7 days observed."
+
+IMPORTANT DISTINCTION FOR OPERATORS:
+Staking rewards (consensus commission) are typically thousands of MON/month for
+mid-sized validators — much larger than execution fee revenue (priority fees).
+Never conflate the two. If an operator asks "how much am I earning total", call BOTH
+get_execution_revenue and get_staking_rewards and present them separately.
+
+GOOD RESPONSE FORMAT (staking rewards):
+
+  \`\`\`
+  Pending (unclaimed):  [num]1,240 MON[/num]  · Class 1 · on-chain precompile
+  Commission rate:      [num]10%[/num]
+  Total stake:          [num]52.6M MON[/num]
+
+  7d commission:        [num]5,082 MON[/num]   · Class 1 · on-chain events
+  24h commission:       [num]726 MON[/num]
+  Avg/day:              [num]726 MON[/num]
+  Est. monthly:         [num]~21,800 MON[/num] · Class 3 · linear extrapolation
+  \`\`\`
+
+  Class 3 weakness: monthly estimate assumes constant block rate and commission — actual
+  rewards vary with network activity and any commission changes.
 `;

@@ -36,6 +36,8 @@ export const validators = pgTable(
     flag: text("flag"),
     country: text("country"),
     slug: text("slug").notNull().default(""),
+    // Live pending commission from getValidator (refreshed each epoch cycle)
+    unclaimedRewardsWei: numeric("unclaimed_rewards_wei", { precision: 78, scale: 0 }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -208,6 +210,29 @@ export const monadReleases = pgTable(
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("idx_monad_releases_published").on(t.publishedAt)]
+);
+
+// ── Validator staking rewards (per-block proposer reward events, Class 1) ────
+export const validatorStakingRewards = pgTable(
+  "validator_staking_rewards",
+  {
+    id: bigserial("id", { mode: "bigint" }).primaryKey(),
+    onchainValidatorId: bigint("onchain_validator_id", { mode: "bigint" }).notNull(),
+    validatorAuthAddress: text("validator_auth_address")
+      .notNull()
+      .references(() => validators.id, { onDelete: "cascade" }),
+    blockNumber: bigint("block_number", { mode: "bigint" }).notNull(),
+    blockTimestamp: timestamp("block_timestamp", { withTimezone: true }).notNull(),
+    grossRewardWei: numeric("gross_reward_wei", { precision: 78, scale: 0 }).notNull(),
+    commissionEarnedWei: numeric("commission_earned_wei", { precision: 78, scale: 0 }).notNull(),
+    epoch: bigint("epoch", { mode: "bigint" }).notNull(),
+    indexedAt: timestamp("indexed_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("idx_vsr_validator_block").on(t.onchainValidatorId, t.blockNumber),
+    index("idx_vsr_auth_ts").on(t.validatorAuthAddress, t.blockTimestamp),
+    index("idx_vsr_block_number").on(t.blockNumber),
+  ]
 );
 
 // ── Validator execution revenue (mainnet block fee revenue, Class 1) ──────────

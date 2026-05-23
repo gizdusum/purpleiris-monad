@@ -12,6 +12,7 @@ import { getLatestMonadReleaseTool } from "./get-latest-monad-release";
 import { getAssignmentPredictorTool } from "./get-assignment-predictor";
 import { getAnomalyCheckTool } from "./get-anomaly-check";
 import { getExecutionRevenueTool } from "./get-execution-revenue";
+import { getStakingRewardsTool } from "./get-staking-rewards";
 import type {
   GetValidatorInput,
   ListValidatorsInput,
@@ -23,6 +24,7 @@ import type {
   GetAssignmentPredictorInput,
   GetAnomalyCheckInput,
   GetExecutionRevenueInput,
+  GetStakingRewardsInput,
   ToolResult,
 } from "./types";
 
@@ -263,6 +265,22 @@ export function getOperatorToolDefinitions(): Anthropic.Tool[] {
         required: ["validator_identifier"],
       },
     },
+    {
+      name: "get_staking_rewards",
+      description:
+        "Returns staking commission earned by a validator from block proposal rewards. Two tiers: (1) live pending commission (unclaimed_rewards from staking precompile, resets on claim), (2) cumulative 7d/24h commission history from on-chain events. Use when operator asks about 'staking rewards', 'commission earned', 'how much MON have I earned from staking', 'consensus rewards', 'block proposal rewards', or 'pending rewards'. Data is Class 1. The monthly estimate is Class 3.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          validator_identifier: {
+            type: "string",
+            description: "Validator address (0x...), slug, or moniker",
+          },
+        },
+        required: ["validator_identifier"],
+      },
+      cache_control: { type: "ephemeral" as const },
+    },
   ];
 }
 
@@ -310,6 +328,9 @@ export async function executeTool(name: string, input: unknown): Promise<string>
         break;
       case "get_execution_revenue":
         result = await getExecutionRevenueTool(input as GetExecutionRevenueInput);
+        break;
+      case "get_staking_rewards":
+        result = await getStakingRewardsTool(input as GetStakingRewardsInput);
         break;
       default:
         result = {

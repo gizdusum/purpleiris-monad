@@ -45,6 +45,7 @@ async function indexOnce() {
       flag: wt ? null : null, // enriched separately via geo Phase 9
       country: null,
       slug: toSlugFromValidator(v.moniker, v.address),
+      unclaimedRewardsWei: v.unclaimedRewards !== undefined ? v.unclaimedRewards.toString() : null,
       updatedAt: now,
     };
   });
@@ -66,6 +67,7 @@ async function indexOnce() {
         region: sql`excluded.region`,
         infraProvider: sql`excluded.infra_provider`,
         slug: sql`excluded.slug`,
+        unclaimedRewardsWei: sql`excluded.unclaimed_rewards_wei`,
         updatedAt: sql`excluded.updated_at`,
       },
     });

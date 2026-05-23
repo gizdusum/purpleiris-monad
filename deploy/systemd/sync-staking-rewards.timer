@@ -1,0 +1,11 @@
+[Unit]
+Description=PurpleIris — Staking rewards sync (every hour)
+Requires=sync-staking-rewards.service
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=180
+Persistent=true
+
+[Install]
+WantedBy=timers.target

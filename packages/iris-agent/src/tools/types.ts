@@ -74,3 +74,7 @@ export type GetAnomalyCheckInput = {
 export type GetExecutionRevenueInput = {
   validator_identifier: string;
 };
+
+export type GetStakingRewardsInput = {
+  validator_identifier: string;
+};

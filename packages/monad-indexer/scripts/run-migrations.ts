@@ -74,6 +74,29 @@ async function main() {
   await db`CREATE INDEX IF NOT EXISTS idx_ver_block_number
     ON "validator_execution_revenue" ("block_number")`;
   console.log("[migrate] 0006 validator_execution_revenue table + indexes: OK");
+
+  // 0007 — unclaimed_rewards_wei on validators + validator_staking_rewards table
+  await db`ALTER TABLE "validators" ADD COLUMN IF NOT EXISTS "unclaimed_rewards_wei" numeric(78,0)`;
+  console.log("[migrate] 0007 unclaimed_rewards_wei column: OK");
+
+  await db`CREATE TABLE IF NOT EXISTS "validator_staking_rewards" (
+    "id" bigserial PRIMARY KEY,
+    "onchain_validator_id" bigint NOT NULL,
+    "validator_auth_address" text NOT NULL REFERENCES "validators"("id") ON DELETE CASCADE,
+    "block_number" bigint NOT NULL,
+    "block_timestamp" timestamptz NOT NULL,
+    "gross_reward_wei" numeric(78,0) NOT NULL,
+    "commission_earned_wei" numeric(78,0) NOT NULL,
+    "epoch" bigint NOT NULL,
+    "indexed_at" timestamptz NOT NULL DEFAULT NOW()
+  )`;
+  await db`CREATE UNIQUE INDEX IF NOT EXISTS idx_vsr_validator_block
+    ON "validator_staking_rewards" ("onchain_validator_id", "block_number")`;
+  await db`CREATE INDEX IF NOT EXISTS idx_vsr_auth_ts
+    ON "validator_staking_rewards" ("validator_auth_address", "block_timestamp" DESC)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_vsr_block_number
+    ON "validator_staking_rewards" ("block_number")`;
+  console.log("[migrate] 0007 validator_staking_rewards table + indexes: OK");
 }
 
 main().catch((err) => {

@@ -1,0 +1,13 @@
+[Unit]
+Description=PurpleIris — Staking rewards sync (hourly)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/purpleiris
+EnvironmentFile=/opt/purpleiris/.env
+ExecStart=/bin/bash -c 'cd /opt/purpleiris/packages/monad-indexer && /usr/lib/node_modules/corepack/shims/pnpm tsx scripts/sync-staking-rewards.ts'
+StandardOutput=journal
+StandardError=journal

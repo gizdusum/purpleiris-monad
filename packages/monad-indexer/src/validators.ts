@@ -105,7 +105,19 @@ export async function getValidatorsFromChain(): Promise<OnChainValidator[]> {
             `0x${string}`,
           ];
 
-          const [authAddress, , , , commission, , consensusStake, , , , secpPubkeyRaw] = detail;
+          const [
+            authAddress,
+            ,
+            ,
+            ,
+            commission,
+            unclaimedRewards,
+            consensusStake,
+            ,
+            ,
+            ,
+            secpPubkeyRaw,
+          ] = detail;
           const addr = authAddress.toLowerCase();
 
           // commission is 1e18-scaled (10% = 1e17). Convert to BPS (1% = 100 BPS).
@@ -131,6 +143,7 @@ export async function getValidatorsFromChain(): Promise<OnChainValidator[]> {
             active: true, // present in execution set => active
             stakedAmount: consensusStake, // current-epoch active stake
             validatorId: valId,
+            unclaimedRewards,
           };
 
           return validator;

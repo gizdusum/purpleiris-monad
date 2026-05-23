@@ -12,6 +12,7 @@ export type OnChainValidator = {
   country?: string;
   provider?: string;
   validatorId?: bigint;
+  unclaimedRewards?: bigint; // pending commission in wei (resets on claim)
 };
 
 export type NetworkStats = {
