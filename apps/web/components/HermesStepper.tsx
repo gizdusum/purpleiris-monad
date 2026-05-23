@@ -1,7 +1,14 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback } from "react";
-import { motion, useScroll, useTransform, useInView, useReducedMotion } from "framer-motion";
+import {
+  motion,
+  useScroll,
+  useTransform,
+  useMotionTemplate,
+  useInView,
+  useReducedMotion,
+} from "framer-motion";
 
 /* ── Glitch ─────────────────────────────────────────────────────── */
 const GLITCH_POOL = "╔═╗╚╝║▓░▒▀▄█▌▐┌┐└┘├┤┬┴┼";
@@ -86,6 +93,20 @@ const STEPS: StepDef[] = [
     isRoadmap: true,
   },
 ];
+
+/* ── Desktop guard — ghost transforms only apply on md+ ─────────── */
+function useIsDesktop(): boolean {
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return isDesktop;
+}
 
 /* ── z-index: active card wins, next card second, past cards low ── */
 function getZIndex(index: number, active: number, total: number): number {
@@ -238,6 +259,7 @@ function StepSection({
   activeStep,
   onInView,
   reduced,
+  isDesktop,
 }: {
   step: StepDef;
   index: number;
@@ -245,6 +267,7 @@ function StepSection({
   activeStep: number;
   onInView: (i: number) => void;
   reduced: boolean;
+  isDesktop: boolean;
 }) {
   const sectionRef = useRef<HTMLDivElement>(null);
 
@@ -259,9 +282,14 @@ function StepSection({
     target: sectionRef,
     offset: ["start 0.9", "end 0.1"],
   });
-  const cardOpacity = useTransform(scrollYProgress, [0, 0.12, 0.76, 1], [0.5, 1, 1, 0.58]);
-  const cardScale = useTransform(scrollYProgress, [0, 0.12, 0.76, 1], [0.95, 1, 1, 0.97]);
-  const cardY = useTransform(scrollYProgress, [0, 0.12], [20, 0]);
+  /* Ghost depth transforms — always created (hook rules), applied only on desktop */
+  const cardOpacity = useTransform(scrollYProgress, [0, 0.18, 0.72, 1], [0.05, 1, 1, 0.05]);
+  const cardScale = useTransform(scrollYProgress, [0, 0.18, 0.72, 1], [0.9, 1, 1, 0.9]);
+  const cardY = useTransform(scrollYProgress, [0, 0.18], [20, 0]);
+  const blurPx = useTransform(scrollYProgress, [0, 0.18, 0.72, 1], [10, 0, 0, 10]);
+  const cardFilter = useMotionTemplate`blur(${blurPx}px)`;
+
+  const applyDepth = isDesktop && !reduced;
 
   const isActive = index === activeStep;
   const zIndex = getZIndex(index, activeStep, total);
@@ -302,7 +330,9 @@ function StepSection({
           background: "var(--bg-elev)",
           borderTop: `3px solid ${step.color}`,
           padding: "28px",
-          ...(reduced ? {} : { opacity: cardOpacity, scale: cardScale, y: cardY }),
+          ...(applyDepth
+            ? { opacity: cardOpacity, scale: cardScale, y: cardY, filter: cardFilter }
+            : {}),
         }}
       >
         {/* Category row (desktop; mobile has the label above) */}
@@ -400,6 +430,7 @@ function StepSection({
 export default function HermesStepper() {
   const [activeStep, setActiveStep] = useState(0);
   const reduced = useReducedMotion() ?? false;
+  const isDesktop = useIsDesktop();
   const handleInView = useCallback((i: number) => setActiveStep(i), []);
 
   return (
@@ -494,6 +525,7 @@ export default function HermesStepper() {
               activeStep={activeStep}
               onInView={handleInView}
               reduced={reduced}
+              isDesktop={isDesktop}
             />
           ))}
         </div>
