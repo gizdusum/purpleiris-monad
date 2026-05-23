@@ -2,8 +2,6 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
-import { FrostedFutureCard } from "@/components/FrostedFutureCard";
-
 export const metadata: Metadata = {
   title: "PurpleIris — Monad Validator Intelligence",
 };
@@ -13,6 +11,7 @@ const HeroSection = dynamic(() => import("@/components/HeroSection"), {
   ssr: false,
   loading: () => <div style={{ height: "100vh" }} />,
 });
+const HermesStepper = dynamic(() => import("@/components/HermesStepper"), { ssr: false });
 
 /* ─── Card data ─── */
 type Bar = { label: string; value: number | null };
@@ -93,13 +92,6 @@ const cards: CardDef[] = [
   },
 ];
 
-const futureCards = [
-  { version: "v1.1", codename: "ATHENA" },
-  { version: "v1.2", codename: "ARGUS" },
-  { version: "v1.3", codename: "MNEMOSYNE" },
-  { version: "v2.0", codename: "PYTHIA" },
-];
-
 /* ─── Page ─── */
 export default function HomePage() {
   return (
@@ -169,28 +161,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Coming next — frosted future cards */}
-      <section
-        style={{
-          maxWidth: "720px",
-          margin: "80px auto 0",
-          padding: "0 24px",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        <p
-          className="text-center text-xs tracking-[0.3em] uppercase"
-          style={{ color: "var(--text-mute)", marginBottom: "24px" }}
-        >
-          COMING NEXT
-        </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {futureCards.map((c) => (
-            <FrostedFutureCard key={c.codename} version={c.version} codename={c.codename} />
-          ))}
-        </div>
-      </section>
+      {/* Scroll-reveal stepper — What Hermes does / roadmap */}
+      <HermesStepper />
 
       {/* Footer — transparent */}
       <footer
