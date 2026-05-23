@@ -29,6 +29,12 @@ const TEST_BLOCKS = process.env["INDEXER_TEST_BLOCKS"]
   ? parseInt(process.env["INDEXER_TEST_BLOCKS"], 10)
   : null;
 
+// Force a specific start block, ignoring DB resumption (useful when a partial test run
+// left maxIndexed near the tip but the historical window is not yet indexed)
+const FORCE_FROM_BLOCK = process.env["INDEXER_FROM_BLOCK"]
+  ? BigInt(process.env["INDEXER_FROM_BLOCK"])
+  : null;
+
 async function main() {
   const client = createPublicClient({
     chain: monadMainnet,
@@ -47,7 +53,10 @@ async function main() {
   const windowStart = currentHead > SEVEN_DAYS_BLOCKS ? currentHead - SEVEN_DAYS_BLOCKS + 1n : 1n;
 
   let fromBlock: bigint;
-  if (maxIndexed !== null && maxIndexed >= windowStart) {
+  if (FORCE_FROM_BLOCK !== null) {
+    fromBlock = FORCE_FROM_BLOCK;
+    console.log(`[backfill-sr] FORCE_FROM_BLOCK=${fromBlock} (ignoring DB resumption)`);
+  } else if (maxIndexed !== null && maxIndexed >= windowStart) {
     fromBlock = maxIndexed + 1n;
     console.log(`[backfill-sr] resuming from block ${fromBlock} (last indexed: ${maxIndexed})`);
   } else {
