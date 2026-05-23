@@ -89,18 +89,31 @@ function getRpcClient() {
   });
 }
 
-// ── System-tx helpers ─────────────────────────────────────────────────────────
+// ── Raw RPC types (eth_getBlockByNumber with includeTransactions=true) ────────
+// Using raw request() bypasses viem's formatters, which throw on Monad system
+// transactions (non-standard type/field combinations viem doesn't expect).
 
-function isSystemTx(tx: {
+type RawTx = {
   to?: string | null;
   from?: string | null;
-  gasPrice?: bigint | null;
-  gas?: bigint;
-}): boolean {
+  gasPrice?: string | null; // hex string
+  gas?: string | null; // hex string
+  input?: string;
+};
+
+type RawBlock = {
+  baseFeePerGas?: string | null; // hex string
+  timestamp: string; // hex string
+  transactions: RawTx[];
+};
+
+// ── System-tx helpers ─────────────────────────────────────────────────────────
+
+function isSystemTx(tx: RawTx): boolean {
   const to = (tx.to ?? "").toLowerCase();
   const from = (tx.from ?? "").toLowerCase();
-  const gasPrice = tx.gasPrice ?? 0n;
-  const gas = tx.gas ?? 0n;
+  const gasPrice = tx.gasPrice ? BigInt(tx.gasPrice) : 0n;
+  const gas = tx.gas ? BigInt(tx.gas) : 0n;
   return (
     to === STAKING_PRECOMPILE.toLowerCase() ||
     from === PROTOCOL_ADDR.toLowerCase() ||
@@ -108,15 +121,7 @@ function isSystemTx(tx: {
   );
 }
 
-function extractProposerSecpAddr(
-  txs: Array<{
-    to?: string | null;
-    from?: string | null;
-    gasPrice?: bigint | null;
-    gas?: bigint;
-    input?: string;
-  }>
-): string | null {
+function extractProposerSecpAddr(txs: RawTx[]): string | null {
   const systemTxs = txs.filter(isSystemTx);
   if (systemTxs.length > 1) {
     console.warn(`[execution-revenue] unexpected: ${systemTxs.length} system txs in block`);
@@ -158,14 +163,25 @@ async function fetchBlockRevenue(
   blockNumber: bigint,
   secpAddrMap: Map<string, string>
 ): Promise<BlockRevenue | null> {
-  // Both RPC calls count against the rate limiter independently
-  const [block, receipts] = await Promise.all([
-    rateLimiter.acquire().then(() => client.getBlock({ blockNumber, includeTransactions: true })),
+  const hexBlock = ("0x" + blockNumber.toString(16)) as `0x${string}`;
+
+  // Use raw client.request() for BOTH calls — bypasses viem's formatters entirely.
+  // viem's high-level getBlock() runs formatTransaction() on every tx, which throws on
+  // Monad system transactions (non-standard type/field values). Raw request() returns
+  // JSON as-is, matching what a direct fetch() to the same RPC returns.
+  const [rawBlock, receipts] = await Promise.all([
+    rateLimiter.acquire().then(
+      () =>
+        client.request({
+          method: "eth_getBlockByNumber" as Parameters<typeof client.request>[0]["method"],
+          params: [hexBlock, true] as unknown as [`0x${string}`],
+        }) as Promise<RawBlock | null>
+    ),
     rateLimiter.acquire().then(
       () =>
         client.request({
           method: "eth_getBlockReceipts" as Parameters<typeof client.request>[0]["method"],
-          params: [("0x" + blockNumber.toString(16)) as `0x${string}`],
+          params: [hexBlock],
         }) as Promise<Array<{
           gasUsed: `0x${string}`;
           effectiveGasPrice: `0x${string}`;
@@ -174,16 +190,10 @@ async function fetchBlockRevenue(
     ),
   ]);
 
-  if (!block || !receipts) return null;
+  if (!rawBlock || !receipts) return null;
 
-  const baseFeePerGas = block.baseFeePerGas ?? 0n;
-  const txs = block.transactions as Array<{
-    to?: string | null;
-    from?: string | null;
-    gasPrice?: bigint | null;
-    gas?: bigint;
-    input?: string;
-  }>;
+  const baseFeePerGas = rawBlock.baseFeePerGas ? BigInt(rawBlock.baseFeePerGas) : 0n;
+  const txs = rawBlock.transactions;
 
   const proposerSecpAddr = extractProposerSecpAddr(txs);
   if (!proposerSecpAddr) return null;
@@ -197,6 +207,8 @@ async function fetchBlockRevenue(
   for (const receipt of receipts) {
     const gasUsed = BigInt(receipt.gasUsed);
     const effectiveGasPrice = BigInt(receipt.effectiveGasPrice);
+    // Skip system tx receipts (gasUsed=0 and effectiveGasPrice=0) — protocol-level,
+    // not user fees.
     if (gasUsed === 0n && effectiveGasPrice === 0n) continue;
     const priorityFee = effectiveGasPrice > baseFeePerGas ? effectiveGasPrice - baseFeePerGas : 0n;
     feeRevenueWei += gasUsed * priorityFee;
@@ -207,7 +219,7 @@ async function fetchBlockRevenue(
     validatorId,
     feeRevenueWei,
     txCount,
-    blockTimestamp: new Date(Number(block.timestamp) * 1000),
+    blockTimestamp: new Date(Number(BigInt(rawBlock.timestamp)) * 1000),
   };
 }
 
@@ -236,8 +248,12 @@ async function fetchBlockRevenueWithRetry(
       const retryAfterMs = is429err ? getRetryAfterMs(err) : null;
       const delay = retryAfterMs ?? backoffMs[attempt] ?? 60000;
       const reason = is429err ? "rate limited" : "fetch error";
+      const errDetail =
+        err instanceof Error
+          ? `${err.constructor.name}: ${err.message.slice(0, 200)}`
+          : String(err).slice(0, 200);
       console.log(
-        `[backfill] ${reason} at block ${blockNumber}, backing off ${(delay / 1000).toFixed(0)}s (retry ${attempt + 1}/${MAX_RETRIES})`
+        `[backfill] ${reason} at block ${blockNumber}, backing off ${(delay / 1000).toFixed(0)}s (retry ${attempt + 1}/${MAX_RETRIES}) — ${errDetail}`
       );
       await new Promise<void>((r) => setTimeout(r, delay));
     }
