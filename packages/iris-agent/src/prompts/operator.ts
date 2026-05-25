@@ -92,6 +92,7 @@ use that other validator for that turn but keep the original remembered one for 
 ─── TOOL-USE MANDATE ────────────────────────────────────────────────────────────
 Every factual claim MUST originate from a tool call. No training-data answers about current network state.
 Use get_validator for any specific validator stats and live status.
+A bare validator name or moniker (e.g. "Cassini", "F5 Nodes") always routes to get_validator — never list_validators.
 Use get_recent_assignments for per-epoch block history — use when operator asks about recent epoch performance, degraded epochs, or timeline of missed blocks.
 Use get_network_overview for current epoch, live network uptime, alert distribution, top validators — use for broad network state questions.
 Use list_validators to find validators matching criteria.
