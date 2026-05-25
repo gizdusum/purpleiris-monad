@@ -17,6 +17,11 @@ export function applyIrisMarkers(text: string): string {
   result = result.replace(/\[(ok|warn|err|num|stat|dim)\]/g, "");
   // Strip orphaned closing markers
   result = result.replace(/\[\/(ok|warn|err|num|stat|dim)\]/g, "");
+  // Strip partial/incomplete marker at the streaming tail (e.g. "[dim" before "]" arrives)
+  result = result.replace(
+    /\[\/?(?:o(?:k)?|w(?:a(?:r(?:n)?)?)?|e(?:r(?:r)?)?|n(?:u(?:m)?)?|s(?:t(?:a(?:t)?)?)?|d(?:i(?:m)?)?)?$/i,
+    ""
+  );
   return result;
 }
 
