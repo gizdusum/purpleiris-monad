@@ -9,10 +9,15 @@ const MARKER_COLORS = {
 
 export function applyIrisMarkers(text: string): string {
   const pattern = /\[(ok|warn|err|num|stat|dim)\]([\s\S]*?)\[\/\1\]/g;
-  return text.replace(pattern, (_, kind, content) => {
+  let result = text.replace(pattern, (_, kind, content) => {
     const color = MARKER_COLORS[kind as keyof typeof MARKER_COLORS];
     return `<span style="color:${color}">${content}</span>`;
   });
+  // Strip orphaned opening markers (mid-stream incomplete pairs or malformed model output)
+  result = result.replace(/\[(ok|warn|err|num|stat|dim)\]/g, "");
+  // Strip orphaned closing markers
+  result = result.replace(/\[\/(ok|warn|err|num|stat|dim)\]/g, "");
+  return result;
 }
 
 export function parseSuggestions(content: string): {
