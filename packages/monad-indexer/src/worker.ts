@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { getDb } from "./db/client";
-import { validators } from "./db/schema";
+import { validators, epochSnapshots } from "./db/schema";
 import { getValidatorsFromChain, getValidatorMeta } from "./validators";
 import { getWatchtowerOverview } from "./watchtower";
 import { toSlugFromValidator } from "./slug";
@@ -73,6 +73,83 @@ async function indexOnce() {
     });
 
   console.log(`[indexer] upserted ${rows.length} validators at ${now.toISOString()}`);
+
+  // ── Epoch snapshots ────────────────────────────────────────────────────────
+  // Guard: only run when Watchtower fetch succeeded. Failure here MUST NOT
+  // crash or affect the validators upsert above.
+  if (watchtower.status === "fulfilled") {
+    try {
+      const wto = watchtower.value;
+      const epoch = wto.current_epoch;
+      const snapshotAt = new Date(wto.current_epoch_started_at);
+
+      // secp_pubkey (no 0x, lowercase) → { id, stakedAmount }
+      // Rows already in scope from this tick — no extra DB or RPC call.
+      const secpMap = new Map<string, { id: string; stakedAmount: string }>();
+      for (const r of rows) {
+        if (r.secpPubkey)
+          secpMap.set(r.secpPubkey.toLowerCase(), { id: r.id, stakedAmount: r.stakedAmount });
+      }
+
+      const snapRows: {
+        id: string;
+        validatorId: string;
+        epoch: number;
+        blocksProposed: number;
+        blocksMissed: number;
+        successRate: number;
+        votingPower: bigint;
+        delegatorCount: number;
+        scheduledDowntime: boolean;
+        snapshotAt: Date;
+      }[] = [];
+      let skipped = 0;
+
+      for (const v of wto.validators) {
+        const key = v.node_id.slice(2).toLowerCase(); // strip 0x prefix
+        const match = secpMap.get(key);
+        if (!match) {
+          skipped++;
+          continue;
+        }
+        snapRows.push({
+          id: `${match.id}:${epoch}`,
+          validatorId: match.id,
+          epoch,
+          blocksProposed: v.current_epoch_finalized,
+          blocksMissed: v.current_epoch_skipped,
+          successRate: Math.min(1, Math.max(0, v.current_epoch_success_rate / 100)),
+          votingPower: BigInt(match.stakedAmount),
+          delegatorCount: 0,
+          scheduledDowntime: false,
+          snapshotAt,
+        });
+      }
+
+      const BATCH_SIZE = 500;
+      for (let i = 0; i < snapRows.length; i += BATCH_SIZE) {
+        await db
+          .insert(epochSnapshots)
+          .values(snapRows.slice(i, i + BATCH_SIZE))
+          .onConflictDoUpdate({
+            target: epochSnapshots.id,
+            set: {
+              blocksProposed: sql`excluded.blocks_proposed`,
+              blocksMissed: sql`excluded.blocks_missed`,
+              successRate: sql`excluded.success_rate`,
+              votingPower: sql`excluded.voting_power`,
+              snapshotAt: sql`excluded.snapshot_at`,
+            },
+          });
+      }
+
+      console.log(
+        `[epoch-snapshots] wrote ${snapRows.length} rows for epoch ${epoch} (${skipped} skipped — no secp_pubkey)`
+      );
+    } catch (err) {
+      console.error("[epoch-snapshots] write failed (validators upsert unaffected):", err);
+    }
+  }
 }
 
 async function run() {
