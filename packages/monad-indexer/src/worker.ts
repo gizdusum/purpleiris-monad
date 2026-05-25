@@ -119,7 +119,7 @@ async function indexOnce() {
           blocksProposed: v.current_epoch_finalized,
           blocksMissed: v.current_epoch_skipped,
           successRate: Math.min(1, Math.max(0, v.current_epoch_success_rate / 100)),
-          votingPower: BigInt(match.stakedAmount),
+          votingPower: 0n, // stakedAmount in wei exceeds pg bigint max; column unused by tools
           delegatorCount: 0,
           scheduledDowntime: false,
           snapshotAt,
