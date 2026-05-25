@@ -130,6 +130,8 @@ export default function HeroSection() {
           <span>200 VALIDATORS</span>
           <span>·</span>
           <span>MAINNET</span>
+          <span>·</span>
+          <span>HERMES</span>
         </div>
       </div>
     </section>
