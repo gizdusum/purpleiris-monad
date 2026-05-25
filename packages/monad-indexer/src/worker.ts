@@ -58,7 +58,7 @@ async function indexOnce() {
       target: validators.id,
       set: {
         secpPubkey: sql`COALESCE(excluded.secp_pubkey, ${validators.secpPubkey})`,
-        moniker: sql`excluded.moniker`,
+        moniker: sql`CASE WHEN excluded.moniker ~ '^Validator [0-9]+$' THEN COALESCE(${validators.moniker}, excluded.moniker) ELSE excluded.moniker END`,
         website: sql`excluded.website`,
         commissionBps: sql`excluded.commission_bps`,
         jailed: sql`excluded.jailed`,
@@ -66,7 +66,7 @@ async function indexOnce() {
         stakedAmount: sql`excluded.staked_amount`,
         region: sql`excluded.region`,
         infraProvider: sql`excluded.infra_provider`,
-        slug: sql`excluded.slug`,
+        slug: sql`CASE WHEN excluded.moniker ~ '^Validator [0-9]+$' THEN COALESCE(${validators.slug}, excluded.slug) ELSE excluded.slug END`,
         unclaimedRewardsWei: sql`excluded.unclaimed_rewards_wei`,
         updatedAt: sql`excluded.updated_at`,
       },
