@@ -592,9 +592,12 @@ export default function MethodologyContent() {
 
               <Sub>Validator health score</Sub>
               <Body>
-                A composite per-validator signal surfaced in <IC>get_validator</IC> output, derived
-                from commission rate and 30-day block success rate. It is one of several signals in
-                the full validator profile — not a standalone public rating with a separate name.
+                A composite per-validator signal (0–100) surfaced in <IC>get_validator</IC> output.
+                Inputs: current-epoch success rate (heaviest weight), 30-day rolling success rate,
+                VDP flagged weeks, consecutive block streak, and live node status (offline /
+                jailed). Commission rate is not an input. The resulting band (Excellent / Good /
+                Watch / At Risk / Critical) is capped so it never contradicts node status — an
+                offline or jailed node cannot show Excellent or Good.
               </Body>
             </ClassSection>
           </Reveal>
@@ -720,7 +723,7 @@ export default function MethodologyContent() {
                 },
                 {
                   name: "get_recent_assignments",
-                  desc: "Last N epoch round-assignment records for a validator",
+                  desc: "Epoch-level block history for a validator — blocks proposed, blocks missed, and success rate per epoch, newest first",
                 },
                 {
                   name: "get_network_health",
