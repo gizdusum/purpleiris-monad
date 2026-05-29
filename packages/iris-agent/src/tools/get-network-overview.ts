@@ -88,8 +88,8 @@ export async function getNetworkOverviewTool(): Promise<ToolResult> {
       tracking_window_hours: trackingWindowHours,
       watchtower_active_validators: globalStats?.active_validators ?? null,
       network_uptime_pct: globalStats?.network_uptime ?? null,
-      lifetime_total_proposed: globalStats?.total_proposed ?? null,
-      lifetime_total_skipped: globalStats?.total_skipped ?? null,
+      watchtower_window_proposed: globalStats?.total_proposed ?? null,
+      watchtower_window_skipped: globalStats?.total_skipped ?? null,
       validators_down_now: downCount,
       alert_distribution: alertCounts,
 

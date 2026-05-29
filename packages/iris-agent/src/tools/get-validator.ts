@@ -204,6 +204,18 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
             ? ("At Risk" as const)
             : ("Critical" as const);
 
+  // Cap band so it never contradicts node status
+  const cappedHealthBand: typeof healthBand =
+    status === "offline" || row.jailed
+      ? healthBand === "Excellent" || healthBand === "Good"
+        ? ("At Risk" as const)
+        : healthBand
+      : status === "degraded"
+        ? healthBand === "Excellent"
+          ? ("Watch" as const)
+          : healthBand
+        : healthBand;
+
   // ── VDP early warning (Class 2 — derived from Watchtower) ────────────────
   const VDP_WINDOW_WEEKS = 13;
   const vdpAnalyzed = wt?.vdp_weeks_analyzed ?? null;
@@ -230,7 +242,7 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
     {
       // ── Health score (Class 2 — derived) ───────────────────────────────
       health_score: healthScore,
-      health_band: healthBand,
+      health_band: cappedHealthBand,
 
       // ── Identity (Class 1) ──────────────────────────────────────────────
       id: row.id,
@@ -285,9 +297,12 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
             }
           : null,
 
-      // ── Lifetime totals (Class 1 — sum of all epoch snapshots) ─────────
-      total_blocks_finalized: wt?.blocks_proposed ?? totalFinalized,
-      total_timeouts: wt?.blocks_skipped ?? totalTimeouts,
+      // ── Indexed totals (Class 1 — last ~500 epoch snapshots from DB) ────
+      total_blocks_finalized: totalFinalized,
+      total_timeouts: totalTimeouts,
+      // ── Watchtower window totals (Class 1 — tracking_window_hours only) ─
+      watchtower_window_proposed: wt?.blocks_proposed ?? null,
+      watchtower_window_skipped: wt?.blocks_skipped ?? null,
       total_uptime_pct: wt?.uptime_percentage ?? null,
 
       // ── VDP / trust signals (Class 1 — from Watchtower) ────────────────

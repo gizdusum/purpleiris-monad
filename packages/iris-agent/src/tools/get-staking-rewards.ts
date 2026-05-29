@@ -124,8 +124,7 @@ export async function getStakingRewardsTool({
       window_days: dayCount,
       data_complete: dataComplete,
       has_historical_data: hasHistoricalData,
-      data_class: dataComplete ? 1 : hasHistoricalData ? 2 : 3,
     },
-    { data_class: 1, source: "get_staking_rewards" }
+    { data_class: dataComplete ? 1 : hasHistoricalData ? 2 : 3, source: "get_staking_rewards" }
   );
 }
