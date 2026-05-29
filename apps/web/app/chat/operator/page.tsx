@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { OperatorChatClient } from "./OperatorChatClient";
 
 export const metadata: Metadata = {
-  title: "Iris — Operator Mode · PurpleIris",
+  title: "Operator",
 };
 
 export default function OperatorChatPage() {

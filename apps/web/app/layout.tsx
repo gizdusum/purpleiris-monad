@@ -11,12 +11,25 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | PurpleIris",
-    default: "PurpleIris — Monad Validator Intelligence",
+    template: "%s · Purpleiris.live",
+    default: "Purpleiris.live",
   },
   description:
-    "Iris — the open eye on Monad. AI-powered validator intelligence for staking decisions and network operations.",
+    "PurpleIris — the open eye on Monad. On-chain validator intelligence: every number cited, every claim classified. Surfaces data, never advice.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://purpleiris.live"),
+  openGraph: {
+    title: "Purpleiris.live",
+    description:
+      "PurpleIris — the open eye on Monad. On-chain validator intelligence: every number cited, every claim classified. Surfaces data, never advice.",
+    type: "website",
+    url: "https://purpleiris.live",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Purpleiris.live",
+    description:
+      "PurpleIris — the open eye on Monad. On-chain validator intelligence: every number cited, every claim classified. Surfaces data, never advice.",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

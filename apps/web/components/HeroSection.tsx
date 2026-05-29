@@ -6,7 +6,7 @@ import Typewriter from "./Typewriter";
 const EYEBROW = "MONAD VALIDATOR INTELLIGENCE";
 const HEADLINE = "THE OPEN EYE\nON MONAD";
 const SUBHEAD =
-  "Iris reads on-chain data so you don’t have to.\nEvery number cited. Every claim classified.";
+  "PurpleIris reads on-chain data so you don’t have to.\nEvery number cited. Every claim classified.";
 
 export default function HeroSection() {
   const [phase, setPhase] = useState(0); // 0=eyebrow 1=headline 2=subhead 3=done
@@ -103,7 +103,7 @@ export default function HeroSection() {
         >
           {reduced ? (
             <>
-              Iris reads on-chain data so you don&apos;t have to.
+              PurpleIris reads on-chain data so you don&apos;t have to.
               <br />
               Every number cited. Every claim classified.
             </>
