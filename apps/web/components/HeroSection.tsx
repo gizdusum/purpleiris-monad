@@ -6,7 +6,7 @@ import Typewriter from "./Typewriter";
 const EYEBROW = "MONAD VALIDATOR INTELLIGENCE";
 const HEADLINE = "THE OPEN EYE\nON MONAD";
 const SUBHEAD =
-  "PurpleIris reads on-chain data so you don’t have to.\nEvery number cited. Every claim classified.";
+  "Chat with the chain — PurpleIris surfaces the data, you make the call.\nEvery number cited. Every claim classified.";
 
 export default function HeroSection() {
   const [phase, setPhase] = useState(0); // 0=eyebrow 1=headline 2=subhead 3=done
@@ -53,7 +53,7 @@ export default function HeroSection() {
       <div style={{ position: "relative", zIndex: 1, maxWidth: "520px", width: "100%" }}>
         {/* Eyebrow */}
         <p
-          className="text-xs tracking-[0.3em] uppercase"
+          className={`text-xs tracking-[0.3em] uppercase${phase === 3 ? "hero-neon" : ""}`}
           style={{
             color: "var(--accent)",
             marginBottom: "16px",
@@ -70,7 +70,7 @@ export default function HeroSection() {
 
         {/* Headline */}
         <h1
-          className="font-bold uppercase"
+          className={`font-bold uppercase${phase === 3 ? "hero-neon" : ""}`}
           style={{
             color: "var(--text)",
             fontSize: "clamp(2rem, 6vw, 4rem)",
@@ -98,12 +98,12 @@ export default function HeroSection() {
 
         {/* Subhead */}
         <p
-          className="text-base leading-relaxed"
+          className={`text-base leading-relaxed${phase === 3 ? "hero-neon" : ""}`}
           style={{ color: "var(--text-dim)", marginBottom: "0", minHeight: "3em" }}
         >
           {reduced ? (
             <>
-              PurpleIris reads on-chain data so you don&apos;t have to.
+              Chat with the chain — PurpleIris surfaces the data, you make the call.
               <br />
               Every number cited. Every claim classified.
             </>

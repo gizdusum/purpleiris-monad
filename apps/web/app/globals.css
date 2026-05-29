@@ -306,6 +306,36 @@
   border-color: rgba(124, 92, 255, 0.35);
 }
 
+/* ── Hero neon glow (fires after typewriter phase === 3) ── */
+@keyframes irisNeonCycle {
+  0%,
+  100% {
+    text-shadow:
+      0 0 6px rgba(167, 139, 250, 0.5),
+      0 0 20px rgba(139, 92, 246, 0.32);
+  }
+  33% {
+    text-shadow:
+      0 0 6px rgba(192, 132, 252, 0.5),
+      0 0 20px rgba(168, 85, 247, 0.32);
+  }
+  66% {
+    text-shadow:
+      0 0 6px rgba(129, 140, 248, 0.5),
+      0 0 20px rgba(99, 102, 241, 0.32);
+  }
+}
+.hero-neon {
+  animation: irisNeonCycle 6s ease-in-out infinite;
+  will-change: text-shadow;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-neon {
+    animation: none;
+    text-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+  }
+}
+
 /* ── Forward button ── */
 .iris-forward-btn {
   background: transparent;
