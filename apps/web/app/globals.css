@@ -306,6 +306,33 @@
   border-color: rgba(124, 92, 255, 0.35);
 }
 
+/* ── Hero headline hue sweep ── */
+@keyframes irisHeadlineHue {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+.hero-headline-anim {
+  background: linear-gradient(90deg, #ede9fe, #c4b5fd, #a78bfa, #c4b5fd, #ede9fe);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: irisHeadlineHue 8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-headline-anim {
+    animation: none;
+    -webkit-text-fill-color: #ede9fe;
+    color: #ede9fe;
+  }
+}
+
 /* ── Hero ghost orb (behind headline) ── */
 @keyframes irisOrbDrift {
   0% {
