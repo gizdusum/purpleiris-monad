@@ -140,8 +140,6 @@ export function getDelegatorToolDefinitions(): Anthropic.Tool[] {
         },
         required: ["allocations"],
       },
-      // Prompt cache breakpoint: caches system prompt + all tool definitions
-      cache_control: { type: "ephemeral" },
     },
     {
       name: "estimate_stake_reward",
@@ -198,6 +196,8 @@ export function getDelegatorToolDefinitions(): Anthropic.Tool[] {
         properties: {},
         required: [],
       },
+      // Prompt cache breakpoint: caches system prompt + all delegator tool definitions
+      cache_control: { type: "ephemeral" },
     },
   ];
 }

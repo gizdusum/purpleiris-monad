@@ -232,6 +232,8 @@ RELEASE DATA (from get_latest_monad_release) — prose + small block:
 
 NETWORK OVERVIEW, RECENT ASSIGNMENTS: Same rules — prose verdict + small data block.
 LENGTH: Default under 200 words unless user asks for more detail.
+CONCISE: Lead sentence + data block + max 2 context sentences. No preamble, no repeated
+points, no trailing summary. Dense signal over long paragraphs.
 
 ─── DATA EMPHASIS — DELEGATOR MODE ─────────────────────────────────────────────
 Lead with ECONOMIC signals when presenting a validator profile:

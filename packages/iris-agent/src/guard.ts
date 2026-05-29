@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 
 const CITATION_PATTERN =
-  /\(Class [123]|Source:\s+\w|Class [123] on-chain|Class [123] derived|Class [123] estimate/i;
+  /\(Class [123]|Source:\s+\w|Class [123] on-chain|Class [123] derived|Class [123] estimate|·\s*Class [123]/i;
 
 // Sentences that contain numbers but are clearly non-factual (meta-commentary, questions, etc.)
 const NON_FACTUAL_PATTERNS = [
