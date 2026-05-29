@@ -6,7 +6,7 @@ import Typewriter from "./Typewriter";
 const EYEBROW = "MONAD VALIDATOR INTELLIGENCE";
 const HEADLINE = "THE OPEN EYE\nON MONAD";
 const SUBHEAD =
-  "Chat with the chain — PurpleIris surfaces the data, you make the call.\nEvery number cited. Every claim classified.";
+  "Chat with the chain. Data from PurpleIris. Decisions by you.\nFor delegators and validators.";
 
 export default function HeroSection() {
   const [phase, setPhase] = useState(0); // 0=eyebrow 1=headline 2=subhead 3=done
@@ -53,7 +53,7 @@ export default function HeroSection() {
       <div style={{ position: "relative", zIndex: 1, maxWidth: "520px", width: "100%" }}>
         {/* Eyebrow */}
         <p
-          className={`text-xs tracking-[0.3em] uppercase ${phase === 3 ? "hero-neon" : ""}`.trim()}
+          className="text-xs tracking-[0.3em] uppercase"
           style={{
             color: "var(--accent)",
             marginBottom: "16px",
@@ -69,43 +69,48 @@ export default function HeroSection() {
         </p>
 
         {/* Headline */}
-        <h1
-          className={`font-bold uppercase ${phase === 3 ? "hero-neon" : ""}`.trim()}
-          style={{
-            color: "var(--text)",
-            fontSize: "clamp(2rem, 6vw, 4rem)",
-            letterSpacing: "-0.02em",
-            lineHeight: 1.1,
-            marginBottom: "20px",
-            minHeight: "2.2em",
-          }}
-        >
-          {reduced ? (
-            <>
-              THE OPEN EYE
-              <br />
-              ON MONAD
-            </>
-          ) : (
-            <Typewriter
-              text={HEADLINE}
-              speed={60}
-              active={phase >= 1}
-              onComplete={onHeadlineDone}
-            />
-          )}
-        </h1>
+        <div style={{ position: "relative" }}>
+          <div className="hero-orb" aria-hidden="true" />
+          <h1
+            className="font-bold uppercase"
+            style={{
+              position: "relative",
+              zIndex: 1,
+              color: "var(--text)",
+              fontSize: "clamp(2rem, 6vw, 4rem)",
+              letterSpacing: "-0.02em",
+              lineHeight: 1.1,
+              marginBottom: "20px",
+              minHeight: "2.2em",
+            }}
+          >
+            {reduced ? (
+              <>
+                THE OPEN EYE
+                <br />
+                ON MONAD
+              </>
+            ) : (
+              <Typewriter
+                text={HEADLINE}
+                speed={60}
+                active={phase >= 1}
+                onComplete={onHeadlineDone}
+              />
+            )}
+          </h1>
+        </div>
 
         {/* Subhead */}
         <p
-          className={`text-base leading-relaxed ${phase === 3 ? "hero-neon" : ""}`.trim()}
+          className="text-base leading-relaxed"
           style={{ color: "var(--text-dim)", marginBottom: "0", minHeight: "3em" }}
         >
           {reduced ? (
             <>
-              Chat with the chain — PurpleIris surfaces the data, you make the call.
+              Chat with the chain. Data from PurpleIris. Decisions by you.
               <br />
-              Every number cited. Every claim classified.
+              For delegators and validators.
             </>
           ) : (
             <Typewriter text={SUBHEAD} speed={25} active={phase >= 2} onComplete={onSubheadDone} />

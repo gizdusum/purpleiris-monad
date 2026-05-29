@@ -306,33 +306,57 @@
   border-color: rgba(124, 92, 255, 0.35);
 }
 
-/* ── Hero neon glow (fires after typewriter phase === 3) ── */
-@keyframes irisNeonCycle {
-  0%,
+/* ── Hero ghost orb (behind headline) ── */
+@keyframes irisOrbDrift {
+  0% {
+    transform: translate(-16%, -10%) scale(1);
+  }
+  20% {
+    transform: translate(20%, -4%) scale(1.18);
+  }
+  40% {
+    transform: translate(12%, 16%) scale(0.92);
+  }
+  60% {
+    transform: translate(-22%, 12%) scale(1.12);
+  }
+  80% {
+    transform: translate(-6%, -16%) scale(1.04);
+  }
   100% {
-    text-shadow:
-      0 0 6px rgba(167, 139, 250, 0.5),
-      0 0 20px rgba(139, 92, 246, 0.32);
-  }
-  33% {
-    text-shadow:
-      0 0 6px rgba(192, 132, 252, 0.5),
-      0 0 20px rgba(168, 85, 247, 0.32);
-  }
-  66% {
-    text-shadow:
-      0 0 6px rgba(129, 140, 248, 0.5),
-      0 0 20px rgba(99, 102, 241, 0.32);
+    transform: translate(-16%, -10%) scale(1);
   }
 }
-.hero-neon {
-  animation: irisNeonCycle 6s ease-in-out infinite;
-  will-change: text-shadow;
+.hero-orb {
+  position: absolute;
+  inset: -30% -10%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.hero-orb::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 55%;
+  padding-bottom: 55%;
+  margin-left: -27.5%;
+  margin-top: -27.5%;
+  background: radial-gradient(
+    circle at center,
+    rgba(167, 139, 250, 0.5) 0%,
+    rgba(139, 92, 246, 0.3) 38%,
+    rgba(91, 33, 182, 0.12) 60%,
+    transparent 72%
+  );
+  filter: blur(46px);
+  animation: irisOrbDrift 18s ease-in-out infinite;
+  will-change: transform;
 }
 @media (prefers-reduced-motion: reduce) {
-  .hero-neon {
+  .hero-orb::before {
     animation: none;
-    text-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
   }
 }
 
