@@ -72,13 +72,13 @@ export default function HeroSection() {
         <div style={{ position: "relative" }}>
           <div className="hero-orb" aria-hidden="true" />
           <h1
-            className="hero-headline-anim font-bold uppercase"
+            className="hero-headline-anim font-extrabold uppercase"
             style={{
               position: "relative",
               zIndex: 1,
               color: "var(--text)",
-              fontSize: "clamp(2rem, 6vw, 4rem)",
-              letterSpacing: "-0.02em",
+              fontSize: "clamp(2.25rem, 6.5vw, 4.5rem)",
+              letterSpacing: "-0.03em",
               lineHeight: 1.1,
               marginBottom: "20px",
               minHeight: "2.2em",

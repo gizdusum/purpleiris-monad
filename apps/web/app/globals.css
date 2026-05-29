@@ -317,13 +317,22 @@
   }
 }
 .hero-headline-anim {
-  background: linear-gradient(90deg, #ede9fe, #c4b5fd, #a78bfa, #c4b5fd, #ede9fe);
-  background-size: 220% 100%;
+  background: linear-gradient(
+    100deg,
+    #ffffff 0%,
+    #f0ebff 16%,
+    #c4b5fd 34%,
+    #8b5cf6 50%,
+    #c4b5fd 66%,
+    #f0ebff 84%,
+    #ffffff 100%
+  );
+  background-size: 280% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  animation: irisHeadlineHue 8s ease-in-out infinite;
+  animation: irisHeadlineHue 7s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   .hero-headline-anim {
