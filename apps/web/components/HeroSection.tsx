@@ -53,7 +53,7 @@ export default function HeroSection() {
       <div style={{ position: "relative", zIndex: 1, maxWidth: "520px", width: "100%" }}>
         {/* Eyebrow */}
         <p
-          className={`text-xs tracking-[0.3em] uppercase${phase === 3 ? "hero-neon" : ""}`}
+          className={`text-xs tracking-[0.3em] uppercase ${phase === 3 ? "hero-neon" : ""}`.trim()}
           style={{
             color: "var(--accent)",
             marginBottom: "16px",
@@ -70,7 +70,7 @@ export default function HeroSection() {
 
         {/* Headline */}
         <h1
-          className={`font-bold uppercase${phase === 3 ? "hero-neon" : ""}`}
+          className={`font-bold uppercase ${phase === 3 ? "hero-neon" : ""}`.trim()}
           style={{
             color: "var(--text)",
             fontSize: "clamp(2rem, 6vw, 4rem)",
@@ -98,7 +98,7 @@ export default function HeroSection() {
 
         {/* Subhead */}
         <p
-          className={`text-base leading-relaxed${phase === 3 ? "hero-neon" : ""}`}
+          className={`text-base leading-relaxed ${phase === 3 ? "hero-neon" : ""}`.trim()}
           style={{ color: "var(--text-dim)", marginBottom: "0", minHeight: "3em" }}
         >
           {reduced ? (
