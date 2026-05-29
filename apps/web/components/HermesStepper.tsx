@@ -454,7 +454,7 @@ export default function HermesStepper() {
           fontFamily: "var(--font-mono), monospace",
         }}
       >
-        WHAT HERMES DOES
+        WHAT PURPLEIRIS DOES
       </p>
 
       {/* Two-col: sticky left indicator + scrolling right cards */}

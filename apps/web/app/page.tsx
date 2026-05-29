@@ -1,10 +1,6 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import type { Metadata } from "next";
 import type { CSSProperties } from "react";
-export const metadata: Metadata = {
-  title: "PurpleIris — Monad Validator Intelligence",
-};
 
 const IrisBackdrop = dynamic(() => import("@/components/IrisBackdrop"), { ssr: false });
 const HeroSection = dynamic(() => import("@/components/HeroSection"), {
@@ -161,7 +157,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Scroll-reveal stepper — What Hermes does / roadmap */}
+      {/* Scroll-reveal stepper — What PurpleIris does / roadmap */}
       <HermesStepper />
 
       {/* Footer — transparent */}

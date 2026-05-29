@@ -665,7 +665,7 @@ export default function MethodologyContent() {
                 marginBottom: "8px",
               }}
             >
-              What Hermes can actually do
+              What PurpleIris can actually do
             </h2>
             <p
               style={{
