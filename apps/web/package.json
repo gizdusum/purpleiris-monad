@@ -11,6 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@upstash/ratelimit": "^2",
+    "@upstash/redis": "^1",
     "@anthropic-ai/sdk": "^0.39.0",
     "@neondatabase/serverless": "^1.1.0",
     "@purpleiris/iris-agent": "workspace:*",
