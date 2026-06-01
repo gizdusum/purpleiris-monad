@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { streamOperatorIris } from "@purpleiris/iris-agent";
 import type { IrisMessage } from "@purpleiris/iris-agent";
 import { z } from "zod";
+import { checkRateLimit } from "../../../../lib/ratelimit";
 
 const RequestSchema = z.object({
   messages: z
@@ -16,6 +17,10 @@ const RequestSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  const limited = await checkRateLimit(ip);
+  if (limited) return limited;
+
   let body: unknown;
   try {
     body = await req.json();
