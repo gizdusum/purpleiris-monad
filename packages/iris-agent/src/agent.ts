@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
 import { DELEGATOR_SYSTEM_PROMPT } from "./prompts/delegator";
-import { OPERATOR_SYSTEM_PROMPT } from "./prompts/operator";
+import { getOperatorSystemPrompt } from "./prompts/operator";
 import {
   getDelegatorToolDefinitions,
   getOperatorToolDefinitions,
@@ -151,6 +151,18 @@ export async function runOperatorIris(messages: IrisMessage[]): Promise<IrisResp
   const client = getClient();
   const tools = getOperatorToolDefinitions();
   const toolCallLog: IrisResponse["tool_calls"] = [];
+  const { base, playbook } = getOperatorSystemPrompt(messages);
+  const baseBlock = {
+    type: "text" as const,
+    text: base,
+    cache_control: { type: "ephemeral" as const },
+  };
+  const operatorSystem = playbook
+    ? [
+        baseBlock,
+        { type: "text" as const, text: playbook, cache_control: { type: "ephemeral" as const } },
+      ]
+    : [baseBlock];
 
   let apiMessages: MessageParam[] = messages.map((m) => ({
     role: m.role,
@@ -166,13 +178,7 @@ export async function runOperatorIris(messages: IrisMessage[]): Promise<IrisResp
     const response = await client.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 4096,
-      system: [
-        {
-          type: "text",
-          text: OPERATOR_SYSTEM_PROMPT,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
+      system: operatorSystem,
       tools,
       messages: apiMessages,
     });
@@ -234,6 +240,18 @@ export async function streamOperatorIris(
   const client = getClient();
   const tools = getOperatorToolDefinitions();
   const toolCallLog: IrisResponse["tool_calls"] = [];
+  const { base, playbook } = getOperatorSystemPrompt(messages);
+  const baseBlock = {
+    type: "text" as const,
+    text: base,
+    cache_control: { type: "ephemeral" as const },
+  };
+  const operatorSystem = playbook
+    ? [
+        baseBlock,
+        { type: "text" as const, text: playbook, cache_control: { type: "ephemeral" as const } },
+      ]
+    : [baseBlock];
 
   let apiMessages: MessageParam[] = messages.map((m) => ({
     role: m.role,
@@ -251,9 +269,7 @@ export async function streamOperatorIris(
       const s = client.messages.stream({
         model: "claude-sonnet-4-6",
         max_tokens: 4096,
-        system: [
-          { type: "text", text: OPERATOR_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
-        ],
+        system: operatorSystem,
         tools,
         messages: apiMessages,
       });
@@ -292,9 +308,7 @@ export async function streamOperatorIris(
     const response = await client.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 4096,
-      system: [
-        { type: "text", text: OPERATOR_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
-      ],
+      system: operatorSystem,
       tools,
       messages: apiMessages,
     });

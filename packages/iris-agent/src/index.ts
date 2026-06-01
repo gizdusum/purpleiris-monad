@@ -13,4 +13,8 @@ export {
   executeTool,
 } from "./tools/index";
 export { DELEGATOR_SYSTEM_PROMPT } from "./prompts/delegator";
-export { OPERATOR_SYSTEM_PROMPT } from "./prompts/operator";
+export {
+  OPERATOR_BASE_PROMPT,
+  OPERATOR_PLAYBOOK,
+  getOperatorSystemPrompt,
+} from "./prompts/operator";
