@@ -17,8 +17,7 @@ const RequestSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-  const limited = await checkRateLimit(ip);
+  const limited = await checkRateLimit(req);
   if (limited) return limited;
 
   let body: unknown;
