@@ -11,6 +11,8 @@ import { checkCitations, ensureReportLink } from "./guard";
 
 const MAX_TOOL_ROUNDS = 8;
 const MAX_GUARD_RETRIES = 2;
+const MODEL_STRONG = "claude-sonnet-4-6";
+const MODEL_FAST = "claude-haiku-4-5-20251001";
 
 export type IrisMessage = {
   role: "user" | "assistant";
@@ -23,6 +25,51 @@ export type IrisResponse = {
   guard_passed: boolean;
   guard_violations: string[];
 };
+
+const COMPLEX_SIGNALS = [
+  "compare",
+  "vs",
+  "versus",
+  "against",
+  "diversif",
+  "underdog",
+  "recent",
+  "assignment",
+  "epoch",
+  "history",
+  "simulate",
+  "why",
+  "neden",
+  "analiz",
+  "deep",
+  "derin",
+  "karşılaştır",
+];
+
+const SIMPLE_WHITELIST = [
+  "network",
+  "overview",
+  "health",
+  "list",
+  "find validator",
+  "find me",
+  "estimate",
+  "how much would i earn",
+  "ne kadar kazanır",
+  "release",
+  "version",
+  "update",
+  "latest monad",
+];
+
+function getDelegatorModel(messages: IrisMessage[]): typeof MODEL_FAST | typeof MODEL_STRONG {
+  const last = [...messages].reverse().find((m) => m.role === "user");
+  if (!last) return MODEL_STRONG;
+  const text = last.content.toLowerCase();
+  if (COMPLEX_SIGNALS.some((s) => text.includes(s))) return MODEL_STRONG;
+  if (SIMPLE_WHITELIST.some((s) => text.includes(s))) return MODEL_FAST;
+  return MODEL_STRONG;
+}
 
 function getClient(): Anthropic {
   const key = process.env["ANTHROPIC_API_KEY"];
@@ -43,13 +90,14 @@ export async function runDelegatorIris(messages: IrisMessage[]): Promise<IrisRes
 
   let finalText = "";
   let rounds = 0;
+  const firstTurnModel = getDelegatorModel(messages);
 
   // Agentic tool-use loop
   while (rounds < MAX_TOOL_ROUNDS) {
     rounds++;
 
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: rounds === 1 ? firstTurnModel : MODEL_STRONG,
       max_tokens: 4096,
       system: [
         {
@@ -123,7 +171,7 @@ export async function runDelegatorIris(messages: IrisMessage[]): Promise<IrisRes
     ];
 
     const retryResponse = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: MODEL_STRONG,
       max_tokens: 4096,
       system: [
         { type: "text", text: DELEGATOR_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
@@ -176,7 +224,7 @@ export async function runOperatorIris(messages: IrisMessage[]): Promise<IrisResp
     rounds++;
 
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: MODEL_STRONG,
       max_tokens: 4096,
       system: operatorSystem,
       tools,
@@ -267,7 +315,7 @@ export async function streamOperatorIris(
 
     if (madeToolCalls) {
       const s = client.messages.stream({
-        model: "claude-sonnet-4-6",
+        model: MODEL_STRONG,
         max_tokens: 4096,
         system: operatorSystem,
         tools,
@@ -306,7 +354,7 @@ export async function streamOperatorIris(
     }
 
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: MODEL_STRONG,
       max_tokens: 4096,
       system: operatorSystem,
       tools,
@@ -375,6 +423,7 @@ export async function streamDelegatorIris(
   let finalText = "";
   let rounds = 0;
   let madeToolCalls = false;
+  const firstTurnModel = getDelegatorModel(messages);
 
   while (rounds < MAX_TOOL_ROUNDS) {
     rounds++;
@@ -382,7 +431,7 @@ export async function streamDelegatorIris(
     if (madeToolCalls) {
       // Final answer turn — stream it
       const s = client.messages.stream({
-        model: "claude-sonnet-4-6",
+        model: MODEL_STRONG,
         max_tokens: 4096,
         system: [
           { type: "text", text: DELEGATOR_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
@@ -425,7 +474,7 @@ export async function streamDelegatorIris(
 
     // Non-streaming tool rounds
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: rounds === 1 ? firstTurnModel : MODEL_STRONG,
       max_tokens: 4096,
       system: [
         { type: "text", text: DELEGATOR_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
@@ -490,7 +539,7 @@ export async function streamDelegatorIris(
     ];
 
     const retryResponse = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: MODEL_STRONG,
       max_tokens: 4096,
       system: [
         { type: "text", text: DELEGATOR_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
