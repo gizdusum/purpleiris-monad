@@ -105,6 +105,13 @@ export function OperatorChatClient() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  // Re-focus textarea on mount and after each response (desktop only — avoids mobile keyboard jump)
+  useEffect(() => {
+    if (!loading && window.matchMedia("(min-width: 768px)").matches) {
+      textareaRef.current?.focus();
+    }
+  }, [loading]);
+
   // Greeting animation: runs whenever the empty state appears
   useEffect(() => {
     if (!isEmpty) return;
@@ -548,7 +555,6 @@ export function OperatorChatClient() {
                 : "Ask Hermes about validators…"
             }
             disabled={loading}
-            autoFocus={isEmpty}
             className="text-foreground placeholder:text-muted-foreground flex-1 resize-none bg-transparent text-sm outline-none disabled:opacity-50"
             style={{ maxHeight: 160 }}
           />

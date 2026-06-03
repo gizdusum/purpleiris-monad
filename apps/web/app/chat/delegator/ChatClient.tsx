@@ -96,6 +96,13 @@ export function ChatClient() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  // Re-focus textarea on mount and after each response (desktop only — avoids mobile keyboard jump)
+  useEffect(() => {
+    if (!loading && window.matchMedia("(min-width: 768px)").matches) {
+      textareaRef.current?.focus();
+    }
+  }, [loading]);
+
   // Greeting animation: runs whenever the empty state appears
   useEffect(() => {
     if (!isEmpty) return;
