@@ -6,7 +6,7 @@ import Typewriter from "./Typewriter";
 const EYEBROW = "MONAD VALIDATOR INTELLIGENCE";
 const HEADLINE = "THE OPEN EYE\nON MONAD";
 const SUBHEAD =
-  "Chat with the chain. Data from PurpleIris.\nDecisions by you.\nFor delegators and validators.";
+  "Chat with the chain.\nData from PurpleIris. Decisions by you.\nFor delegators and validators.";
 
 export default function HeroSection() {
   const [phase, setPhase] = useState(0); // 0=eyebrow 1=headline 2=subhead 3=done
@@ -108,9 +108,9 @@ export default function HeroSection() {
         >
           {reduced ? (
             <>
-              Chat with the chain. Data from PurpleIris.
+              Chat with the chain.
               <br />
-              Decisions by you.
+              Data from PurpleIris. Decisions by you.
               <br />
               For delegators and validators.
             </>

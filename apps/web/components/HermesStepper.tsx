@@ -94,7 +94,7 @@ const STEPS: StepDef[] = [
   },
 ];
 
-/* ── Desktop guard — ghost transforms only apply on md+ ─────────── */
+/* ── Desktop guard ──────────────────────────────────────────────── */
 function useIsDesktop(): boolean {
   const [isDesktop, setIsDesktop] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches
@@ -108,7 +108,7 @@ function useIsDesktop(): boolean {
   return isDesktop;
 }
 
-/* ── z-index: active card wins, next card second, past cards low ── */
+/* ── z-index: active card wins ──────────────────────────────────── */
 function getZIndex(index: number, active: number, total: number): number {
   if (index === active) return total + 2;
   if (index > active) return Math.max(1, total - (index - active) + 1);
@@ -215,12 +215,7 @@ function RoadmapCards({ reduced }: { reduced: boolean }) {
           </div>
           {/* Glitch + status */}
           <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-end",
-              gap: "4px",
-            }}
+            style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}
           >
             <span
               aria-hidden="true"
@@ -251,7 +246,7 @@ function RoadmapCards({ reduced }: { reduced: boolean }) {
   );
 }
 
-/* ── Step section: scroll zone + sticky card ────────────────────── */
+/* ── Step section ───────────────────────────────────────────────── */
 function StepSection({
   step,
   index,
@@ -282,7 +277,6 @@ function StepSection({
     target: sectionRef,
     offset: ["start 0.9", "end 0.1"],
   });
-  /* Ghost depth transforms — always created (hook rules), applied only on desktop */
   const cardOpacity = useTransform(scrollYProgress, [0, 0.18, 0.72, 1], [0.05, 1, 1, 0.05]);
   const cardScale = useTransform(scrollYProgress, [0, 0.18, 0.72, 1], [0.9, 1, 1, 0.9]);
   const cardY = useTransform(scrollYProgress, [0, 0.18], [20, 0]);
@@ -290,18 +284,23 @@ function StepSection({
   const cardFilter = useMotionTemplate`blur(${blurPx}px)`;
 
   const applyDepth = isDesktop && !reduced;
-
   const isActive = index === activeStep;
   const zIndex = getZIndex(index, activeStep, total);
 
-  /* Box-shadow strings — same # of layers for smooth interpolation */
+  /* Bullet re-animation: increment key when step becomes active */
+  const [animKey, setAnimKey] = useState(0);
+  const prevActiveRef = useRef(false);
+  useEffect(() => {
+    if (isActive && !prevActiveRef.current) setAnimKey((k) => k + 1);
+    prevActiveRef.current = isActive;
+  }, [isActive]);
+
   const shadowActive = `0 0 0 1px rgba(${step.glowRgb},0.28), 0 8px 48px rgba(${step.glowRgb},0.14), 0 24px 64px rgba(7,6,26,0.65)`;
   const shadowIdle = `0 0 0 1px rgba(42,31,90,0.9), 0 4px 24px rgba(0,0,0,0.12), 0 8px 32px rgba(0,0,0,0.06)`;
 
   return (
-    /* Scroll zone — min-height on desktop gives the card time to "stick" */
     <div ref={sectionRef} className="relative pb-10 md:min-h-[72vh] md:pb-0">
-      {/* Mobile label (desktop has the left indicator) */}
+      {/* Mobile label */}
       <div className="mb-4 flex items-center gap-3 md:hidden">
         <span
           style={{
@@ -318,7 +317,7 @@ function StepSection({
         {step.badge && <BadgePill badge={step.badge} color={step.color} />}
       </div>
 
-      {/* Card: sticky on desktop, flow on mobile */}
+      {/* Card */}
       <motion.div
         className="md:sticky"
         animate={reduced ? {} : { boxShadow: isActive ? shadowActive : shadowIdle }}
@@ -327,100 +326,110 @@ function StepSection({
           top: "100px",
           zIndex,
           borderRadius: "8px",
-          background: "var(--bg-elev)",
-          borderTop: `3px solid ${step.color}`,
-          padding: "28px",
+          overflow: "hidden",
           ...(applyDepth
             ? { opacity: cardOpacity, scale: cardScale, y: cardY, filter: cardFilter }
             : {}),
         }}
       >
-        {/* Category row (desktop; mobile has the label above) */}
-        <div className="hidden items-center gap-3 md:flex" style={{ marginBottom: "20px" }}>
+        {/* Inner wrapper — positioning context for ghost plate + ghost num */}
+        <div style={{ position: "relative", padding: "28px" }}>
+          {/* Ghost plate — ambient glow */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 0,
+              background:
+                "radial-gradient(120% 100% at 30% 0%, rgba(124,92,255,.06), transparent 70%), linear-gradient(180deg, rgba(124,92,255,.035), rgba(124,92,255,.012))",
+              WebkitMask: "radial-gradient(130% 120% at 50% 40%, #000 55%, transparent 100%)",
+              mask: "radial-gradient(130% 120% at 50% 40%, #000 55%, transparent 100%)",
+              pointerEvents: "none",
+            }}
+          />
+          {/* Ghost index watermark */}
           <span
+            aria-hidden="true"
             style={{
-              fontSize: "0.65rem",
-              fontWeight: 700,
-              letterSpacing: "0.22em",
-              textTransform: "uppercase",
-              color: step.color,
-              fontFamily: "var(--font-mono), monospace",
+              position: "absolute",
+              top: 0,
+              right: "8px",
+              fontSize: "140px",
+              fontWeight: 800,
+              lineHeight: 1,
+              color: "rgba(124,92,255,.045)",
+              pointerEvents: "none",
+              zIndex: 0,
+              letterSpacing: "-.02em",
+              userSelect: "none",
             }}
           >
-            {step.num} — {step.name}
+            {step.num}
           </span>
-          {step.badge && <BadgePill badge={step.badge} color={step.color} />}
-        </div>
 
-        {/* Mobile: divider after mobile label is above the card outer, so just show divider */}
-        <div
-          className="hidden md:block"
-          style={{ borderTop: "1px solid var(--border)", marginBottom: "20px" }}
-        />
-        <div
-          className="md:hidden"
-          style={{ borderTop: "1px solid var(--border)", marginBottom: "20px" }}
-        />
-
-        {/* Slogan */}
-        <p
-          style={{
-            color: "var(--text)",
-            fontSize: "clamp(1.1rem, 2.5vw, 1.4rem)",
-            fontWeight: 700,
-            letterSpacing: "-0.02em",
-            lineHeight: 1.3,
-            margin: "0 0 24px",
-            fontFamily: "var(--font-mono), monospace",
-          }}
-        >
-          {step.slogan}
-        </p>
-
-        {/* Bullet list */}
-        {step.bullets.length > 0 && (
-          <ul
-            style={{
-              listStyle: "none",
-              padding: 0,
-              margin: 0,
-              display: "flex",
-              flexDirection: "column",
-              gap: "11px",
-            }}
-          >
-            {step.bullets.map((b) => (
-              <li
-                key={b}
+          {/* Card content — above ghost layers */}
+          <div style={{ position: "relative", zIndex: 1 }}>
+            {/* Category row (desktop) */}
+            <div className="hidden items-center gap-3 md:flex" style={{ marginBottom: "20px" }}>
+              <span
                 style={{
-                  color: "var(--text-dim)",
-                  fontSize: "0.875rem",
-                  lineHeight: 1.5,
-                  paddingLeft: "18px",
-                  position: "relative",
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.22em",
+                  textTransform: "uppercase",
+                  color: step.color,
                   fontFamily: "var(--font-mono), monospace",
                 }}
               >
-                <span
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    top: "5px",
-                    color: step.color,
-                    opacity: 0.8,
-                    fontSize: "0.5rem",
-                  }}
-                >
-                  ▸
-                </span>
-                {b}
-              </li>
-            ))}
-          </ul>
-        )}
+                {step.num} — {step.name}
+              </span>
+              {step.badge && <BadgePill badge={step.badge} color={step.color} />}
+            </div>
 
-        {/* Roadmap (step 04 only) */}
-        {step.isRoadmap && <RoadmapCards reduced={reduced} />}
+            <div
+              className="hidden md:block"
+              style={{ borderTop: "1px solid var(--border)", marginBottom: "20px" }}
+            />
+            <div
+              className="md:hidden"
+              style={{ borderTop: "1px solid var(--border)", marginBottom: "20px" }}
+            />
+
+            {/* Slogan — hero gradient sweep */}
+            <p
+              className="hero-headline-anim"
+              style={{
+                fontSize: "clamp(1.1rem, 2.5vw, 1.4rem)",
+                fontWeight: 700,
+                letterSpacing: "-0.02em",
+                lineHeight: 1.3,
+                margin: "0 0 24px",
+                fontFamily: "var(--font-mono), monospace",
+              }}
+            >
+              {step.slogan}
+            </p>
+
+            {/* Bullets */}
+            {step.bullets.length > 0 && (
+              <div
+                key={animKey}
+                className={`step-bullets${isActive && !reduced ? "step-bullets-active" : ""}`}
+              >
+                {step.bullets.map((b) => (
+                  <div key={b} className="step-bullet">
+                    <span className="step-mk">→</span>
+                    <span>{b}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Roadmap (step 04 only) */}
+            {step.isRoadmap && <RoadmapCards reduced={reduced} />}
+          </div>
+        </div>
       </motion.div>
     </div>
   );
@@ -457,9 +466,8 @@ export default function HermesStepper() {
         WHAT PURPLEIRIS DOES
       </p>
 
-      {/* Two-col: sticky left indicator + scrolling right cards */}
       <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] md:gap-16">
-        {/* LEFT: step numbers — sticky while right scrolls */}
+        {/* LEFT: node-circle stepper nav */}
         <nav
           aria-label="Steps"
           className="hidden flex-col md:flex"
@@ -467,54 +475,81 @@ export default function HermesStepper() {
             position: "sticky",
             top: "100px",
             alignSelf: "start",
-            gap: "28px",
+            gap: "4px",
           }}
         >
+          <div className="step-stepper-line" aria-hidden="true" />
           {STEPS.map((step, i) => {
             const active = i === activeStep;
             return (
               <div
                 key={step.num}
                 style={{
+                  position: "relative",
                   display: "flex",
-                  flexDirection: "column",
-                  gap: "4px",
-                  opacity: active ? 1 : 0.25,
+                  alignItems: "flex-start",
+                  gap: "16px",
+                  padding: "14px 0",
+                  opacity: active ? 1 : 0.4,
                   transition: "opacity 300ms ease",
                 }}
               >
-                <span
+                {/* Node circle */}
+                <div
                   style={{
-                    fontFamily: "var(--font-mono), monospace",
-                    fontSize: "1.6rem",
-                    fontWeight: 700,
-                    letterSpacing: "-0.03em",
-                    lineHeight: 1,
-                    color: active ? step.color : "var(--text-mute)",
-                    transition: "color 300ms ease",
+                    position: "relative",
+                    zIndex: 2,
+                    width: "27px",
+                    height: "27px",
+                    flexShrink: 0,
+                    borderRadius: "50%",
+                    border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
+                    background: active ? "rgba(124,92,255,.08)" : "var(--bg)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "10px",
+                    color: active ? "var(--accent-hover)" : "var(--text-mute)",
+                    boxShadow: active
+                      ? "0 0 0 4px rgba(124,92,255,.10), 0 0 20px -4px var(--accent)"
+                      : "none",
+                    transition: "all 300ms ease",
                   }}
                 >
                   {step.num}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono), monospace",
-                    fontSize: "0.6rem",
-                    fontWeight: 600,
-                    letterSpacing: "0.18em",
-                    textTransform: "uppercase",
-                    color: active ? step.color : "var(--text-mute)",
-                    transition: "color 300ms ease",
-                  }}
-                >
-                  {step.name}
-                </span>
+                  {active && <span className="step-node-ring" aria-hidden="true" />}
+                </div>
+                {/* Meta */}
+                <div style={{ paddingTop: "3px" }}>
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      letterSpacing: ".2em",
+                      color: active ? "var(--accent)" : "var(--text-mute)",
+                      transition: "color 300ms ease",
+                    }}
+                  >
+                    {step.num}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "13px",
+                      letterSpacing: ".16em",
+                      textTransform: "uppercase",
+                      color: active ? "var(--text)" : "var(--text-dim)",
+                      transition: "color 300ms ease",
+                      marginTop: "2px",
+                    }}
+                  >
+                    {step.name}
+                  </div>
+                </div>
               </div>
             );
           })}
         </nav>
 
-        {/* RIGHT: step sections (each has its own scroll zone + sticky card) */}
+        {/* RIGHT: step sections */}
         <div>
           {STEPS.map((step, i) => (
             <StepSection

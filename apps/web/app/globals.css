@@ -414,3 +414,244 @@
   color: rgba(255, 255, 255, 0.95);
   background: rgba(124, 92, 255, 0.08);
 }
+
+/* ── Mode card v2 (canvas + tilt) ── */
+.mode-card-v2 {
+  --rx: 0deg;
+  --ry: 0deg;
+  --mx: 50%;
+  --my: 0%;
+  transform: perspective(1400px) rotateX(var(--rx)) rotateY(var(--ry));
+  background:
+    radial-gradient(420px 220px at var(--mx) var(--my), rgba(124, 92, 255, 0.16), transparent 70%),
+    linear-gradient(180deg, rgba(21, 16, 58, 0.72), rgba(10, 8, 30, 0.82));
+  transform-style: preserve-3d;
+  transition:
+    border-color 300ms ease,
+    box-shadow 300ms ease;
+  will-change: transform;
+}
+.mode-card-v2:hover {
+  border-color: var(--border-hover) !important;
+  box-shadow:
+    0 0 0 1px rgba(124, 92, 255, 0.18),
+    0 12px 56px rgba(124, 92, 255, 0.12),
+    0 24px 64px rgba(7, 6, 26, 0.7);
+}
+
+/* Conduit — animated gradient top line */
+.mode-card-v2-conduit {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent) 30%,
+    var(--accent-hover) 50%,
+    var(--accent) 70%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: conduit-flow 3.5s linear infinite;
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+.mode-card-v2:hover .mode-card-v2-conduit {
+  opacity: 1;
+}
+@keyframes conduit-flow {
+  to {
+    background-position: 200% 0;
+  }
+}
+
+/* HUD corner brackets */
+.hud-corner {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid var(--accent);
+  opacity: 0.4;
+  transition: opacity 300ms ease;
+  pointer-events: none;
+}
+.hud-corner.tl {
+  top: 8px;
+  left: 8px;
+  border-right: none;
+  border-bottom: none;
+}
+.hud-corner.tr {
+  top: 8px;
+  right: 8px;
+  border-left: none;
+  border-bottom: none;
+}
+.hud-corner.bl {
+  bottom: 8px;
+  left: 8px;
+  border-right: none;
+  border-top: none;
+}
+.hud-corner.br {
+  bottom: 8px;
+  right: 8px;
+  border-left: none;
+  border-top: none;
+}
+.mode-card-v2:hover .hud-corner {
+  opacity: 0.95;
+}
+
+/* Live dot pulse */
+.live-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  animation: live-pulse 1.6s infinite;
+}
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* Enter button sweep */
+.enter-v2 {
+  position: relative;
+  overflow: hidden;
+  transition:
+    border-color 300ms ease,
+    color 300ms ease,
+    background 300ms ease;
+}
+.enter-v2::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(124, 92, 255, 0.22), transparent);
+  transform: translateX(-100%);
+  transition: transform 550ms ease;
+  pointer-events: none;
+}
+.enter-v2:not(:disabled):hover::after {
+  transform: translateX(100%);
+}
+.enter-v2:not(:disabled):hover {
+  border-color: var(--accent) !important;
+  color: #fff !important;
+}
+.enter-arrow {
+  display: inline-block;
+  transition: transform 0.35s;
+}
+.enter-v2:not(:disabled):hover .enter-arrow {
+  transform: translateX(6px);
+}
+
+/* ── HermesStepper v2 ── */
+.step-stepper-line {
+  position: absolute;
+  left: 13px;
+  top: 14px;
+  bottom: 14px;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--border) 12%,
+    var(--border) 88%,
+    transparent
+  );
+}
+
+@keyframes radar-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+.step-node-ring {
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  animation: radar-ring 2s ease-out infinite;
+}
+
+@keyframes lineIn {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+.step-bullet {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(124, 92, 255, 0.07);
+  font-size: 14px;
+  color: var(--text-dim);
+  transition:
+    color 0.35s,
+    padding-left 0.35s;
+}
+.step-bullet:hover {
+  color: var(--text);
+  padding-left: 10px;
+}
+.step-mk {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  flex: none;
+  opacity: 0.6;
+  transition:
+    opacity 0.35s,
+    transform 0.35s;
+  font-weight: 600;
+}
+.step-bullet:hover .step-mk {
+  opacity: 1;
+  transform: translateX(2px);
+}
+.step-bullets-active .step-bullet {
+  animation: lineIn 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.step-bullets-active .step-bullet:nth-child(1) {
+  animation-delay: 0.1s;
+}
+.step-bullets-active .step-bullet:nth-child(2) {
+  animation-delay: 0.18s;
+}
+.step-bullets-active .step-bullet:nth-child(3) {
+  animation-delay: 0.26s;
+}
+.step-bullets-active .step-bullet:nth-child(4) {
+  animation-delay: 0.34s;
+}
+.step-bullets-active .step-bullet:nth-child(5) {
+  animation-delay: 0.42s;
+}
+.step-bullets-active .step-bullet:nth-child(6) {
+  animation-delay: 0.5s;
+}

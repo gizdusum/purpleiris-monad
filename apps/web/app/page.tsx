@@ -1,6 +1,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import type { CSSProperties } from "react";
+import ModeCard from "@/components/ModeCard";
+import type { CardDef } from "@/components/ModeCard";
 
 const IrisBackdrop = dynamic(() => import("@/components/IrisBackdrop"), { ssr: false });
 const HeroSection = dynamic(() => import("@/components/HeroSection"), {
@@ -10,39 +11,21 @@ const HeroSection = dynamic(() => import("@/components/HeroSection"), {
 const HermesStepper = dynamic(() => import("@/components/HermesStepper"), { ssr: false });
 
 /* ─── Card data ─── */
-type Bar = { label: string; value: number | null };
-type Spec = { key: string; value: string };
-type CardDef = {
-  id: string;
-  category: string;
-  catColor: string;
-  name: string;
-  bars: Bar[];
-  specs: Spec[];
-  copy: string;
-  cta: string;
-  href: string;
-  disabled: boolean;
-};
-
 const cards: CardDef[] = [
   {
     id: "delegator",
     category: "CASUAL",
     catColor: "var(--cat-casual)",
     name: "DELEGATOR",
-    bars: [
-      { label: "READINESS", value: 9 },
-      { label: "DEPTH", value: 7 },
-      { label: "LATENCY", value: 9 },
-    ],
+    vizType: "mesh",
+    liveKind: "live",
     specs: [
       { key: "MODE:", value: "conversational" },
       { key: "OUTPUT:", value: "validator lists" },
       { key: "BOUNDARY:", value: "non-advisory" },
     ],
     copy: "Ask anything about Monad staking. Get validator data, never advice.",
-    cta: "ENTER →",
+    cta: "ENTER",
     href: "/chat/delegator",
     disabled: false,
   },
@@ -51,18 +34,15 @@ const cards: CardDef[] = [
     category: "OPERATOR",
     catColor: "var(--cat-operator)",
     name: "OPERATOR",
-    bars: [
-      { label: "READINESS", value: 6 },
-      { label: "DEPTH", value: 10 },
-      { label: "LATENCY", value: 8 },
-    ],
+    vizType: "osc",
+    liveKind: "live",
     specs: [
       { key: "MODE:", value: "technical" },
       { key: "OUTPUT:", value: "metrics + commands" },
       { key: "ACCESS:", value: "read-only (v1.0)" },
     ],
     copy: "Run validator diagnostics. Inspect performance, commission, uptime.",
-    cta: "ENTER →",
+    cta: "ENTER",
     href: "/chat/operator",
     disabled: false,
   },
@@ -71,11 +51,8 @@ const cards: CardDef[] = [
     category: "FORECAST",
     catColor: "var(--cat-forecast)",
     name: "STAKE SIM",
-    bars: [
-      { label: "READINESS", value: 0 },
-      { label: "DEPTH", value: 10 },
-      { label: "LATENCY", value: null },
-    ],
+    vizType: "forecast",
+    liveKind: "soon",
     specs: [
       { key: "MODE:", value: "forecast" },
       { key: "STATUS:", value: "coming soon" },
@@ -139,7 +116,7 @@ export default function HomePage() {
       {/* Hero */}
       <HeroSection />
 
-      {/* Card grid — transparent so backdrop shows through */}
+      {/* Card grid */}
       <section
         style={{
           maxWidth: "1152px",
@@ -157,10 +134,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Scroll-reveal stepper — What PurpleIris does / roadmap */}
+      {/* Scroll-reveal stepper */}
       <HermesStepper />
 
-      {/* Footer — transparent */}
+      {/* Footer */}
       <footer
         style={{
           marginTop: "80px",
@@ -251,135 +228,5 @@ export default function HomePage() {
         </div>
       </footer>
     </>
-  );
-}
-
-/* ─── Mode card component ─── */
-function ModeCard({ card }: { card: CardDef }) {
-  const { category, catColor, name, bars, specs, copy, cta, href, disabled } = card;
-
-  const inner = (
-    <div
-      className="mode-card relative flex h-full flex-col rounded-md"
-      style={
-        {
-          borderTopColor: catColor,
-          "--cta-color": catColor,
-          padding: "28px",
-        } as CSSProperties
-      }
-    >
-      <p
-        className="text-xs tracking-[0.25em] uppercase"
-        style={{ color: catColor, fontWeight: 600 }}
-      >
-        {category}
-      </p>
-
-      <h2
-        className="font-bold uppercase"
-        style={{
-          color: "var(--text)",
-          fontSize: "1.875rem",
-          letterSpacing: "-0.02em",
-          marginTop: "8px",
-        }}
-      >
-        {name}
-      </h2>
-
-      <div style={{ borderTop: "1px solid var(--border)", margin: "20px 0" }} />
-
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        {bars.map((bar) => (
-          <div key={bar.label} className="flex items-center gap-3">
-            <span
-              className="text-xs tracking-wider uppercase"
-              style={{ color: "var(--text-mute)", minWidth: "90px" }}
-            >
-              {bar.label}
-            </span>
-            {bar.value === null ? (
-              <span
-                className="text-xs"
-                style={{ color: "var(--text-mute)", flex: 1, maxWidth: "120px" }}
-              >
-                —
-              </span>
-            ) : (
-              <div
-                className="rounded-sm"
-                style={{
-                  flex: 1,
-                  maxWidth: "120px",
-                  height: "8px",
-                  backgroundColor: "var(--border)",
-                  display: "flex",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  className="rounded-sm"
-                  style={{
-                    width: `${(bar.value / 10) * 100}%`,
-                    height: "100%",
-                    backgroundColor: catColor,
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div style={{ borderTop: "1px solid var(--border)", margin: "20px 0" }} />
-
-      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-        {specs.map((spec) => (
-          <div key={spec.key} className="flex text-xs">
-            <span
-              className="tracking-wider uppercase"
-              style={{ color: "var(--text-mute)", minWidth: "90px" }}
-            >
-              {spec.key}
-            </span>
-            <span style={{ color: "var(--text)" }}>{spec.value}</span>
-          </div>
-        ))}
-      </div>
-
-      <p
-        className="text-sm leading-relaxed"
-        style={{ color: "var(--text-dim)", marginTop: "16px", minHeight: "3rem" }}
-      >
-        {copy}
-      </p>
-
-      <button
-        disabled={disabled}
-        className="iris-cta w-full rounded-sm text-xs tracking-[0.25em] uppercase"
-        style={{
-          border: `1px solid ${catColor}`,
-          color: disabled ? "var(--text-mute)" : catColor,
-          backgroundColor: "transparent",
-          padding: "10px 20px",
-          cursor: disabled ? "not-allowed" : "pointer",
-          opacity: disabled ? 0.5 : 1,
-          marginTop: "20px",
-          transition: "background-color 150ms ease",
-        }}
-      >
-        {cta}
-      </button>
-    </div>
-  );
-
-  if (disabled || href === "#") {
-    return <div className="flex">{inner}</div>;
-  }
-  return (
-    <Link href={href} className="flex">
-      {inner}
-    </Link>
   );
 }
