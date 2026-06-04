@@ -32,14 +32,19 @@ type MeshNode = {
   p: number;
   col?: string;
 };
-type Beam = {
-  n0: MeshNode;
-  n1: MeshNode;
-  cx: number;
-  cy: number;
-  col: string;
-  life: number;
-  dur: number;
+type PlanetNode = {
+  x: number;
+  y: number;
+  z: number;
+  col: [number, number, number];
+  pulse: number;
+};
+type PlanetPair = {
+  a: number;
+  b: number;
+  col: [number, number, number];
+  phase: number;
+  speed: number;
 };
 
 export default function ModeCard({ card }: { card: CardDef }) {
@@ -95,9 +100,10 @@ export default function ModeCard({ card }: { card: CardDef }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
   const meshRef = useRef<MeshNode[]>([]);
-  const beamsRef = useRef<Beam[]>([]);
-  const oscPhaseRef = useRef(0); // repurposed as frame counter for osc beam viz
+  const oscPhaseRef = useRef(0); // planet rotation angle for osc viz
   const fcTRef = useRef(0);
+  const planetNodesRef = useRef<PlanetNode[]>([]);
+  const planetPairsRef = useRef<PlanetPair[]>([]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -119,7 +125,7 @@ export default function ModeCard({ card }: { card: CardDef }) {
       W = r.width;
       H = r.height;
       if (vizType === "mesh") initMesh();
-      if (vizType === "osc") initBeamNodes();
+      if (vizType === "osc") initPlanet();
     }
 
     function initMesh() {
@@ -133,23 +139,56 @@ export default function ModeCard({ card }: { card: CardDef }) {
       }));
     }
 
-    function initBeamNodes() {
-      meshRef.current = Array.from({ length: 9 }, () => ({
-        x: Math.random() * W,
-        y: Math.random() * H,
-        vx: (Math.random() - 0.5) * 0.16,
-        vy: (Math.random() - 0.5) * 0.16,
-        r: Math.random() * 1.4 + 1.1,
-        p: Math.random() * 6.28,
-        col: Math.random() < 0.5 ? ACC : OK,
-      }));
-      beamsRef.current = [];
+    function initPlanet() {
+      const ACC_RGB: [number, number, number] = [124, 92, 255];
+      const CY_RGB: [number, number, number] = [92, 224, 168];
+      const ACC2_RGB: [number, number, number] = [155, 128, 255];
+      const N = 16;
+      planetNodesRef.current = Array.from({ length: N }, (_, i) => {
+        const y = 1 - (i / (N - 1)) * 2;
+        const radius = Math.sqrt(1 - y * y);
+        const theta = Math.PI * (3 - Math.sqrt(5)) * i;
+        return {
+          x: Math.cos(theta) * radius,
+          y,
+          z: Math.sin(theta) * radius,
+          col: i % 3 === 0 ? CY_RGB : ACC2_RGB,
+          pulse: Math.random() * 6.28,
+        };
+      });
+      const pairs: PlanetPair[] = [];
+      for (let k = 0; k < 8; k++) {
+        let a = (Math.random() * N) | 0;
+        let b = (Math.random() * N) | 0;
+        let tries = 0;
+        while (b === a && tries++ < 5) b = (Math.random() * N) | 0;
+        if (a !== b)
+          pairs.push({
+            a,
+            b,
+            col: Math.random() < 0.5 ? ACC_RGB : CY_RGB,
+            phase: Math.random(),
+            speed: 0.004 + Math.random() * 0.006,
+          });
+      }
+      planetPairsRef.current = pairs;
       oscPhaseRef.current = 0;
     }
 
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
     resize();
+
+    const rotateY = (p: { x: number; y: number; z: number }, ang: number) => {
+      const c = Math.cos(ang),
+        s = Math.sin(ang);
+      return { x: p.x * c + p.z * s, y: p.y, z: -p.x * s + p.z * c };
+    };
+    const rotateX = (p: { x: number; y: number; z: number }, ang: number) => {
+      const c = Math.cos(ang),
+        s = Math.sin(ang);
+      return { x: p.x, y: p.y * c - p.z * s, z: p.y * s + p.z * c };
+    };
 
     function frame(_t: number) {
       if (!ctx) {
@@ -190,110 +229,198 @@ export default function ModeCard({ card }: { card: CardDef }) {
           ctx!.shadowBlur = 0;
         });
       } else if (vizType === "osc") {
-        oscPhaseRef.current++;
-        const ft = oscPhaseRef.current;
+        // Rotating 3D half-planet — center pushed below box, upper cap fills frame
+        oscPhaseRef.current += 0.0042;
+        const rot = oscPhaseRef.current;
         ctx.clearRect(0, 0, W, H);
-        const ns = meshRef.current;
+        const cx = W * 0.5;
+        const R = W * 0.62;
+        const cy = H * 0.96;
+        const tilt = -0.36;
 
-        // Faint static mesh links between nearby nodes
-        for (let i = 0; i < ns.length; i++)
-          for (let j = i + 1; j < ns.length; j++) {
-            const a = ns[i]!,
-              b = ns[j]!;
-            const d = Math.hypot(a.x - b.x, a.y - b.y);
-            if (d < 70) {
-              ctx.strokeStyle = `rgba(124,92,255,${(0.12 * (1 - d / 70)).toFixed(3)})`;
-              ctx.lineWidth = 0.5;
-              ctx.beginPath();
-              ctx.moveTo(a.x, a.y);
-              ctx.lineTo(b.x, b.y);
-              ctx.stroke();
-            }
+        // atmosphere glow (upper cap)
+        const atm = ctx.createRadialGradient(cx, cy, R * 0.75, cx, cy, R * 1.25);
+        atm.addColorStop(0, "rgba(124,92,255,0.12)");
+        atm.addColorStop(0.6, "rgba(124,92,255,0.05)");
+        atm.addColorStop(1, "rgba(124,92,255,0)");
+        ctx.fillStyle = atm;
+        ctx.beginPath();
+        ctx.arc(cx, cy, R * 1.25, 0, 6.28);
+        ctx.fill();
+
+        // sphere body
+        const body = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.5, R * 0.1, cx, cy, R);
+        body.addColorStop(0, "rgba(34,24,78,0.6)");
+        body.addColorStop(1, "rgba(8,6,24,0.9)");
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, 0, 6.28);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(124,92,255,0.32)";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, 0, 6.28);
+        ctx.stroke();
+
+        // wireframe meridians
+        ctx.lineWidth = 0.5;
+        for (let m = 0; m < 8; m++) {
+          const lon = (m / 8) * Math.PI * 2;
+          ctx.beginPath();
+          let started = false;
+          for (let t = -Math.PI / 2; t <= Math.PI / 2; t += 0.13) {
+            let p = {
+              x: Math.cos(t) * Math.cos(lon),
+              y: Math.sin(t),
+              z: Math.cos(t) * Math.sin(lon),
+            };
+            p = rotateY(p, rot);
+            p = rotateX(p, tilt);
+            const sx = cx + p.x * R,
+              sy = cy + p.y * R;
+            if (p.z >= -0.05) {
+              if (!started) {
+                ctx.moveTo(sx, sy);
+                started = true;
+              } else ctx.lineTo(sx, sy);
+            } else started = false;
           }
+          ctx.strokeStyle = "rgba(124,92,255,0.10)";
+          ctx.stroke();
+        }
 
-        // Move + draw nodes
-        ns.forEach((n) => {
-          n.x += n.vx;
-          n.y += n.vy;
-          n.p += 0.05;
-          if (n.x < 2 || n.x > W - 2) n.vx *= -1;
-          if (n.y < 2 || n.y > H - 2) n.vy *= -1;
-          const pr = n.r + Math.sin(n.p) * 0.5;
-          const col = n.col ?? ACC2;
-          ctx!.beginPath();
-          ctx!.arc(n.x, n.y, pr, 0, 6.28);
-          ctx!.fillStyle = col;
-          ctx!.shadowColor = col;
-          ctx!.shadowBlur = 8;
-          ctx!.fill();
-          ctx!.shadowBlur = 0;
-        });
-
-        // Spawn a beam arc every 18 frames
-        if (ft % 18 === 0 && ns.length >= 2) {
-          let ai = (Math.random() * ns.length) | 0;
-          let bi = (Math.random() * ns.length) | 0;
-          let tries = 0;
-          while (bi === ai && tries++ < 5) bi = (Math.random() * ns.length) | 0;
-          if (ai !== bi) {
-            const n0 = ns[ai]!,
-              n1 = ns[bi]!;
-            const dx = n1.x - n0.x,
-              dy = n1.y - n0.y,
-              d = Math.hypot(dx, dy);
-            if (d <= W * 0.7) {
-              const mxp = (n0.x + n1.x) / 2,
-                myp = (n0.y + n1.y) / 2;
-              const nx = -dy / d,
-                ny = dx / d;
-              const bow = (18 + Math.random() * 26) * (Math.random() < 0.5 ? 1 : -1);
-              beamsRef.current.push({
-                n0,
-                n1,
-                cx: mxp + nx * bow,
-                cy: myp + ny * bow,
-                col: Math.random() < 0.5 ? ACC : OK,
-                life: 0,
-                dur: 55 + Math.random() * 35,
-              });
+        // wireframe parallels
+        for (let pa = 1; pa <= 4; pa++) {
+          const lat = (pa / 5) * (Math.PI / 2);
+          for (const sgn of [1, -1]) {
+            ctx.beginPath();
+            let started = false;
+            for (let lon = 0; lon <= Math.PI * 2; lon += 0.13) {
+              let p = {
+                x: Math.cos(sgn * lat) * Math.cos(lon),
+                y: Math.sin(sgn * lat),
+                z: Math.cos(sgn * lat) * Math.sin(lon),
+              };
+              p = rotateY(p, rot);
+              p = rotateX(p, tilt);
+              const sx = cx + p.x * R,
+                sy = cy + p.y * R;
+              if (p.z >= -0.05) {
+                if (!started) {
+                  ctx.moveTo(sx, sy);
+                  started = true;
+                } else ctx.lineTo(sx, sy);
+              } else started = false;
             }
+            ctx.strokeStyle = "rgba(124,92,255,0.07)";
+            ctx.stroke();
           }
         }
 
-        // Draw + age beams: animated quadratic bezier draw + leading glow dot + fade
-        beamsRef.current.forEach((bm) => {
-          bm.life++;
-          const prog = Math.min(1, bm.life / (bm.dur * 0.45));
-          const fade = bm.life > bm.dur * 0.6 ? 1 - (bm.life - bm.dur * 0.6) / (bm.dur * 0.4) : 1;
-          ctx!.strokeStyle = bm.col;
-          ctx!.globalAlpha = Math.max(0, fade) * 0.95;
+        // beams: great-circle slerp arcs between node pairs
+        const pnodes = planetNodesRef.current;
+        planetPairsRef.current.forEach((pr) => {
+          pr.phase += pr.speed;
+          if (pr.phase > 1.35) pr.phase -= 1.35;
+          const A = pnodes[pr.a]!,
+            B = pnodes[pr.b]!;
+          const steps = 28;
+          const head = Math.min(1, pr.phase);
+          const fade = pr.phase > 1 ? Math.max(0, 1 - (pr.phase - 1) / 0.35) : 1;
+          const [cr, cg, cb] = pr.col;
+          let prev: { sx: number; sy: number } | null = null;
           ctx!.lineWidth = 1.5;
-          ctx!.shadowColor = bm.col;
-          ctx!.shadowBlur = 8;
-          const steps = 20,
-            end = Math.floor(steps * prog);
-          ctx!.beginPath();
-          ctx!.moveTo(bm.n0.x, bm.n0.y);
-          for (let i = 1; i <= end; i++) {
+          for (let i = 0; i <= steps * head; i++) {
             const u = i / steps;
-            const x = (1 - u) * (1 - u) * bm.n0.x + 2 * (1 - u) * u * bm.cx + u * u * bm.n1.x;
-            const y = (1 - u) * (1 - u) * bm.n0.y + 2 * (1 - u) * u * bm.cy + u * u * bm.n1.y;
-            ctx!.lineTo(x, y);
-          }
-          ctx!.stroke();
-          if (end > 0 && end < steps) {
-            const u = end / steps;
-            const x = (1 - u) * (1 - u) * bm.n0.x + 2 * (1 - u) * u * bm.cx + u * u * bm.n1.x;
-            const y = (1 - u) * (1 - u) * bm.n0.y + 2 * (1 - u) * u * bm.cy + u * u * bm.n1.y;
-            ctx!.beginPath();
-            ctx!.arc(x, y, 2, 0, 6.28);
-            ctx!.fillStyle = bm.col;
-            ctx!.fill();
+            const dot = A.x * B.x + A.y * B.y + A.z * B.z;
+            const om = Math.acos(Math.max(-1, Math.min(1, dot)));
+            let px: number, py: number, pz: number;
+            if (om < 1e-3) {
+              px = A.x;
+              py = A.y;
+              pz = A.z;
+            } else {
+              const s1 = Math.sin((1 - u) * om) / Math.sin(om);
+              const s2 = Math.sin(u * om) / Math.sin(om);
+              px = A.x * s1 + B.x * s2;
+              py = A.y * s1 + B.y * s2;
+              pz = A.z * s1 + B.z * s2;
+            }
+            const lift = 1 + Math.sin(u * Math.PI) * 0.09;
+            let p = { x: px * lift, y: py * lift, z: pz * lift };
+            p = rotateY(p, rot);
+            p = rotateX(p, tilt);
+            const sx = cx + p.x * R,
+              sy = cy + p.y * R;
+            const front = p.z >= -0.1;
+            if (prev) {
+              const alpha = (front ? 0.95 : 0.22) * fade;
+              ctx!.strokeStyle = `rgba(${cr},${cg},${cb},${alpha.toFixed(3)})`;
+              ctx!.shadowColor = `rgb(${cr},${cg},${cb})`;
+              ctx!.shadowBlur = front ? 8 : 0;
+              ctx!.beginPath();
+              ctx!.moveTo(prev.sx, prev.sy);
+              ctx!.lineTo(sx, sy);
+              ctx!.stroke();
+            }
+            prev = { sx, sy };
           }
           ctx!.shadowBlur = 0;
-          ctx!.globalAlpha = 1;
+          // leading dot at beam head
+          if (head < 1) {
+            const u = head;
+            const dot = A.x * B.x + A.y * B.y + A.z * B.z;
+            const om = Math.acos(Math.max(-1, Math.min(1, dot)));
+            let px: number, py: number, pz: number;
+            if (om < 1e-3) {
+              px = A.x;
+              py = A.y;
+              pz = A.z;
+            } else {
+              const s1 = Math.sin((1 - u) * om) / Math.sin(om);
+              const s2 = Math.sin(u * om) / Math.sin(om);
+              px = A.x * s1 + B.x * s2;
+              py = A.y * s1 + B.y * s2;
+              pz = A.z * s1 + B.z * s2;
+            }
+            const lift = 1 + Math.sin(u * Math.PI) * 0.09;
+            let p = { x: px * lift, y: py * lift, z: pz * lift };
+            p = rotateY(p, rot);
+            p = rotateX(p, tilt);
+            if (p.z >= -0.1) {
+              ctx!.beginPath();
+              ctx!.arc(cx + p.x * R, cy + p.y * R, 2, 0, 6.28);
+              ctx!.fillStyle = `rgb(${cr},${cg},${cb})`;
+              ctx!.shadowColor = `rgb(${cr},${cg},${cb})`;
+              ctx!.shadowBlur = 8;
+              ctx!.fill();
+              ctx!.shadowBlur = 0;
+            }
+          }
         });
-        beamsRef.current = beamsRef.current.filter((b) => b.life < b.dur);
+
+        // nodes — sorted back-to-front for depth
+        pnodes
+          .map((n) => {
+            let p = rotateY(n, rot);
+            p = rotateX(p, tilt);
+            return { sx: cx + p.x * R, sy: cy + p.y * R, z: p.z, n };
+          })
+          .sort((a, b) => a.z - b.z)
+          .forEach((p) => {
+            p.n.pulse += 0.05;
+            const front = p.z >= -0.05;
+            const [cr, cg, cbv] = p.n.col;
+            const pr = (front ? 2.2 : 1.2) + Math.sin(p.n.pulse) * 0.5;
+            const alpha = front ? 0.95 : 0.28;
+            ctx!.beginPath();
+            ctx!.arc(p.sx, p.sy, pr, 0, 6.28);
+            ctx!.fillStyle = `rgba(${cr},${cg},${cbv},${alpha})`;
+            ctx!.shadowColor = `rgb(${cr},${cg},${cbv})`;
+            ctx!.shadowBlur = front ? 10 : 0;
+            ctx!.fill();
+            ctx!.shadowBlur = 0;
+          });
       } else {
         fcTRef.current += 0.01;
         const ft = fcTRef.current;

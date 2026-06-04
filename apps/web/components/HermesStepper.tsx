@@ -9,22 +9,7 @@ import {
   useInView,
   useReducedMotion,
 } from "framer-motion";
-
-/* ── Glitch ─────────────────────────────────────────────────────── */
-const GLITCH_POOL = "╔═╗╚╝║▓░▒▀▄█▌▐┌┐└┘├┤┬┴┼";
-function randomGlitch(len = 6): string {
-  return Array.from(
-    { length: len },
-    () => GLITCH_POOL[Math.floor(Math.random() * GLITCH_POOL.length)]
-  ).join("");
-}
-
-const ROADMAP = [
-  { version: "v1.1", codename: "ATHENA" },
-  { version: "v1.2", codename: "ARGUS" },
-  { version: "v1.3", codename: "MNEMOSYNE" },
-  { version: "v2.0", codename: "PYTHIA" },
-] as const;
+import MissionJourney from "./MissionJourney";
 
 /* ── Types ──────────────────────────────────────────────────────── */
 type Badge = { label: string; kind: "live" | "soon" };
@@ -85,7 +70,7 @@ const STEPS: StepDef[] = [
   },
   {
     num: "04",
-    name: "WHAT'S NEXT",
+    name: "MISSION",
     color: "var(--accent)",
     glowRgb: "124,92,255",
     slogan: "Hermes is just the first mind.",
@@ -136,113 +121,6 @@ function BadgePill({ badge, color }: { badge: Badge; color: string }) {
     >
       {badge.label}
     </span>
-  );
-}
-
-/* ── Roadmap (step 04) ──────────────────────────────────────────── */
-function RoadmapCards({ reduced }: { reduced: boolean }) {
-  const [glitches, setGlitches] = useState<string[]>(() => ROADMAP.map(() => randomGlitch()));
-
-  useEffect(() => {
-    if (reduced) return;
-    const id = setInterval(() => setGlitches(ROADMAP.map(() => randomGlitch())), 120);
-    return () => clearInterval(id);
-  }, [reduced]);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-      {ROADMAP.map((item, i) => (
-        <motion.div
-          key={item.codename}
-          initial={reduced ? false : { opacity: 0, y: 14 }}
-          whileInView={reduced ? {} : { opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: i * 0.09, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "16px 22px",
-            borderRadius: "6px",
-            border: "1px solid rgba(124,92,255,0.18)",
-            background:
-              "linear-gradient(135deg, rgba(124,92,255,0.1) 0%, rgba(75,40,170,0.04) 100%)",
-            backdropFilter: "blur(10px)",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          {/* Left accent bar */}
-          <div
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: "2px",
-              background: "linear-gradient(180deg, var(--accent) 0%, transparent 100%)",
-              opacity: 0.55,
-            }}
-          />
-          {/* Version + codename */}
-          <div style={{ paddingLeft: "4px" }}>
-            <span
-              style={{
-                display: "block",
-                color: "var(--accent)",
-                fontFamily: "var(--font-mono), monospace",
-                fontSize: "0.6rem",
-                letterSpacing: "0.18em",
-                marginBottom: "3px",
-              }}
-            >
-              {item.version}
-            </span>
-            <span
-              style={{
-                display: "block",
-                color: "var(--text)",
-                fontFamily: "var(--font-mono), monospace",
-                fontSize: "1.05rem",
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-              }}
-            >
-              {item.codename}
-            </span>
-          </div>
-          {/* Glitch + status */}
-          <div
-            style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}
-          >
-            <span
-              aria-hidden="true"
-              style={{
-                fontFamily: "var(--font-mono), monospace",
-                fontSize: "0.6rem",
-                color: "rgba(124,92,255,0.45)",
-                textShadow: "-1px -1px 0 rgba(255,0,0,0.14), 1px 1px 0 rgba(0,255,255,0.14)",
-              }}
-            >
-              {glitches[i]}
-            </span>
-            <span
-              style={{
-                fontFamily: "var(--font-mono), monospace",
-                fontSize: "0.55rem",
-                letterSpacing: "0.16em",
-                color: "var(--text-mute)",
-                textTransform: "uppercase",
-              }}
-            >
-              INCOMING
-            </span>
-          </div>
-        </motion.div>
-      ))}
-    </div>
   );
 }
 
@@ -426,8 +304,8 @@ function StepSection({
               </div>
             )}
 
-            {/* Roadmap (step 04 only) */}
-            {step.isRoadmap && <RoadmapCards reduced={reduced} />}
+            {/* Mission journey (step 04 only) */}
+            {step.isRoadmap && <MissionJourney />}
           </div>
         </div>
       </motion.div>

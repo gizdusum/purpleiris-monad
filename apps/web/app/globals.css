@@ -655,3 +655,260 @@
 .step-bullets-active .step-bullet:nth-child(6) {
   animation-delay: 0.5s;
 }
+
+/* ── MissionJourney ── */
+.mission-journey {
+  position: relative;
+  padding-left: 54px;
+}
+.mission-rail {
+  position: absolute;
+  left: 19px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    #5ce0a8 0%,
+    var(--accent) 14%,
+    rgba(124, 92, 255, 0.25) 38%,
+    rgba(124, 92, 255, 0.12) 100%
+  );
+  overflow: hidden;
+}
+.mission-rail::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: mission-flow 3.2s linear infinite;
+}
+@keyframes mission-flow {
+  0% {
+    top: -40%;
+  }
+  100% {
+    top: 100%;
+  }
+}
+.mission-stop {
+  position: relative;
+  margin-bottom: 30px;
+}
+.mission-dot {
+  position: absolute;
+  left: -44px;
+  top: 2px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  color: var(--text-mute);
+  z-index: 2;
+  transition: 0.3s;
+}
+.mission-stop.reached .mission-dot {
+  border-color: #5ce0a8;
+  color: #5ce0a8;
+  background: rgba(92, 224, 168, 0.1);
+  box-shadow:
+    0 0 0 5px rgba(92, 224, 168, 0.08),
+    0 0 22px -2px #5ce0a8;
+}
+.mission-ring {
+  position: absolute;
+  left: -44px;
+  top: 2px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #5ce0a8;
+  animation: mission-radar 2.4s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes mission-radar {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+.mission-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(21, 16, 58, 0.5), rgba(10, 8, 30, 0.6));
+  transition:
+    opacity 0.3s,
+    border-color 0.3s;
+}
+.mission-stop.reached .mission-card {
+  border-color: rgba(92, 224, 168, 0.4);
+  background: linear-gradient(180deg, rgba(20, 40, 34, 0.5), rgba(10, 8, 30, 0.6));
+  box-shadow:
+    0 0 0 1px rgba(92, 224, 168, 0.18),
+    0 14px 50px -20px rgba(92, 224, 168, 0.4);
+}
+.mission-card:hover {
+  opacity: 1 !important;
+  border-color: var(--accent) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mission-rail::after {
+    animation: none;
+  }
+  .mission-ring {
+    animation: none;
+  }
+}
+
+/* ── Status page mobile grid ── */
+@media (max-width: 760px) {
+  .status-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Status page live log ── */
+.status-log-line {
+  display: flex;
+  gap: 12px;
+  padding: 4px 18px;
+  font-size: 11.5px;
+  white-space: nowrap;
+  align-items: baseline;
+  animation: lineIn 0.5s ease both;
+}
+.status-log-ts {
+  color: var(--text-mute);
+  font-size: 10px;
+  flex: none;
+}
+.status-log-tag {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  flex: none;
+  text-transform: uppercase;
+  font-weight: 600;
+  border: 1px solid;
+}
+.status-log-tag-chain {
+  color: var(--accent-hover);
+  border-color: rgba(124, 92, 255, 0.4);
+}
+.status-log-tag-query {
+  color: #5ce0a8;
+  border-color: rgba(92, 224, 168, 0.4);
+}
+.status-log-tag-cache {
+  color: #e0b15c;
+  border-color: rgba(224, 177, 92, 0.4);
+}
+.status-log-tag-sys {
+  color: var(--text-mute);
+  border-color: var(--border);
+}
+.status-log-msg {
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.status-log-msg b {
+  color: var(--text);
+}
+
+/* ── Mobile hero subhead fix ── */
+@media (max-width: 640px) {
+  .hero-subhead {
+    font-size: 14px;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+}
+
+/* ── Status ghost log (Mercedes HUD reflection style) ── */
+@keyframes ghost-line-in {
+  from {
+    opacity: 0;
+    transform: skewX(-7deg) translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: skewX(-7deg) translateY(0);
+  }
+}
+.ghost-log-line-enter {
+  animation: ghost-line-in 0.35s ease-out both;
+}
+.ghost-log-line {
+  display: flex;
+  gap: 12px;
+  padding: 5px 22px;
+  font-size: 12px;
+  white-space: nowrap;
+  align-items: baseline;
+  color: rgba(180, 200, 255, 0.3);
+  text-shadow: 0 0 10px rgba(124, 92, 255, 0.22);
+  transform: skewX(-7deg);
+}
+.ghost-log-line:nth-child(7n + 3) {
+  color: rgba(200, 215, 255, 0.5);
+  text-shadow: 0 0 14px rgba(124, 92, 255, 0.4);
+}
+.ghost-log-ts {
+  color: rgba(140, 160, 220, 0.28);
+  font-size: 10px;
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.ghost-log-tag {
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  flex: none;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+.ghost-log-tag-chain {
+  color: rgba(155, 128, 255, 0.9);
+}
+.ghost-log-tag-epoch {
+  color: rgba(124, 92, 255, 0.85);
+}
+.ghost-log-tag-val {
+  color: rgba(92, 224, 168, 0.85);
+}
+.ghost-log-tag-sys {
+  color: rgba(140, 140, 180, 0.75);
+}
+.ghost-log-b {
+  color: rgba(220, 230, 255, 0.55);
+  font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ghost-log-line-enter {
+    animation: none;
+  }
+}
+
+/* Status 4-column grid — 2-col on narrow */
+@media (max-width: 820px) {
+  .status-4grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}

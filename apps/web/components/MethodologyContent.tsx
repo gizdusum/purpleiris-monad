@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
+import MissionJourney from "./MissionJourney";
 
 // ── Class colour constants — all on-theme purple family, no green/blue/amber
 const C1 = "var(--cat-casual)"; // #c4b5ff — lightest lavender  (Class 1: on-chain)
@@ -290,7 +291,7 @@ export default function MethodologyContent() {
           </span>
           <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
           <a
-            href="https://github.com/gizdusum/purpleiris"
+            href="https://github.com/gizdusum"
             target="_blank"
             rel="noopener noreferrer"
             className="iris-nav-link"
@@ -842,6 +843,51 @@ export default function MethodologyContent() {
           </Reveal>
         </div>
       </main>
+
+      {/* ── Mission Journey ── */}
+      <section
+        style={{
+          maxWidth: "900px",
+          margin: "0 auto 80px",
+          padding: "0 24px",
+        }}
+      >
+        <p
+          style={{
+            fontSize: "11px",
+            letterSpacing: ".3em",
+            color: "var(--accent)",
+            textTransform: "uppercase",
+            marginBottom: "10px",
+            fontFamily: "var(--font-mono), monospace",
+          }}
+        >
+          Mission
+        </p>
+        <h2
+          style={{
+            fontSize: "28px",
+            fontWeight: 800,
+            letterSpacing: "-.01em",
+            marginBottom: "8px",
+          }}
+        >
+          Hermes is just the first mind.
+        </h2>
+        <p
+          style={{
+            color: "var(--text-dim)",
+            fontSize: "14px",
+            marginBottom: "48px",
+            maxWidth: "560px",
+            lineHeight: 1.6,
+          }}
+        >
+          One intelligence is live on Monad mainnet. The mission continues — each release a new
+          mind, each a step further down the path.
+        </p>
+        <MissionJourney />
+      </section>
 
       {/* ── Footer — exact copy from homepage ── */}
       <footer

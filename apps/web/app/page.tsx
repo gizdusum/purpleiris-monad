@@ -99,7 +99,7 @@ export default function HomePage() {
           </Link>
           <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
           <a
-            href="https://github.com/gizdusum/purpleiris"
+            href="https://github.com/gizdusum"
             target="_blank"
             rel="noopener noreferrer"
             className="iris-nav-link"

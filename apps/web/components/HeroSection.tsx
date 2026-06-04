@@ -103,7 +103,7 @@ export default function HeroSection() {
 
         {/* Subhead */}
         <p
-          className="text-base leading-relaxed"
+          className="hero-subhead text-base leading-relaxed"
           style={{ color: "var(--text-dim)", marginBottom: "0", minHeight: "3em" }}
         >
           {reduced ? (
