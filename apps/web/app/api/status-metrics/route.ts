@@ -1,8 +1,17 @@
 // READ-ONLY public endpoint — no LLM/agent calls, no user data.
-// Sources: getWatchtowerOverview (packages/monad-indexer) + getPublicClient.getBlockNumber()
-// Both imported directly from @purpleiris/monad-indexer; iris-agent is NOT touched.
+// Sources: validators table (DB) for counts, getWatchtowerOverview for epoch, getPublicClient.getBlockNumber()
+// All from @purpleiris/monad-indexer; iris-agent is NOT touched.
 
-import { getWatchtowerOverview, getPublicClient } from "@purpleiris/monad-indexer";
+import {
+  getWatchtowerOverview,
+  getPublicClient,
+  getDb,
+  validators,
+} from "@purpleiris/monad-indexer";
+import { sql, and } from "drizzle-orm";
+
+// force-dynamic so Next.js doesn't replace our Cache-Control with max-age=0
+export const dynamic = "force-dynamic";
 
 export type StatusMetrics = {
   chainHead: number;
@@ -16,22 +25,36 @@ const CACHE_MS = 30_000;
 let cached: CacheEntry | null = null;
 
 async function fetchMetrics(): Promise<StatusMetrics> {
-  const [overviewResult, blockResult] = await Promise.allSettled([
-    getWatchtowerOverview(),
+  const db = getDb();
+
+  const [blockResult, overviewResult, totalResult, activeResult] = await Promise.allSettled([
     getPublicClient().getBlockNumber(),
+    getWatchtowerOverview(),
+    db.select({ count: sql<number>`COUNT(*)` }).from(validators),
+    db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(validators)
+      .where(and(sql`${validators.active} = true`, sql`${validators.jailed} = false`)),
   ]);
 
   const chainHead =
     blockResult.status === "fulfilled" ? Number(blockResult.value) : (cached?.data.chainHead ?? 0);
+
   const overview = overviewResult.status === "fulfilled" ? overviewResult.value : null;
 
-  return {
-    chainHead,
-    validatorCount: overview?.validator_count ?? cached?.data.validatorCount ?? 0,
-    activeValidators:
-      overview?.global_stats.active_validators ?? cached?.data.activeValidators ?? 0,
-    epoch: overview?.current_epoch ?? cached?.data.epoch ?? 0,
-  };
+  const validatorCount =
+    totalResult.status === "fulfilled"
+      ? Number(totalResult.value[0]?.count ?? 0)
+      : (cached?.data.validatorCount ?? 0);
+
+  const activeValidators =
+    activeResult.status === "fulfilled"
+      ? Number(activeResult.value[0]?.count ?? 0)
+      : (cached?.data.activeValidators ?? 0);
+
+  const epoch = overview?.current_epoch ?? cached?.data.epoch ?? 0;
+
+  return { chainHead, validatorCount, activeValidators, epoch };
 }
 
 export async function GET() {
