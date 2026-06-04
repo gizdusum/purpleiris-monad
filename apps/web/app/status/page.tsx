@@ -172,7 +172,7 @@ function GhostLog({ metrics }: { metrics: StatusMetrics | null }) {
       {lines.map((line) => (
         <div
           key={line.id}
-          className={`ghost-log-line${line.id === newestId ? "ghost-log-line-enter" : ""}`}
+          className={"ghost-log-line" + (line.id === newestId ? " ghost-log-line-enter" : "")}
         >
           <span className="ghost-log-ts">{line.ts}</span>
           <span className={`ghost-log-tag ghost-log-tag-${line.tag}`}>{line.tag}</span>
