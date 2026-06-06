@@ -22,7 +22,7 @@ type Message = {
 
 type GreetingStage = "join" | "typing" | "streaming" | "done";
 
-const OPERATOR_GREETING_FULL = `Welcome. I'm Hermes — chain-side intel for Monad operators.
+const OPERATOR_GREETING_FULL = `Gmonad. I'm Hermes — chain-side intel for Monad operators.
 
 Drop your validator address or moniker and I'll pull your operational profile. We'll work from there.`;
 
