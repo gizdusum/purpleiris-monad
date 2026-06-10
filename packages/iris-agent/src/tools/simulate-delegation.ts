@@ -1,5 +1,5 @@
 import { eq, desc, sql, and } from "drizzle-orm";
-import { getDb, validators, epochSnapshots } from "@purpleiris/monad-indexer";
+import { getDb, validators, epochSnapshots, validatorMetadata } from "@purpleiris/monad-indexer";
 import { makeResult } from "./types";
 import type { SimulateDelegationInput, ToolResult } from "./types";
 import { resolveValidatorByName } from "./lib/resolve-validator";
@@ -49,13 +49,17 @@ export async function simulateDelegationTool({
     resolutionNote = resolved.resolutionNote;
   }
 
+  const joinCond = sql`${validators.secpPubkey} IS NOT NULL AND ${validators.secpPubkey} = ${validatorMetadata.pubkey}`;
+
   const validator = await db
     .select({
       id: validators.id,
       moniker: validators.moniker,
+      meta_moniker: validatorMetadata.moniker,
       commissionBps: validators.commissionBps,
     })
     .from(validators)
+    .leftJoin(validatorMetadata, joinCond)
     .where(eq(validators.id, resolvedId))
     .limit(1)
     .then((r) => r[0] ?? null);
@@ -113,7 +117,7 @@ export async function simulateDelegationTool({
   return makeResult(
     {
       validator_id: validator.id,
-      validator_moniker: validator.moniker,
+      validator_moniker: validator.meta_moniker ?? validator.moniker,
       resolution_note: resolutionNote,
       stake_mon,
       days,
