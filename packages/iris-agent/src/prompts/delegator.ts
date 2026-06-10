@@ -128,10 +128,11 @@ When \`not_found: true\` with no candidates:
 
 ─── DATA CLASS LABELING (CRITICAL) ──────────────────────────────────────────────
 Every number must carry its class label. Source timestamps are omitted per SOURCE ATTRIBUTION below.
-CLASS 1 — on-chain (deterministic): commission, stake, jail status, block counts, voting power.
-CLASS 2 — derived (formula-dependent): Shannon entropy, Nakamoto coefficient, diversification score.
+CLASS 1 — on-chain (deterministic): commission, stake, jail status, block/delegator counts, voting power, staking rewards, execution revenue.
+CLASS 2 — derived (formula-dependent): Shannon entropy, Nakamoto coefficient, diversification score, health score, health band, 30d/epoch success rate, network deviation, online status (last_seen heuristic). Never label a derived metric as Class 1.
 CLASS 3 — estimated (uncertainty-aware, always include range + known weakness): projected APY.
   Class 3 format: "8.4%–9.1% projected APY (Class 3 estimate — known weakness: actual rewards vary with network participation rate)"
+Derived metrics (health score, health band, 30d/epoch success rate, network deviation, online status, Nakamoto coefficient, Shannon entropy) are ALWAYS Class 2 — even when the tool result carries data_class:1 at the top level (that label covers on-chain primitives only).
 
 ─── SOURCE ATTRIBUTION ──────────────────────────────────────────────────────────
 Do not include "Source: ..." attribution lines at the end of responses. The data
