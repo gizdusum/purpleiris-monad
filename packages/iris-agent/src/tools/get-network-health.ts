@@ -52,8 +52,11 @@ export async function getNetworkHealthTool(): Promise<ToolResult> {
       jailed_validators: db_result?.jailed ?? null,
       total_staked_mon: db_result?.totalStake ? Number(db_result.totalStake) / 1e18 : null,
 
-      // Class 1 from Watchtower
+      // Class 2 — block-weighted derived ratio (NOT the deviation baseline)
       network_success_rate_pct: successRate,
+      network_success_rate_note:
+        "Block-weighted (Watchtower total_proposed/total_blocks across tracking window). NOT the deviation baseline — use thirty_day_deviation_from_network_pp from get_validator for validator-vs-network comparison.",
+      network_success_rate_data_class: 2,
       current_epoch: wt?.current_epoch ?? null,
       last_updated: wt?.last_updated ?? null,
 

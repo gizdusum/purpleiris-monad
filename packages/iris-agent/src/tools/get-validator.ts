@@ -289,6 +289,8 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
       thirty_day_rolling_success_rate: thisAvg30d,
       thirty_day_deviation_from_network_pp:
         deviation30d !== null ? Math.round(deviation30d * 10000) / 100 : null,
+      thirty_day_deviation_baseline_note:
+        "Baseline is validator-average (unweighted mean of all validators' 30d success rates, ~99.4%). Differs from block-weighted network_success_rate_pct (~99.98%) — do not mix baselines.",
 
       // ── Active since (Class 1 — earliest epoch snapshot) ───────────────
       active_since_epoch: earliestSnap[0]?.epoch ?? null,
