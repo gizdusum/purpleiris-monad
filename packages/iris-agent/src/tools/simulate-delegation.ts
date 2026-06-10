@@ -53,7 +53,7 @@ export async function simulateDelegationTool({
 
   const avgSuccessRate =
     snapshots.length > 0
-      ? snapshots.reduce((a, s) => a + s.successRate, 0) / snapshots.length / 100
+      ? snapshots.reduce((a, s) => a + s.successRate, 0) / snapshots.length
       : 0.99;
 
   const commissionRate = validator.commissionBps / 10000;
@@ -63,7 +63,7 @@ export async function simulateDelegationTool({
     stake_mon * MAINNET_BASELINE_APR * (days / 365) * (1 - commissionRate) * avgSuccessRate;
 
   // Variance from success rate std dev
-  const successRates = snapshots.map((s) => s.successRate / 100);
+  const successRates = snapshots.map((s) => s.successRate);
   const variance =
     successRates.length > 1
       ? successRates.reduce((a, r) => a + (r - avgSuccessRate) ** 2, 0) / (successRates.length - 1)
