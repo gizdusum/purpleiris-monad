@@ -263,6 +263,8 @@ export async function getExecutionRevenueTool({
       network_median_per_day_mon: Math.round(networkMedianPerDayMon * 1e6) / 1e6,
       validator_rank: validatorRank || null,
       validator_total_validators: totalValidatorsWithData,
+      total_validators_note:
+        "Validators with execution-fee data in the last 7 days — distinct from active-validator count (network overview) and Watchtower-tracked count.",
       pct_vs_median: Math.round(pctVsMedian * 10) / 10,
       data_class: 1,
       data_complete: dataComplete,

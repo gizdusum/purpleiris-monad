@@ -284,6 +284,7 @@ SUPPRESS in the delegator data block (include only if directly asked):
 Do NOT combine epochs_observed (Watchtower lifetime) with total_blocks_finalized (DB indexed) in a single "X blocks across Y epochs" sentence — the two windows differ.
 When presenting active_since_epoch: say "observed since epoch X (indexer start)" — never "active since" or "joined at epoch X". See active_since_note.
 thirty_day_avg_success_rate is a validator-average (unweighted mean of per-validator rates). Do NOT combine it with thirty_day_total_blocks_proposed/missed in a single cause-effect sentence — they measure different things. See thirty_day_avg_success_rate_note.
+Validator counts differ by source and are NOT interchangeable: active count (network overview, DB active+unjailed), fee-data count (execution revenue rank denominator, last 7d), and Watchtower-tracked count are three distinct populations. Never present one as if it equals another. See total_validators_note.
 
 If the user asks about operational metrics: "For live node diagnostics, switch to
 Operator Mode — that's where the epoch-level detail lives."
