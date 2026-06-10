@@ -1,8 +1,7 @@
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   getDb,
   validators,
-  epochSnapshots,
   validatorMetadata,
   getWatchtowerOverview,
 } from "@purpleiris/monad-indexer";
@@ -74,36 +73,34 @@ export async function getAssignmentPredictorTool({
   const expectedPerHour = roundsPerHour * stakeRatio;
   const expectedPer24h = expectedPerHour * 24;
 
-  // Actual last 24h from epoch snapshots
-  const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const snaps24h = await db
-    .select({ blocksProposed: epochSnapshots.blocksProposed })
-    .from(epochSnapshots)
-    .where(
-      and(eq(epochSnapshots.validatorId, row.id), sql`${epochSnapshots.snapshotAt} > ${cutoff24h}`)
-    );
-  const actualPer24h = snaps24h.reduce((s, e) => s + e.blocksProposed, 0);
+  // Actual last 24h — Watchtower continuous count only; epoch-sum structurally undercounts
+  const watchtowerDown = wtEntry === null;
+  const actualPer24h: number | null = wtEntry?.blocks_proposed ?? null;
 
-  // Actual last hour: use current epoch data from Watchtower if available
-  let actualPerHour = 0;
+  // Actual last hour: current epoch data from Watchtower
+  let actualPerHour: number | null = null;
   if (wtEntry && wtOverview?.current_epoch_started_at) {
     const epochAgeMs = Date.now() - new Date(wtOverview.current_epoch_started_at).getTime();
-    if (epochAgeMs <= 60 * 60 * 1000) {
-      actualPerHour = wtEntry.current_epoch_finalized;
-    } else {
-      const hourFraction = (60 * 60 * 1000) / epochAgeMs;
-      actualPerHour = Math.round(wtEntry.current_epoch_finalized * hourFraction);
-    }
-  } else if (actualPer24h > 0) {
-    actualPerHour = Math.round(actualPer24h / 24);
+    actualPerHour =
+      epochAgeMs <= 60 * 60 * 1000
+        ? wtEntry.current_epoch_finalized
+        : Math.round(wtEntry.current_epoch_finalized * ((60 * 60 * 1000) / epochAgeMs));
   }
 
-  // Variance vs expected (using 24h window as more stable)
-  const variancePct =
-    expectedPer24h > 0 ? ((actualPer24h - expectedPer24h) / expectedPer24h) * 100 : 0;
+  // Variance only valid when Watchtower is available
+  const variancePct: number | null =
+    !watchtowerDown && actualPer24h !== null && expectedPer24h > 0
+      ? ((actualPer24h - expectedPer24h) / expectedPer24h) * 100
+      : null;
 
-  const healthSignal: "normal" | "below_expected" | "above_expected" =
-    variancePct < -25 ? "below_expected" : variancePct > 25 ? "above_expected" : "normal";
+  const healthSignal: "normal" | "below_expected" | "above_expected" | "unavailable" =
+    watchtowerDown
+      ? "unavailable"
+      : variancePct! < -25
+        ? "below_expected"
+        : variancePct! > 25
+          ? "above_expected"
+          : "normal";
 
   const nextEstimatedSec =
     stakeRatio > 0 ? Math.round((1 / stakeRatio) * (MONAD_ROUND_MS / 1000)) : null;
@@ -119,11 +116,14 @@ export async function getAssignmentPredictorTool({
       expected_assignments_per_24h: Math.round(expectedPer24h),
       actual_assignments_last_hour: actualPerHour,
       actual_assignments_last_24h: actualPer24h,
-      variance_vs_expected_pct: Math.round(variancePct * 10) / 10,
+      variance_vs_expected_pct: variancePct !== null ? Math.round(variancePct * 10) / 10 : null,
       next_estimated_assignment_seconds: nextEstimatedSec,
       health_signal: healthSignal,
+      variance_note: watchtowerDown
+        ? "Real-time assignment data needs Watchtower (currently unavailable) — variance not computed."
+        : null,
       data_note:
-        "Class 2 — derived from on-chain stake ratio and epoch-level snapshot data. Hour-level estimates extrapolated from current epoch Watchtower data.",
+        "Class 2 — derived from on-chain stake ratio and Watchtower continuous block tracking. Hour-level estimates from current epoch Watchtower data.",
     },
     { data_class: 2, source: "get_assignment_predictor" }
   );

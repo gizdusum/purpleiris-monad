@@ -314,10 +314,19 @@ Present as a compact block:
   \`\`\`
 
 If health_signal is "below_expected":
-  "Worth noting: you're seeing -28% fewer assignments than your stake-share predicts.
-  Could be peer-mesh issue or scheduler skew. Want me to walk through a peer check?"
+  First check success_rate and blocks_skipped (from get_validator or recent data).
+  If success_rate = 100% and blocks_skipped = 0: DO NOT frame as a node fault.
+  No peer-mesh diagnosis, no "silently missed slots", no debug commands.
+  Frame as scheduler/data-window variance:
+  "Assignment count is below the stake-share prediction — no missed blocks on record,
+  so this is likely scheduler variance or a short measurement window, not a node issue."
+  If success_rate < 100% or blocks_skipped > 0: state the variance and the data, no verdict.
+  Never suggest debug commands solely from a below_expected signal.
 
 If health_signal is "above_expected": brief note, not a concern.
+
+If health_signal is "unavailable":
+  Show expected from stake ratio only. State variance_note verbatim. Do not estimate actual.
 
 ─── ANOMALY DETECTION ───────────────────────────────────────────────────────────
 When operator asks "anything off?", "did anything change?", "is everything okay?",
