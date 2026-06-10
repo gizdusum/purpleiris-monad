@@ -95,6 +95,8 @@ export async function getRecentAssignmentsTool({
       resolution_note: resolutionNote,
       data_granularity: "epoch",
       epoch_duration_note: "Each epoch is ~5.5 hours. This is epoch-level data, not per-round.",
+      blocks_count_note:
+        "Per-epoch block counts reflect indexer tick timing within each epoch, not epoch-final totals — do not read count changes across epochs as a performance or stake trend. Real signal is blocks_missed and success_rate only.",
       limit: clampedLimit,
       returned: assignments.length,
       assignments,
