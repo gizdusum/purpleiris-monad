@@ -35,7 +35,7 @@ export async function estimateStakeRewardTool({
       assumptions: {
         baseline_apr_pct: MAINNET_BASELINE_APR * 100,
         known_weakness:
-          "Baseline APR is a fixed estimate (8% p.a.). Actual rewards depend on network participation rate, validator uptime, commission changes, and staking reward schedule updates. Use simulate_delegation for validator-specific projections based on historical block data.",
+          "Baseline APR is a fixed estimate (8% p.a.). Actual rewards depend on network participation rate, validator uptime, commission changes, and staking reward schedule updates. Use simulate_delegation for a projection adjusted to a specific validator's commission and historical success rate.",
       },
     },
     { data_class: 3, source: "estimate_stake_reward" }

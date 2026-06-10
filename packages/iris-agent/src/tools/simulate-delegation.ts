@@ -3,8 +3,7 @@ import { getDb, validators, epochSnapshots } from "@purpleiris/monad-indexer";
 import { makeResult } from "./types";
 import type { SimulateDelegationInput, ToolResult } from "./types";
 
-const EPOCHS_PER_DAY = (24 * 60 * 60 * 1000) / (5.5 * 60 * 60 * 1000); // ~4.36 epochs/day
-const TOTAL_NETWORK_REWARDS_PER_EPOCH_MON = 5000; // approximate; Phase 9 will derive from chain
+const MAINNET_BASELINE_APR = 0.08;
 
 export async function simulateDelegationTool({
   validator_id,
@@ -17,7 +16,7 @@ export async function simulateDelegationTool({
     .select({
       id: validators.id,
       moniker: validators.moniker,
-      stakedAmount: validators.stakedAmount,
+      commissionBps: validators.commissionBps,
     })
     .from(validators)
     .where(
@@ -57,13 +56,11 @@ export async function simulateDelegationTool({
       ? snapshots.reduce((a, s) => a + s.successRate, 0) / snapshots.length / 100
       : 0.99;
 
-  const validatorTotalStake = Number(validator.stakedAmount) / 1e18;
-  const userStakeShare = stake_mon / (validatorTotalStake + stake_mon);
+  const commissionRate = validator.commissionBps / 10000;
 
-  // Estimate APY range (±variance)
-  const epochsTotal = days * EPOCHS_PER_DAY;
-  const baseRewardPerEpoch = TOTAL_NETWORK_REWARDS_PER_EPOCH_MON * userStakeShare * avgSuccessRate;
-  const totalEstimatedReward = baseRewardPerEpoch * epochsTotal;
+  // Estimate reward: APR baseline × commission × historical success rate
+  const totalEstimatedReward =
+    stake_mon * MAINNET_BASELINE_APR * (days / 365) * (1 - commissionRate) * avgSuccessRate;
 
   // Variance from success rate std dev
   const successRates = snapshots.map((s) => s.successRate / 100);
@@ -99,9 +96,9 @@ export async function simulateDelegationTool({
       assumptions: {
         historical_epochs_used: snapshots.length,
         avg_success_rate_pct: Math.round(avgSuccessRate * 1000) / 10,
-        approximate_network_reward_per_epoch_mon: TOTAL_NETWORK_REWARDS_PER_EPOCH_MON,
+        commission_pct: Math.round(commissionRate * 1000) / 10,
         known_weakness:
-          "Network reward rate is approximated. Actual rewards depend on total network participation, validator commission changes, and slashing events. Phase 9 will derive this from on-chain data.",
+          "Reward estimate uses 8% p.a. baseline APR, adjusted for this validator's commission and historical success rate. Actual rewards depend on network participation rate, reward schedule updates, and staking conditions.",
       },
     },
     { data_class: 3, source: "simulate_delegation" }
