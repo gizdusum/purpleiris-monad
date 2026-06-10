@@ -95,6 +95,8 @@ export async function getNetworkOverviewTool(): Promise<ToolResult> {
 
       // ── 30-day rolling aggregates (Class 2) ────────────────────────────
       thirty_day_avg_success_rate: avg30d,
+      thirty_day_avg_success_rate_note:
+        "Validator-average — unweighted mean of per-validator epoch success rates. Not block-weighted; differs from proposed/missed block ratio.",
       thirty_day_total_blocks_proposed: totalProposed30d,
       thirty_day_total_blocks_missed: totalMissed30d,
       thirty_day_epochs_observed: epochsObserved30d,

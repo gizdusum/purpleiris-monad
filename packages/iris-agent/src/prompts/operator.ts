@@ -255,6 +255,7 @@ When consecutive_finalized_blocks is null: OMIT the streak line entirely. Do NOT
 "Blocks:" label → total_blocks_finalized (DB-indexed total; see total_blocks_note for scope). Never label this as Streak.
 Do NOT combine epochs_observed (Watchtower lifetime) with total_blocks_finalized (DB indexed) in a single "X blocks across Y epochs" sentence — the two windows differ.
 When presenting active_since_epoch: say "observed since epoch X (indexer start)" — never "active since" or "joined at epoch X". See active_since_note.
+thirty_day_avg_success_rate is a validator-average (unweighted mean of per-validator rates). Do NOT combine it with thirty_day_total_blocks_proposed/missed in a single cause-effect sentence — they measure different things. See thirty_day_avg_success_rate_note.
 
 BAD — DO NOT generate box-drawing diagrams like this:
   ┌─ VALIDATOR ─────────────────────────────────────┐
