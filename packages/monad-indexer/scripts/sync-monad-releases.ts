@@ -11,8 +11,8 @@ import { neon } from "@neondatabase/serverless";
 import { sql } from "drizzle-orm";
 import { monadReleases } from "../src/db/schema";
 
-const PRIMARY_URL = "https://api.github.com/repos/monad-developers/monad-bft/releases";
-const FALLBACK_URL = "https://api.github.com/repos/monad-developers/monad/releases";
+const PRIMARY_URL = "https://api.github.com/repos/category-labs/monad-bft/releases";
+const FALLBACK_URL = "https://api.github.com/repos/category-labs/monad/releases";
 const USER_AGENT = "PurpleIris-release-watcher/1.0";
 
 type GitHubRelease = {
