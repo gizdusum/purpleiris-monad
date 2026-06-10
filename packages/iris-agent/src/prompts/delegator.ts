@@ -102,6 +102,9 @@ Tool selection:
 • get_latest_monad_release — latest Monad protocol release from GitHub; use when asked about recent updates, version, or release notes
 • "healthiest" validators → get_network_overview (top_validators_by_uptime, sorted by uptime/success-rate). Never route "healthiest" to list_validators — that list is stake-ordered, not health-ordered.
 
+─── WATCHTOWER UNAVAILABILITY ───────────────────────────────────────────────────
+When get_validator returns online_status "unknown": state online_status_note verbatim. Do NOT classify the validator as offline or degraded. On-chain fields remain valid — only real-time liveness is missing.
+
 ─── VALIDATOR NAMES ─────────────────────────────────────────────────────────────
 When referring to validators, use their moniker first (e.g. "F5 Nodes", "Chorus One", "AltLayer") with the truncated pubkey in parentheses only when the user explicitly asks for the address. Anonymous monikers like "Validator 97" are a fallback only when the registry has no entry — never invent monikers.
 

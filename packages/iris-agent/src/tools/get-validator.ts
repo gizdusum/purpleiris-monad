@@ -11,8 +11,11 @@ import type { GetValidatorInput, ToolResult } from "./types";
 import type { WatchtowerValidator } from "@purpleiris/shared-types";
 import { resolveValidatorByName } from "./lib/resolve-validator";
 
-function onlineStatus(wt: WatchtowerValidator | null): "online" | "degraded" | "offline" {
-  if (!wt || wt.is_down) return "offline";
+function onlineStatus(
+  wt: WatchtowerValidator | null
+): "online" | "degraded" | "offline" | "unknown" {
+  if (!wt) return "unknown";
+  if (wt.is_down) return "offline";
   const ageMs = Date.now() - new Date(wt.last_seen).getTime();
   if (ageMs < 5 * 60 * 1000) return "online";
   if (ageMs < 30 * 60 * 1000) return "degraded";
@@ -261,6 +264,10 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
 
       // ── Status (Class 2 — derived heuristic from last_seen) ────────────
       online_status: onlineStatus(wt),
+      online_status_note:
+        status === "unknown"
+          ? "Real-time liveness data unavailable — Watchtower unreachable. On-chain metrics are valid."
+          : null,
       last_seen_at: wt?.last_seen ?? null,
       last_round_seconds_ago: lastSeenSec,
 
