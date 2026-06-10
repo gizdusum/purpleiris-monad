@@ -127,27 +127,33 @@ export async function getExecutionRevenueTool({
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-  // 7-day aggregates
-  const [agg7d] = await db
-    .select({
-      total: sql<string>`COALESCE(SUM(fee_revenue_wei::numeric), 0)`,
-      tx_count: sql<string>`COALESCE(SUM(tx_count), 0)`,
-      day_count: sql<string>`COUNT(DISTINCT DATE_TRUNC('day', block_timestamp))`,
-    })
-    .from(validatorExecutionRevenue)
-    .where(
-      sql`${validatorExecutionRevenue.validatorId} = ${validatorId}
-        AND ${validatorExecutionRevenue.blockTimestamp} >= ${sevenDaysAgo}`
-    );
+  const [[agg7d], [agg24h], frontierRows] = await Promise.all([
+    db
+      .select({
+        total: sql<string>`COALESCE(SUM(fee_revenue_wei::numeric), 0)`,
+        tx_count: sql<string>`COALESCE(SUM(tx_count), 0)`,
+        day_count: sql<string>`COUNT(DISTINCT DATE_TRUNC('day', block_timestamp))`,
+      })
+      .from(validatorExecutionRevenue)
+      .where(
+        sql`${validatorExecutionRevenue.validatorId} = ${validatorId}
+          AND ${validatorExecutionRevenue.blockTimestamp} >= ${sevenDaysAgo}`
+      ),
+    db
+      .select({ total: sql<string>`COALESCE(SUM(fee_revenue_wei::numeric), 0)` })
+      .from(validatorExecutionRevenue)
+      .where(
+        sql`${validatorExecutionRevenue.validatorId} = ${validatorId}
+          AND ${validatorExecutionRevenue.blockTimestamp} >= ${oneDayAgo}`
+      ),
+    db
+      .select({ maxTs: sql<string | null>`MAX(${validatorExecutionRevenue.blockTimestamp})::text` })
+      .from(validatorExecutionRevenue)
+      .where(sql`${validatorExecutionRevenue.validatorId} = ${validatorId}`),
+  ]);
 
-  // 24h aggregates
-  const [agg24h] = await db
-    .select({ total: sql<string>`COALESCE(SUM(fee_revenue_wei::numeric), 0)` })
-    .from(validatorExecutionRevenue)
-    .where(
-      sql`${validatorExecutionRevenue.validatorId} = ${validatorId}
-        AND ${validatorExecutionRevenue.blockTimestamp} >= ${oneDayAgo}`
-    );
+  const indexerMaxTs = frontierRows[0]?.maxTs ? new Date(frontierRows[0].maxTs) : null;
+  const data24hComplete = indexerMaxTs !== null && indexerMaxTs >= oneDayAgo;
 
   const total7dMon = weiToMon(agg7d?.total ?? "0");
   const total24hMon = weiToMon(agg24h?.total ?? "0");
@@ -261,6 +267,11 @@ export async function getExecutionRevenueTool({
       data_class: 1,
       data_complete: dataComplete,
       window_days: dayCount,
+      indexer_max_ts: indexerMaxTs?.toISOString().slice(0, 10) ?? null,
+      data_24h_complete: data24hComplete,
+      twenty_four_h_note: !data24hComplete
+        ? `24h window not yet indexed — indexer current as of ${indexerMaxTs?.toISOString().slice(0, 10) ?? "unknown"}. Use 7d figure.`
+        : null,
     },
     { data_class: 1, source: "get_execution_revenue" }
   );

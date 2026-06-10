@@ -355,6 +355,7 @@ Always label numbers "Class 1 · on-chain blocks".
 
 If data_complete=false, note: "partial data — [window_days] of 7 days observed so far."
 If not_indexed=true, say: "No revenue data indexed yet for this validator — backfill may still be running."
+If data_24h_complete=false, present twenty_four_h_note verbatim instead of "24h: 0 MON". Do NOT correlate zero 24h revenue with node health or status.
 
 Do NOT extrapolate to monthly or yearly estimates (that is Class 3 forecasting territory).
 Stick to the observed 7-day and 24h windows.
