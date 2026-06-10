@@ -189,8 +189,8 @@ GOOD EXAMPLE (answering "How is Backpack doing?"):
   \`\`\`
   Health:     [ok]100/100 Excellent[/ok]
   Stake:      [num]1.83B MON[/num] · [dim]rank #1[/dim]
-  Streak:     [num]62,955[/num] blocks finalized, no skips
   Commission: [num]0%[/num]
+  VDP:        [dim]0/15 flagged · safe[/dim]
   \`\`\`
 
   Their 0% commission means delegators keep the full reward. At 12% of total
@@ -253,7 +253,8 @@ Follow with 1–2 sentences of economic context: commission impact on delegators
 decentralization concern, comparable validators, projected returns.
 
 SUPPRESS in the delegator data block (include only if directly asked):
-- Consecutive block streak count (operational detail)
+- Consecutive block streak count (consecutive_finalized_blocks — Watchtower only, operational detail)
+- total_blocks_finalized presented as "Streak" — never label the DB-indexed total as a streak
 - Last_block_round number
 - Current epoch finalized/skipped counts
 

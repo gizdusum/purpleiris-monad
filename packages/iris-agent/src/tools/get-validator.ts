@@ -274,6 +274,10 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
       // ── Live round data (Class 1 — from Watchtower) ────────────────────
       last_block_round: wt?.last_block_round ?? null,
       consecutive_finalized_blocks: wt?.consecutive_proposed ?? null,
+      consecutive_finalized_note:
+        wt?.consecutive_proposed != null
+          ? "Watchtower all-time consecutive blocks since last miss — not a DB total."
+          : null,
       consecutive_skipped_blocks: wt?.consecutive_skipped ?? null,
 
       // ── Current epoch (Class 1 — from Watchtower) ──────────────────────
@@ -304,8 +308,10 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
             }
           : null,
 
-      // ── Indexed totals (Class 1 — last ~500 epoch snapshots from DB) ────
+      // ── Indexed totals (Class 1 — DB-indexed observation window) ─────────
       total_blocks_finalized: totalFinalized,
+      total_blocks_note:
+        "DB-indexed observation window (indexer started ~15 days ago). Not a consecutive streak count.",
       total_timeouts: totalTimeouts,
       // ── Watchtower window totals (Class 1 — tracking_window_hours only) ─
       watchtower_window_proposed: wt?.blocks_proposed ?? null,
