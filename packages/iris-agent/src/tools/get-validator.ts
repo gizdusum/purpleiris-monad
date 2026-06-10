@@ -287,7 +287,8 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
 
       // ── 30-day rolling (Class 2 — derived from epoch snapshots) ────────
       thirty_day_rolling_success_rate: thisAvg30d,
-      thirty_day_deviation_from_network: deviation30d,
+      thirty_day_deviation_from_network_pp:
+        deviation30d !== null ? Math.round(deviation30d * 10000) / 100 : null,
 
       // ── Active since (Class 1 — earliest epoch snapshot) ───────────────
       active_since_epoch: earliestSnap[0]?.epoch ?? null,

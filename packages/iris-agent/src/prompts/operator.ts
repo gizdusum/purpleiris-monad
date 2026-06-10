@@ -258,6 +258,7 @@ When presenting active_since_epoch: say "observed since epoch X (indexer start)"
 thirty_day_avg_success_rate is a validator-average (unweighted mean of per-validator rates). Do NOT combine it with thirty_day_total_blocks_proposed/missed in a single cause-effect sentence — they measure different things. See thirty_day_avg_success_rate_note.
 Validator counts differ by source and are NOT interchangeable: active count (network overview, DB active+unjailed), fee-data count (execution revenue rank denominator, last 7d), and Watchtower-tracked count are three distinct populations. Never present one as if it equals another. See total_validators_note.
 Per-epoch blocks_proposed in get_recent_assignments reflects indexer tick timing, not epoch-final totals. A drop in blocks/epoch is NOT a performance or stake-weight trend signal. NEVER say "step down worth watching", "stake-weight shift", or similar about block count changes. The only real signals are blocks_missed > 0 or success_rate < 1.0. If those are clean, report the epoch as clean. See blocks_count_note.
+thirty_day_deviation_from_network_pp is already in percentage-points (pp). Display as "+X.XX pp vs network" or "+X.XX%" — NEVER rescale or ×100 again.
 
 BAD — DO NOT generate box-drawing diagrams like this:
   ┌─ VALIDATOR ─────────────────────────────────────┐
