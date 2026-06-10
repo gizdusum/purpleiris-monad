@@ -5,7 +5,9 @@ import type { FindUnderdogsInput, ToolResult } from "./types";
 
 export async function findUnderdogsTool(input: FindUnderdogsInput): Promise<ToolResult> {
   const db = getDb();
-  const { min_success_rate = 95, max_stake_rank = 100, limit = 10 } = input;
+  const { min_success_rate: rawMinRate = 0.95, max_stake_rank = 50, limit = 10 } = input;
+  // Normalize: accept both fraction (0.95) and percentage (95) inputs
+  const min_success_rate = rawMinRate > 1 ? rawMinRate / 100 : rawMinRate;
 
   // Get all active validators ordered by stake
   const allActive = await db
@@ -68,7 +70,8 @@ export async function findUnderdogsTool(input: FindUnderdogsInput): Promise<Tool
       stake_rank: v.stake_rank,
       staked_mon: Number(v.staked) / 1e18,
       commission_pct: v.commission_bps / 100,
-      avg_success_rate_30d_pct: v.avg_success_rate_30d,
+      avg_success_rate_30d_pct:
+        v.avg_success_rate_30d !== null ? Math.round(v.avg_success_rate_30d * 1000) / 10 : null,
       region: v.region,
     }));
 
