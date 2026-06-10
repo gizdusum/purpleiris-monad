@@ -2,6 +2,7 @@ import { eq, desc, sql, and } from "drizzle-orm";
 import { getDb, validators, epochSnapshots } from "@purpleiris/monad-indexer";
 import { makeResult } from "./types";
 import type { SimulateDelegationInput, ToolResult } from "./types";
+import { resolveValidatorByName } from "./lib/resolve-validator";
 
 const MAINNET_BASELINE_APR = 0.08;
 
@@ -12,6 +13,42 @@ export async function simulateDelegationTool({
 }: SimulateDelegationInput): Promise<ToolResult> {
   const db = getDb();
 
+  // Resolve validator identity — same path as get-validator
+  const isAddr = validator_id.toLowerCase().startsWith("0x");
+  let resolvedId: string;
+  let resolutionNote: string | null = null;
+
+  if (isAddr) {
+    const rows = await db
+      .select({ id: validators.id })
+      .from(validators)
+      .where(eq(validators.id, validator_id.toLowerCase()))
+      .limit(1);
+    if (!rows[0]) {
+      return makeResult(
+        { error: `Validator not found: ${validator_id}`, not_found: true },
+        { data_class: 3, source: "simulate_delegation" }
+      );
+    }
+    resolvedId = rows[0].id;
+  } else {
+    const resolved = await resolveValidatorByName(validator_id);
+    if (resolved.kind === "not_found") {
+      return makeResult(
+        { error: `Validator not found: ${validator_id}`, not_found: true },
+        { data_class: 3, source: "simulate_delegation" }
+      );
+    }
+    if (resolved.kind === "candidates") {
+      return makeResult(
+        { candidate_matches: resolved.candidates, resolution_note: null },
+        { data_class: 3, source: "simulate_delegation" }
+      );
+    }
+    resolvedId = resolved.id;
+    resolutionNote = resolved.resolutionNote;
+  }
+
   const validator = await db
     .select({
       id: validators.id,
@@ -19,17 +56,13 @@ export async function simulateDelegationTool({
       commissionBps: validators.commissionBps,
     })
     .from(validators)
-    .where(
-      validator_id.toLowerCase().startsWith("0x")
-        ? eq(validators.id, validator_id.toLowerCase())
-        : eq(validators.slug, validator_id)
-    )
+    .where(eq(validators.id, resolvedId))
     .limit(1)
     .then((r) => r[0] ?? null);
 
   if (!validator) {
     return makeResult(
-      { error: `Validator not found: ${validator_id}` },
+      { error: `Validator not found: ${validator_id}`, not_found: true },
       { data_class: 3, source: "simulate_delegation" }
     );
   }
@@ -81,6 +114,7 @@ export async function simulateDelegationTool({
     {
       validator_id: validator.id,
       validator_moniker: validator.moniker,
+      resolution_note: resolutionNote,
       stake_mon,
       days,
       estimated_reward_mon: {
