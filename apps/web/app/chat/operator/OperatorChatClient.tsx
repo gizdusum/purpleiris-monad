@@ -629,7 +629,11 @@ function OperatorMessageBubble({
             {THINKING_PHRASES[thinkingPhase ?? 0]}
           </span>
         ) : (
-          <IrisMarkdown text={message.content} streaming={message.streaming ?? false} />
+          <IrisMarkdown
+            text={message.content}
+            streaming={message.streaming ?? false}
+            stripSuggestions
+          />
         )}
         {!isUser && !message.streaming && !!message.toolCount && (
           <div className="mt-2 flex items-center gap-2 border-t border-current/10 pt-2 text-xs opacity-60">
