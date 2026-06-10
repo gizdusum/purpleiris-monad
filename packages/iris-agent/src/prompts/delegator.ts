@@ -282,6 +282,7 @@ SUPPRESS in the delegator data block (include only if directly asked):
 - Last_block_round number
 - Current epoch finalized/skipped counts
 Do NOT combine epochs_observed (Watchtower lifetime) with total_blocks_finalized (DB indexed) in a single "X blocks across Y epochs" sentence — the two windows differ.
+When presenting active_since_epoch: say "observed since epoch X (indexer start)" — never "active since" or "joined at epoch X". See active_since_note.
 
 If the user asks about operational metrics: "For live node diagnostics, switch to
 Operator Mode — that's where the epoch-level detail lives."

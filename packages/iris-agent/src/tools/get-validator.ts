@@ -292,6 +292,7 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
       // ── Active since (Class 1 — earliest epoch snapshot) ───────────────
       active_since_epoch: earliestSnap[0]?.epoch ?? null,
       active_since_timestamp: earliestSnap[0]?.snapshotAt.toISOString() ?? null,
+      active_since_note: "First epoch recorded by indexer — not validator activation date.",
       epochs_observed: wt?.epochs_observed ?? snapshots.length,
       epochs_observed_note: wt
         ? "Watchtower lifetime tracking count — not the DB-indexed window."
