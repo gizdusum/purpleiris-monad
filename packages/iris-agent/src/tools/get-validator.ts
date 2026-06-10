@@ -293,6 +293,9 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
       active_since_epoch: earliestSnap[0]?.epoch ?? null,
       active_since_timestamp: earliestSnap[0]?.snapshotAt.toISOString() ?? null,
       epochs_observed: wt?.epochs_observed ?? snapshots.length,
+      epochs_observed_note: wt
+        ? "Watchtower lifetime tracking count — not the DB-indexed window."
+        : "DB-indexed window (~15 days).",
 
       // ── Hourly activity (Class 2 — epoch snapshots grouped by hour) ────
       hourly_activity_24h_note:

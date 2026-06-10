@@ -257,6 +257,7 @@ SUPPRESS in the delegator data block (include only if directly asked):
 - total_blocks_finalized presented as "Streak" — never label the DB-indexed total as a streak
 - Last_block_round number
 - Current epoch finalized/skipped counts
+Do NOT combine epochs_observed (Watchtower lifetime) with total_blocks_finalized (DB indexed) in a single "X blocks across Y epochs" sentence — the two windows differ.
 
 If the user asks about operational metrics: "For live node diagnostics, switch to
 Operator Mode — that's where the epoch-level detail lives."
