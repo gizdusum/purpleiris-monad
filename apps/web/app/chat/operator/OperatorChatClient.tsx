@@ -35,9 +35,9 @@ const THINKING_PHRASES = [
 // Chip sets
 const OP_CHIPS_MY_VALIDATOR = [
   "Is anything wrong with my validator?",
+  "What's my execution (fee) revenue? (7d)",
   "Have I missed any blocks recently?",
   "How are my staking rewards?",
-  "What's my execution (fee) revenue?",
 ];
 const OP_CHIPS_SETUP = [
   "I don't run a validator — show me network status",
@@ -45,10 +45,10 @@ const OP_CHIPS_SETUP = [
 ];
 const OP_CHIPS_DAILY = [
   "Anything off in my last 24h?",
+  "What's my execution (fee) revenue? (7d)",
   "When's my next round assignment?",
   "Show me my recent missed rounds",
   "How are my staking rewards?",
-  "What has my validator earned in fees (7d)?",
 ];
 const OP_CHIPS_DIAGNOSE = [
   "My peer count looks low — walk me through it",
