@@ -117,7 +117,10 @@ export async function getStakingRewardsTool({
       tier1_updated_at: valRow?.updatedAt?.toISOString() ?? null,
       // Tier 2 (daily aggregate)
       total_7d_commission_mon: Math.round(total7dMon * 1e6) / 1e6,
-      today_commission_mon: Math.round(todayMon * 1e6) / 1e6, // current day's accumulation so far
+      today_commission_mon: Math.round(todayMon * 1e6) / 1e6,
+      today_data_complete: false,
+      today_commission_note:
+        "Intraday accumulation for current UTC calendar day only — partial until UTC midnight. Indexer syncs hourly; value grows through the day. Do not compare to avg_per_day_mon as a trend signal.",
       avg_per_day_mon: Math.round(avgPerDayMon * 1e6) / 1e6,
       estimated_monthly_mon:
         estimatedMonthlyMon !== null ? Math.round(estimatedMonthlyMon * 1e2) / 1e2 : null,
