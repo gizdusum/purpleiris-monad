@@ -287,6 +287,8 @@ export async function getValidatorTool({ id }: GetValidatorInput): Promise<ToolR
 
       // ── 30-day rolling (Class 2 — derived from epoch snapshots) ────────
       thirty_day_rolling_success_rate: thisAvg30d,
+      thirty_day_network_avg_success_rate_pct:
+        networkAvg30d !== null ? Math.round(networkAvg30d * 10000) / 100 : null,
       thirty_day_deviation_from_network_pp:
         deviation30d !== null ? Math.round(deviation30d * 10000) / 100 : null,
       thirty_day_deviation_baseline_note:
