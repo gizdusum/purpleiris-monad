@@ -41,7 +41,7 @@ export async function findUnderdogsTool(input: FindUnderdogsInput): Promise<Tool
   const cutoff = new Date(Date.now() - ms30d);
 
   const withMetrics = await Promise.all(
-    candidates.slice(0, 200).map(async (v) => {
+    candidates.slice(0, Math.min(candidates.length, 400)).map(async (v) => {
       const snaps = await db
         .select({ successRate: epochSnapshots.successRate })
         .from(epochSnapshots)
