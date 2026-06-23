@@ -22,12 +22,12 @@ type Message = {
 
 type GreetingStage = "join" | "typing" | "streaming" | "done";
 
-const OPERATOR_GREETING_FULL = `Gmonad. I'm Hermes — chain-side intel for Monad operators.
+const OPERATOR_GREETING_FULL = `Gmonad. I'm PurpleIris — chain-side intel for Monad operators.
 
 Drop your validator address or moniker and I'll pull your operational profile. We'll work from there.`;
 
 const THINKING_PHRASES = [
-  "Hermes is reading the chain",
+  "PurpleIris is reading the chain",
   "Pulling validator data",
   "Cross-referencing metrics",
 ] as const;
@@ -356,8 +356,8 @@ export function OperatorChatClient() {
           </Link>
           <div className="bg-border h-4 w-px" />
           <div>
-            <p className="text-foreground text-sm font-semibold">Hermes — Operator Mode</p>
-            <p className="text-muted-foreground text-xs">Validator diagnostics · read-only v1.0</p>
+            <p className="text-foreground text-sm font-semibold">PurpleIris — Operator Mode</p>
+            <p className="text-muted-foreground text-xs">Validator diagnostics · read-only</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -412,7 +412,7 @@ export function OperatorChatClient() {
             <div className="iris-channel-event">
               <span className="iris-channel-event-time">[{greetingTime}]</span>
               {"  "}
-              <span className="iris-channel-event-name">Hermes</span>
+              <span className="iris-channel-event-name">PurpleIris</span>
               {" joined the channel"}
             </div>
 
@@ -421,7 +421,7 @@ export function OperatorChatClient() {
               greetingStage === "streaming" ||
               greetingStage === "done") &&
               (greetingStage === "typing" ? (
-                <div className="iris-typing-indicator iris-thinking-text">Hermes is typing</div>
+                <div className="iris-typing-indicator iris-thinking-text">PurpleIris is typing</div>
               ) : (
                 <div className="mt-2 flex flex-col items-start">
                   <div className="border-border bg-card text-foreground max-w-[85%] rounded-2xl border px-4 py-3 text-sm leading-relaxed">
@@ -552,7 +552,7 @@ export function OperatorChatClient() {
             placeholder={
               isEmpty && !remembered
                 ? "Paste validator address or moniker…"
-                : "Ask Hermes about validators…"
+                : "Ask PurpleIris about validators…"
             }
             disabled={loading}
             className="text-foreground placeholder:text-muted-foreground flex-1 resize-none bg-transparent text-sm outline-none disabled:opacity-50"
@@ -568,7 +568,7 @@ export function OperatorChatClient() {
           </button>
         </form>
         <p className="text-muted-foreground mt-2 text-center text-xs">
-          Read-only access · v1.0 Hermes · Hermes does not provide financial advice.{" "}
+          Read-only access · PurpleIris does not provide financial advice.{" "}
           <Link
             href="/transparency/new"
             className="underline underline-offset-2"

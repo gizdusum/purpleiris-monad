@@ -59,7 +59,7 @@ export default function ModeCard({ card }: { card: CardDef }) {
       ? "net · 202 validators online"
       : vizType === "osc"
         ? "node · uptime 99.97% · 77.21M blk"
-        : "v2.0 · calibrating projection engine"
+        : "calibrating projection engine"
   );
   const [vizRead, setVizRead] = useState(
     vizType === "mesh" ? "scanning" : vizType === "osc" ? "● rec" : "locked"

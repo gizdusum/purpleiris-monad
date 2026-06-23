@@ -39,7 +39,7 @@ const cards: CardDef[] = [
     specs: [
       { key: "MODE:", value: "technical" },
       { key: "OUTPUT:", value: "metrics + commands" },
-      { key: "ACCESS:", value: "read-only (v1.0)" },
+      { key: "ACCESS:", value: "read-only" },
     ],
     copy: "Run validator diagnostics. Inspect performance, commission, uptime.",
     cta: "ENTER",
@@ -56,9 +56,8 @@ const cards: CardDef[] = [
     specs: [
       { key: "MODE:", value: "forecast" },
       { key: "STATUS:", value: "coming soon" },
-      { key: "RELEASE:", value: "v2.0 Pythia" },
     ],
-    copy: "Project your rewards across scenarios. Ships in v2.0 with audited vault contracts.",
+    copy: "Project your rewards across scenarios. More capabilities on the way.",
     cta: "COMING SOON",
     href: "#",
     disabled: true,
@@ -202,16 +201,6 @@ export default function HomePage() {
                 gap: "6px",
               }}
             >
-              <span
-                className="rounded-sm"
-                style={{
-                  border: "1px solid var(--accent)",
-                  color: "var(--accent)",
-                  padding: "4px 10px",
-                }}
-              >
-                v1.0 · Hermes
-              </span>
               <span
                 style={{
                   color: "var(--text-mute)",

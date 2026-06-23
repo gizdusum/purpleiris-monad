@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import MissionJourney from "./MissionJourney";
 
 // ── Class colour constants — all on-theme purple family, no green/blue/amber
 const C1 = "var(--cat-casual)"; // #c4b5ff — lightest lavender  (Class 1: on-chain)
@@ -317,7 +316,7 @@ export default function MethodologyContent() {
         <div style={{ maxWidth: "820px", margin: "0 auto" }}>
           {/* ─── SECTION 1: Intro ─── */}
           <Reveal>
-            <Label>Hermes Methodology</Label>
+            <Label>PurpleIris Methodology</Label>
             <h1
               style={{
                 color: "var(--text)",
@@ -328,7 +327,7 @@ export default function MethodologyContent() {
                 marginBottom: "20px",
               }}
             >
-              How Hermes sources
+              How PurpleIris sources
               <br />
               and classifies data
             </h1>
@@ -341,7 +340,7 @@ export default function MethodologyContent() {
                 marginBottom: "12px",
               }}
             >
-              Hermes is a Monad validator intelligence assistant. Every factual claim it returns
+              PurpleIris is a Monad validator intelligence assistant. Every factual claim it returns
               carries a <strong style={{ color: "var(--text)" }}>data-class label</strong> so you
               can immediately judge its reliability — whether it came directly from the chain, was
               computed by a stated formula, or involves an approximation with explicit caveats.
@@ -354,8 +353,8 @@ export default function MethodologyContent() {
                 maxWidth: "600px",
               }}
             >
-              Hermes is <strong style={{ color: "var(--text)" }}>non-advisory</strong>: it surfaces
-              data and analysis, never tells you what to do. Two modes:
+              PurpleIris is <strong style={{ color: "var(--text)" }}>non-advisory</strong>: it
+              surfaces data and analysis, never tells you what to do. Two modes:
             </p>
             <div style={{ display: "flex", gap: "12px", marginTop: "20px", flexWrap: "wrap" }}>
               {[
@@ -413,7 +412,7 @@ export default function MethodologyContent() {
                 marginBottom: "28px",
               }}
             >
-              Every number in a Hermes response is tagged inline. You always know the epistemic
+              Every number in a PurpleIris response is tagged inline. You always know the epistemic
               status of what you're reading before you act on it.
             </p>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -587,8 +586,8 @@ export default function MethodologyContent() {
                 }}
               >
                 Requires approximately 30 days of accumulated epoch snapshots to be fully populated.
-                When the indexer window is shorter, Hermes flags the metric as partial rather than
-                returning an incomplete average silently.
+                When the indexer window is shorter, PurpleIris flags the metric as partial rather
+                than returning an incomplete average silently.
               </p>
 
               <Sub>Validator health score</Sub>
@@ -649,8 +648,8 @@ export default function MethodologyContent() {
                 >
                   github.com/monad-developers/validator-info
                 </a>
-                ). Hermes does not infer location from IP addresses or ASN data. Values reflect what
-                each operator has declared in the registry — unverified and Class 3.
+                ). PurpleIris does not infer location from IP addresses or ASN data. Values reflect
+                what each operator has declared in the registry — unverified and Class 3.
               </Body>
             </ClassSection>
           </Reveal>
@@ -804,10 +803,10 @@ export default function MethodologyContent() {
                 marginBottom: "14px",
               }}
             >
-              Hermes indexes Monad mainnet continuously into a relational database. Time-windowed
-              metrics — 7-day staking history, 30-day success rate — fill in as the indexer
-              accumulates data. When a window is not yet fully populated, Hermes says so rather than
-              returning an incomplete value silently or fabricating completeness.
+              PurpleIris indexes Monad mainnet continuously into a relational database.
+              Time-windowed metrics — 7-day staking history, 30-day success rate — fill in as the
+              indexer accumulates data. When a window is not yet fully populated, PurpleIris says so
+              rather than returning an incomplete value silently or fabricating completeness.
             </p>
             <p
               style={{
@@ -817,8 +816,8 @@ export default function MethodologyContent() {
                 maxWidth: "580px",
               }}
             >
-              All data that Hermes returns is read-only. It observes chain state; it does not submit
-              transactions, hold keys, or take any on-chain action.
+              All data that PurpleIris returns is read-only. It observes chain state; it does not
+              submit transactions, hold keys, or take any on-chain action.
             </p>
             <div
               style={{
@@ -843,51 +842,6 @@ export default function MethodologyContent() {
           </Reveal>
         </div>
       </main>
-
-      {/* ── Mission Journey ── */}
-      <section
-        style={{
-          maxWidth: "900px",
-          margin: "0 auto 80px",
-          padding: "0 24px",
-        }}
-      >
-        <p
-          style={{
-            fontSize: "11px",
-            letterSpacing: ".3em",
-            color: "var(--accent)",
-            textTransform: "uppercase",
-            marginBottom: "10px",
-            fontFamily: "var(--font-mono), monospace",
-          }}
-        >
-          Mission
-        </p>
-        <h2
-          style={{
-            fontSize: "28px",
-            fontWeight: 800,
-            letterSpacing: "-.01em",
-            marginBottom: "8px",
-          }}
-        >
-          Hermes is just the first mind.
-        </h2>
-        <p
-          style={{
-            color: "var(--text-dim)",
-            fontSize: "14px",
-            marginBottom: "48px",
-            maxWidth: "560px",
-            lineHeight: 1.6,
-          }}
-        >
-          One intelligence is live on Monad mainnet. The mission continues — each release a new
-          mind, each a step further down the path.
-        </p>
-        <MissionJourney />
-      </section>
 
       {/* ── Footer — exact copy from homepage ── */}
       <footer
@@ -954,16 +908,6 @@ export default function MethodologyContent() {
                 gap: "6px",
               }}
             >
-              <span
-                className="rounded-sm"
-                style={{
-                  border: "1px solid var(--accent)",
-                  color: "var(--accent)",
-                  padding: "4px 10px",
-                }}
-              >
-                v1.0 · Hermes
-              </span>
               <span
                 style={{
                   color: "var(--text-mute)",

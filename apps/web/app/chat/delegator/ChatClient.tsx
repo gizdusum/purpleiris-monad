@@ -23,12 +23,12 @@ type Message = {
 
 type GreetingStage = "join" | "typing" | "streaming" | "done";
 
-const DELEGATOR_GREETING_FULL = `Hey 👋 I'm Hermes — your messenger from the Monad chain.
+const DELEGATOR_GREETING_FULL = `Hey 👋 I'm PurpleIris — your messenger from the Monad chain.
 
 Running or delegating? Drop a validator's address or moniker, or pick a query below.`;
 
 const THINKING_PHRASES = [
-  "Hermes is reading the chain",
+  "PurpleIris is reading the chain",
   "Pulling validator data",
   "Cross-referencing metrics",
 ] as const;
@@ -331,7 +331,7 @@ export function ChatClient() {
           </Link>
           <div className="bg-border h-4 w-px" />
           <div>
-            <p className="text-foreground text-sm font-semibold">Hermes — Delegator Mode</p>
+            <p className="text-foreground text-sm font-semibold">PurpleIris — Delegator Mode</p>
             <p className="text-muted-foreground text-xs">Monad validator intelligence</p>
           </div>
         </div>
@@ -390,7 +390,7 @@ export function ChatClient() {
             <div className="iris-channel-event">
               <span className="iris-channel-event-time">[{greetingTime}]</span>
               {"  "}
-              <span className="iris-channel-event-name">Hermes</span>
+              <span className="iris-channel-event-name">PurpleIris</span>
               {" joined the channel"}
             </div>
 
@@ -399,7 +399,7 @@ export function ChatClient() {
               greetingStage === "streaming" ||
               greetingStage === "done") &&
               (greetingStage === "typing" ? (
-                <div className="iris-typing-indicator iris-thinking-text">Hermes is typing</div>
+                <div className="iris-typing-indicator iris-thinking-text">PurpleIris is typing</div>
               ) : (
                 /* Stage 3 & 4: greeting bubble streaming then done */
                 <div className="mt-2 flex flex-col items-start">
@@ -508,7 +508,7 @@ export function ChatClient() {
               autoResize();
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Ask Hermes about validators…"
+            placeholder="Ask PurpleIris about validators…"
             disabled={loading}
             className="text-foreground placeholder:text-muted-foreground flex-1 resize-none bg-transparent text-sm outline-none disabled:opacity-50"
             style={{ maxHeight: 160 }}
@@ -522,7 +522,7 @@ export function ChatClient() {
           </button>
         </form>
         <p className="text-muted-foreground mt-2 text-center text-xs">
-          Hermes does not provide financial advice.{" "}
+          PurpleIris does not provide financial advice.{" "}
           <Link href="/transparency/new" className="text-iris-primary underline underline-offset-2">
             Send feedback
           </Link>

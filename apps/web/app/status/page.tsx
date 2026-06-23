@@ -597,16 +597,6 @@ export default function StatusPage() {
               }}
             >
               <span
-                className="rounded-sm"
-                style={{
-                  border: "1px solid var(--accent)",
-                  color: "var(--accent)",
-                  padding: "4px 10px",
-                }}
-              >
-                v1.0 · Hermes
-              </span>
-              <span
                 style={{
                   color: "var(--text-mute)",
                   fontSize: "10px",

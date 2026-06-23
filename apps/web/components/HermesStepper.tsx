@@ -9,7 +9,6 @@ import {
   useInView,
   useReducedMotion,
 } from "framer-motion";
-import MissionJourney from "./MissionJourney";
 
 /* ── Types ──────────────────────────────────────────────────────── */
 type Badge = { label: string; kind: "live" | "soon" };
@@ -22,7 +21,6 @@ type StepDef = {
   slogan: string;
   badge?: Badge;
   bullets: string[];
-  isRoadmap?: boolean;
 };
 
 const STEPS: StepDef[] = [
@@ -67,15 +65,6 @@ const STEPS: StepDef[] = [
       "Model returns across stake sizes & commission rates",
       "Scenario forecasting — what-if, before you commit",
     ],
-  },
-  {
-    num: "04",
-    name: "MISSION",
-    color: "var(--accent)",
-    glowRgb: "124,92,255",
-    slogan: "Hermes is just the first mind.",
-    bullets: [],
-    isRoadmap: true,
   },
 ];
 
@@ -303,9 +292,6 @@ function StepSection({
                 ))}
               </div>
             )}
-
-            {/* Mission journey (step 04 only) */}
-            {step.isRoadmap && <MissionJourney />}
           </div>
         </div>
       </motion.div>
