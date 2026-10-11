@@ -37,12 +37,15 @@ Every commit after `55f55db`:
 - **Public MCP server** at `/api/mcp`: a stateless Model Context Protocol server (Streamable HTTP, JSON responses) that exposes the tools to any MCP client. `packages/iris-agent/src/public-api/mcp.ts`
 - **REST API** at `/api/v1/tools`, with input validation for untrusted callers and an OpenAPI 3.1 document generated from the tool catalog. `packages/iris-agent/src/public-api/`
 - **Live on-chain snapshot**: a new tool, `get_onchain_snapshot`, that reads the validator set, stake and commission directly from the staking precompile with every read pinned to one block, and returns that block number. No database involved. `packages/monad-indexer/src/live-snapshot.ts`
+- **Live validator and delegator read**: a second chain-backed tool, `get_validator_onchain`, reads one validator at one block: its decoded flags, stake and commission in the execution, consensus and snapshot views, what the operator can claim, and optionally one delegator's active stake, claimable rewards and stake waiting to activate. `packages/monad-indexer/src/live-validator.ts`
+- **Validator flags decoded**: the precompile's `flags` bitfield is decoded (ok, stake too low, withdrawn, double sign) using the bit positions in the Monad client source. `packages/monad-indexer/src/validator-flags.ts`
+- **A corrected label**: `getValidator().unclaimedRewards` was presented as the operator's pending commission. It is the pool owed to all of the validator's delegators; commission is credited to the auth address as a delegator. Tool output, prompts and the methodology page now say so, and the operator's real claimable balance comes from `getDelegator(id, authAddress)`.
 - **Freshness labelling**: every database-backed tool result now says when the index was last refreshed and whether it is stale, and the assistant is instructed to state that date instead of calling stale data current.
 - **RPC fallback**: chain reads fall back to public Monad RPC endpoints when the configured provider fails. Before this, an expired provider key silently froze the index.
 - **Self-healing validator sync**: the web deployment can refresh the validator table from the precompile on a schedule when the indexer worker is down. `packages/monad-indexer/src/sync.ts`
 - **Honest status page**: the status page previously showed generated log lines and fixed numbers. It now shows only measured values and reports degraded sources as degraded.
 - **Developer page** at `/developers` with a console that runs real API calls.
-- 58 unit tests for the above, a CI workflow that runs them, and this README.
+- 69 unit tests for the above, a CI workflow that runs them, and this README.
 
 ### Repository history
 
@@ -59,7 +62,7 @@ PurpleIris deploys no contracts and sends no transactions. It reads Monad mainne
 | What                 | Where                                                                          |
 | -------------------- | ------------------------------------------------------------------------------ |
 | Staking precompile   | `0x0000000000000000000000000000000000001000`                                   |
-| Calls made           | `getEpoch()`, `getExecutionValidatorSet(uint32)`, `getValidator(uint64)`       |
+| Calls made           | `getEpoch()`, `getExecutionValidatorSet(uint32)`, `getValidator(uint64)`, `getDelegator(uint64,address)` |
 | Events indexed       | proposer-reward events, topic `0x3a420a01…` (staking rewards indexer)          |
 | Block data indexed   | per-block priority fees attributed to the proposer (execution revenue indexer) |
 | Default RPC fallback | `https://rpc.monad.xyz`, `https://rpc1.monad.xyz`                              |
@@ -125,6 +128,7 @@ The API is read-only and needs no key. It is limited to 60 requests per minute p
 | Tool                       | Source  | Returns                                                                             |
 | -------------------------- | ------- | ----------------------------------------------------------------------------------- |
 | `get_onchain_snapshot`     | chain   | Block, epoch, validator set size, total stake, Nakamoto coefficient, top validators |
+| `get_validator_onchain`    | chain   | One validator live: flags, stake and commission views, claimable rewards, a delegator's position |
 | `get_validator`            | index   | One validator's profile, block metrics and health score                             |
 | `list_validators`          | index   | Validators filtered by commission, stake, region, provider                          |
 | `get_network_health`       | index   | Active validators, total stake, Nakamoto coefficient                                |
@@ -156,7 +160,7 @@ The API is read-only and needs no key. It is limited to 60 requests per minute p
                         └─────────┬──────────┘
                                   │
                        packages/iris-agent
-                     15 tools, one definition each
+                     16 tools, one definition each
                                   │
           ┌───────────────────────┼───────────────────────┐
           │                       │                       │
@@ -213,7 +217,7 @@ pnpm indexer
 
 ```bash
 pnpm -r run type-check
-pnpm --filter @purpleiris/iris-agent run test   # 58 tests, no network needed
+pnpm --filter @purpleiris/iris-agent run test   # 69 tests, no network needed
 pnpm --filter @purpleiris/web run build
 ```
 
@@ -223,7 +227,9 @@ The 30-prompt accuracy suite in `packages/iris-agent/tests/iris-accuracy.spec.ts
 
 - Block-production metrics (success rate, missed blocks) come from a third-party feed, [monad-watchtower.xyz](https://monad-watchtower.xyz). When it is unreachable those fields are null and the status page says so.
 - Index-backed tools are only as fresh as the last indexer run. Each result states its age; `get_onchain_snapshot` is the tool for current totals.
-- The jailed flag is not yet decoded from the precompile's `flags` field, so `jailed` is always false.
+- Monad has no "jailed" state. The indexed `jailed` column now mirrors the double-sign flag; the full flag set is only in the live tools. The indexer worker picks this up when it is next rebuilt.
+- `get_validator_onchain` finds a validator by name or address through the live validator set, so a validator outside the current set must be read by numeric id.
+- A live snapshot reads every validator and takes 10 to 15 seconds when it is not cached.
 - Class 3 reward estimates use a fixed baseline rate. They are labelled as estimates and should be read as ranges.
 - Validator names, regions and infrastructure providers are self-reported in the community registry and are not verified.
 

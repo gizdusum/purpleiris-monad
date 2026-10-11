@@ -499,7 +499,8 @@ export default function MethodologyContent() {
                   "Jail status and active / inactive status",
                   "Block counts — proposed and missed, per epoch",
                   "Delegator count and voting power",
-                  "Pending unclaimed commission — live balance, resets on claim",
+                  "Claimable operator rewards — live from the auth address's delegator record",
+                  "Validator flags — ok, stake too low, withdrawn, double sign",
                   "Cumulative staking rewards — indexed from on-chain proposer-reward events",
                   "Execution revenue — per-block transaction fee income, indexed on-chain",
                 ]}
@@ -507,8 +508,9 @@ export default function MethodologyContent() {
 
               <Sub>Staking rewards — two layers</Sub>
               <Body>
-                <strong style={{ color: "var(--text)" }}>Layer 1 — live pending commission.</strong>{" "}
-                Read from <IC>getValidator()</IC> on the Monad staking precompile:
+                <strong style={{ color: "var(--text)" }}>Layer 1 — live claimable rewards.</strong>{" "}
+                Read from <IC>getDelegator(validatorId, authAddress)</IC> on the Monad staking
+                precompile:
               </Body>
               <Code>0x0000000000000000000000000000000000001000</Code>
               <p
@@ -520,8 +522,9 @@ export default function MethodologyContent() {
                   fontFamily: "var(--font-mono), monospace",
                 }}
               >
-                Returns <IC>unclaimedRewards</IC> — the live pending balance, resets to zero when
-                the validator claims.
+                Commission is credited to the auth address as a delegator, so this is commission plus
+                rewards on its own stake. <IC>getValidator().unclaimedRewards</IC> is a different
+                number: the pool owed to all of the validator&apos;s delegators.
               </p>
               <Body>
                 <strong style={{ color: "var(--text)" }}>Layer 2 — cumulative history.</strong>{" "}
@@ -683,7 +686,7 @@ export default function MethodologyContent() {
                 marginBottom: "32px",
               }}
             >
-              14 tools total. Delegator mode has 10; Operator mode extends that with 4 diagnostics
+              16 tools total. Delegator mode has 12; Operator mode extends that with 4 diagnostics
               and earnings tools.
             </p>
 
@@ -697,10 +700,18 @@ export default function MethodologyContent() {
                 fontFamily: "var(--font-mono), monospace",
               }}
             >
-              Delegator — 10 tools
+              Delegator — 12 tools
             </p>
             <div style={{ marginBottom: "32px" }}>
               {[
+                {
+                  name: "get_onchain_snapshot",
+                  desc: "Live read of the staking precompile at one block: validator set, stake, flags, Nakamoto coefficient (Class 1, totals Class 2)",
+                },
+                {
+                  name: "get_validator_onchain",
+                  desc: "Live read of one validator: flags, stake and commission views, claimable operator rewards, and optionally a delegator's position (Class 1)",
+                },
                 {
                   name: "get_validator",
                   desc: "Full validator profile: commission, stake, jail status, 7d/30d block metrics, health score",
@@ -762,7 +773,7 @@ export default function MethodologyContent() {
               {[
                 {
                   name: "get_staking_rewards",
-                  desc: "Pending unclaimed commission + cumulative 7d/24h staking commission history (Class 1)",
+                  desc: "Cumulative 7d/24h staking commission history (Class 1) and the validator's unclaimed reward pool",
                 },
                 {
                   name: "get_execution_revenue",

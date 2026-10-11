@@ -6,6 +6,7 @@ type Preset = { label: string; tool: string; args: Record<string, unknown> };
 
 const PRESETS: Preset[] = [
   { label: "Live chain snapshot", tool: "get_onchain_snapshot", args: { top_n: 5 } },
+  { label: "One validator, live", tool: "get_validator_onchain", args: { id: "backpack" } },
   { label: "Network health (indexed)", tool: "get_network_health", args: {} },
   {
     label: "Reward estimate",

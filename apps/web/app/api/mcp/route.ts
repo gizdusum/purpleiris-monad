@@ -3,7 +3,7 @@
 //   POST /api/mcp   JSON-RPC 2.0 request, notification or batch → application/json
 //   GET  /api/mcp   405: this server never initiates messages, so it offers no SSE stream
 //
-// Read-only: 15 tools over Monad staking and validator data. No auth, no session.
+// Read-only: 16 tools over Monad staking and validator data. No auth, no session.
 
 import type { NextRequest } from "next/server";
 import { handleMcpRaw, SERVER_INFO, LATEST_PROTOCOL_VERSION } from "@purpleiris/iris-agent";
