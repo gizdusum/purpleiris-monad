@@ -14,6 +14,7 @@ import { getAnomalyCheckTool } from "./get-anomaly-check";
 import { getExecutionRevenueTool } from "./get-execution-revenue";
 import { getStakingRewardsTool } from "./get-staking-rewards";
 import { getOnchainSnapshotTool } from "./get-onchain-snapshot";
+import { getValidatorOnchainTool } from "./get-validator-onchain";
 import { getIndexFreshness } from "@purpleiris/monad-indexer";
 import type {
   GetValidatorInput,
@@ -28,6 +29,7 @@ import type {
   GetExecutionRevenueInput,
   GetStakingRewardsInput,
   GetOnchainSnapshotInput,
+  GetValidatorOnchainInput,
   ToolFreshness,
   ToolResult,
 } from "./types";
@@ -207,6 +209,26 @@ export function getDelegatorToolDefinitions(): Anthropic.Tool[] {
       },
     },
     {
+      name: "get_validator_onchain",
+      description:
+        "LIVE read of ONE validator from the Monad staking precompile, pinned to one block. Returns its on-chain flags (ok, stake too low, withdrawn, double sign), stake and commission in the execution, consensus and snapshot views, the rewards the operator can claim now (the auth address's delegator record: commission plus rewards on its own stake), and optionally one delegator's position: active stake, claimable rewards and stake waiting to activate. Use when asked about a validator's current on-chain state, whether a stake or commission change is pending, what an operator can claim, or 'how much have I staked / earned with X' when the user gives their address. Values are Class 1 (read from chain at as_of_block); the `derived` block is Class 2. Never ask for a private key or signature: an address is enough.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          id: {
+            type: "string",
+            description: "Validator moniker, auth address (0x...), or numeric validator id",
+          },
+          delegator_address: {
+            type: "string",
+            description:
+              "Optional. A delegator address (0x...) whose position with this validator should be read",
+          },
+        },
+        required: ["id"],
+      },
+    },
+    {
       name: "get_latest_monad_release",
       description:
         "Fetch the latest Monad protocol release from the database (synced from GitHub). Returns the most recent release tag, publication date, summary, and up to 5 previous releases. Use when asked about recent protocol updates, current Monad version, or release history.",
@@ -287,7 +309,7 @@ export function getOperatorToolDefinitions(): Anthropic.Tool[] {
     {
       name: "get_staking_rewards",
       description:
-        "Returns staking commission earned by a validator from block proposal rewards. Two tiers: (1) live pending commission (unclaimed_rewards from staking precompile, resets on claim), (2) cumulative 7d/24h commission history from on-chain events. Use when operator asks about 'staking rewards', 'commission earned', 'how much MON have I earned from staking', 'consensus rewards', 'block proposal rewards', or 'pending rewards'. Data is Class 1. The monthly estimate is Class 3.",
+        "Returns staking commission earned by a validator from block proposal rewards: cumulative 7d/24h commission history from on-chain events, plus the indexed size of the validator's unclaimed reward pool (owed to all of its delegators, not the operator's commission). For what the operator can claim right now, call get_validator_onchain instead. Use when operator asks about 'staking rewards', 'commission earned', 'how much MON have I earned from staking', 'consensus rewards', 'block proposal rewards', or 'pending rewards'. Data is Class 1. The monthly estimate is Class 3.",
       input_schema: {
         type: "object" as const,
         properties: {
@@ -353,6 +375,9 @@ export async function executeTool(name: string, input: unknown): Promise<string>
         break;
       case "get_onchain_snapshot":
         result = await getOnchainSnapshotTool((input as GetOnchainSnapshotInput) ?? {});
+        break;
+      case "get_validator_onchain":
+        result = await getValidatorOnchainTool(input as GetValidatorOnchainInput);
         break;
       default:
         result = {

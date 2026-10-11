@@ -19,9 +19,9 @@ const fakeExecute = (payload: unknown) => async () => JSON.stringify(payload);
 describe("tool catalog", () => {
   const tools = getPublicToolCatalog();
 
-  it("exposes all 15 tools with unique names", () => {
-    expect(tools).toHaveLength(15);
-    expect(new Set(tools.map((t) => t.name)).size).toBe(15);
+  it("exposes all 16 tools with unique names", () => {
+    expect(tools).toHaveLength(16);
+    expect(new Set(tools.map((t) => t.name)).size).toBe(16);
   });
 
   it("lists the live chain read first", () => {
@@ -59,9 +59,7 @@ describe("tool catalog", () => {
     for (const t of tools) {
       expect(t.backing === "index").toBe(INDEX_BACKED_TOOLS.has(t.name));
     }
-    expect(tools.filter((t) => t.backing === "chain").map((t) => t.name)).toEqual([
-      "get_onchain_snapshot",
-    ]);
+    expect(tools.filter((t) => t.backing === "chain").map((t) => t.name)).toEqual(["get_onchain_snapshot", "get_validator_onchain"]);
     expect(tools.filter((t) => t.backing === "formula").map((t) => t.name)).toEqual([
       "estimate_stake_reward",
     ]);
@@ -267,7 +265,7 @@ describe("OpenAPI document", () => {
     const doc = buildOpenApiDocument("https://purpleiris.live");
     const paths = Object.keys(doc.paths);
     expect(paths).toContain("/api/v1/tools");
-    expect(paths.filter((p) => p.startsWith("/api/v1/tools/"))).toHaveLength(15);
+    expect(paths.filter((p) => p.startsWith("/api/v1/tools/"))).toHaveLength(16);
     expect(doc.openapi).toBe("3.1.0");
     expect(doc.servers[0]?.url).toBe("https://purpleiris.live");
   });

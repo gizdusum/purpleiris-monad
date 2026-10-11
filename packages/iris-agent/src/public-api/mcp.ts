@@ -26,6 +26,7 @@ export const SERVER_INSTRUCTIONS = [
   "Carry that label through to the user, and never present Class 3 values as guarantees.",
   "Results backed by the indexer include a freshness block; if freshness.stale is true, say the data is as of freshness.indexed_at.",
   "For live network totals use get_onchain_snapshot: it reads the staking precompile and returns the block it was read at.",
+  "For one validator's live state, or a delegator's position with it, use get_validator_onchain.",
   "PurpleIris is non-advisory: report data, do not tell the user which validator to choose.",
 ].join(" ");
 

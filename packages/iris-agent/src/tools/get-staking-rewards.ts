@@ -51,7 +51,10 @@ export async function getStakingRewardsTool({
 
   const { validatorId, moniker } = resolved;
 
-  // ── Tier 1: live pending commission from validators table ─────────────────
+  // ── Pool rewards from the validators table ───────────────────────────────
+  // getValidator().unclaimedRewards is the pool of rewards owed to ALL of the
+  // validator's delegators, not the operator's commission. Commission is
+  // credited to the auth address as a delegator; get_validator_onchain reads it.
   const [valRow] = await db
     .select({
       unclaimedRewardsWei: validators.unclaimedRewardsWei,
@@ -63,7 +66,7 @@ export async function getStakingRewardsTool({
     .where(eq(validators.id, validatorId))
     .limit(1);
 
-  const pendingCommissionMon = weiToMon(valRow?.unclaimedRewardsWei ?? null);
+  const poolUnclaimedMon = weiToMon(valRow?.unclaimedRewardsWei ?? null);
   const commissionRatePct = (valRow?.commissionBps ?? 0) / 100;
   const stakeMon = weiToMon(valRow?.stakedAmount ?? null);
 
@@ -110,11 +113,13 @@ export async function getStakingRewardsTool({
     {
       validator_id: validatorId,
       moniker,
-      // Tier 1
-      pending_commission_mon: Math.round(pendingCommissionMon * 1e6) / 1e6,
+      // Pool (indexed)
+      pool_unclaimed_rewards_mon: Math.round(poolUnclaimedMon * 1e6) / 1e6,
+      pool_unclaimed_rewards_note:
+        "Unclaimed rewards held in this validator's pool for all of its delegators, as last indexed. This is NOT the operator's commission. For what the operator can claim now, call get_validator_onchain and read operator.claimable_rewards_mon.",
       commission_rate_pct: commissionRatePct,
       stake_mon: Math.round(stakeMon * 1e4) / 1e4,
-      tier1_updated_at: valRow?.updatedAt?.toISOString() ?? null,
+      pool_indexed_at: valRow?.updatedAt?.toISOString() ?? null,
       // Tier 2 (daily aggregate)
       total_7d_commission_mon: Math.round(total7dMon * 1e6) / 1e6,
       today_commission_mon: Math.round(todayMon * 1e6) / 1e6,

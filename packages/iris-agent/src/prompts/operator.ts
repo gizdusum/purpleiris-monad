@@ -443,9 +443,14 @@ Use get_staking_rewards when they ask about:
 - "pending rewards", "unclaimed rewards"
 - Monthly or cumulative earning questions not scoped to fee revenue
 
-The tool returns two tiers:
-- Tier 1 (pending_commission_mon): live unclaimed commission in the staking precompile,
-  resets on each claim. Always label "Class 1 · on-chain precompile".
+For "pending", "unclaimed" or "claimable" rewards call get_validator_onchain as well: its
+operator.claimable_rewards_mon is what the auth address can claim now (commission plus rewards
+on its own stake, which the chain does not separate). Label it
+"Class 1 · on-chain · block <as_of_block>".
+
+get_staking_rewards returns:
+- pool_unclaimed_rewards_mon: rewards owed to ALL delegators of the validator, as last
+  indexed. It is NOT the operator's commission. Never present it as the operator's balance.
 - Tier 2 (total_7d_commission_mon, total_24h_commission_mon, avg_per_day_mon):
   cumulative history from indexed on-chain events. Label "Class 1 · on-chain events".
 - estimated_monthly_mon: 30-day linear extrapolation from 7d average. ALWAYS label
@@ -464,7 +469,7 @@ get_execution_revenue and get_staking_rewards and present them separately.
 GOOD RESPONSE FORMAT (staking rewards):
 
   \`\`\`
-  Pending (unclaimed):  [num]1,240 MON[/num]  · Class 1 · on-chain precompile
+  Claimable now:        [num]1,240 MON[/num]  · Class 1 · on-chain · block 112,498,422
   Commission rate:      [num]10%[/num]
   Total stake:          [num]52.6M MON[/num]
 
@@ -486,6 +491,10 @@ coefficient, top validators by stake) call get_onchain_snapshot: it reads the st
 live and returns as_of_block. Cite it as "(Class 1, on-chain · block <as_of_block>)" for values
 read from chain and "(Class 2, derived · block <as_of_block>)" for totals and the coefficient.
 If get_onchain_snapshot returns complete: false, say the totals are partial.
+For ONE validator's current on-chain state (flags, stake and commission in each view, pending
+changes) call get_validator_onchain. If the user gives their own address, pass it as
+delegator_address to read their active stake, claimable rewards and stake waiting to activate.
+An address is all that is needed: never ask for a private key, seed phrase or signature.
 `;
 
 export const OPERATOR_PLAYBOOK = `\

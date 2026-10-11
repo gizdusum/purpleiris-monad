@@ -6,6 +6,7 @@ import {
   getLiveSnapshot,
   summarizeSnapshot,
   weiToMon,
+  decodeValidatorFlags,
   STAKING_PRECOMPILE,
   monadMainnet,
   type LiveSnapshot,
@@ -24,7 +25,7 @@ const PLACEHOLDER_MONIKER = /^Validator \d+$/;
  * (`validator_metadata`). The `validators` table is the fallback, ignoring its
  * "Validator N" placeholders.
  */
-async function lookupMonikers(
+export async function lookupMonikers(
   targets: Array<{ authAddress: string; secpPubkey: string | null }>
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
@@ -96,8 +97,19 @@ export function buildSnapshotPayload(
       totalConsensusWei === 0n
         ? 0
         : Number((v.consensusStakeWei * 1_000_000n) / totalConsensusWei) / 10_000,
-    unclaimed_commission_mon: weiToMon(v.unclaimedRewardsWei),
+    // Rewards held in the validator's pool for all of its delegators. Not commission.
+    pool_unclaimed_rewards_mon: weiToMon(v.unclaimedRewardsWei),
+    flags_ok: v.flags === 0n,
   }));
+
+  const flagCounts = { ok: 0, stake_too_low: 0, withdrawn: 0, double_sign: 0 };
+  for (const v of snapshot.validators) {
+    const f = decodeValidatorFlags(v.flags);
+    if (f.ok) flagCounts.ok++;
+    if (f.stakeTooLow) flagCounts.stake_too_low++;
+    if (f.withdrawn) flagCounts.withdrawn++;
+    if (f.doubleSign) flagCounts.double_sign++;
+  }
 
   return {
     // ── Provenance: everything below is reproducible from these four fields ──
@@ -133,6 +145,12 @@ export function buildSnapshotPayload(
       interpretation: `Minimum ${summary.nakamotoCoefficient} validators hold more than one third of consensus stake`,
       data_class: 2,
       formula: "nakamoto_coefficient v1.0 (see /methodology)",
+    },
+
+    validator_flags: {
+      data_class: 2,
+      note: "Counts of the on-chain flags field across the validators read. Any flag other than ok means the validator is not a candidate for the next consensus set.",
+      ...flagCounts,
     },
 
     top_validators: top,

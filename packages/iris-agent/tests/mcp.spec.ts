@@ -62,10 +62,10 @@ describe("initialize", () => {
 });
 
 describe("tools/list", () => {
-  it("returns 15 read-only tools with input and output schemas", async () => {
+  it("returns 16 read-only tools with input and output schemas", async () => {
     const r = await handleMcpBody(rpc("tools/list"), deps);
     const tools = (r.body as { result: { tools: Array<Record<string, unknown>> } }).result.tools;
-    expect(tools).toHaveLength(15);
+    expect(tools).toHaveLength(16);
     for (const t of tools) {
       expect(t["inputSchema"]).toMatchObject({ type: "object" });
       expect(t["outputSchema"]).toMatchObject({ type: "object" });

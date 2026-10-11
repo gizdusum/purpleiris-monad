@@ -3,7 +3,7 @@ import { getDelegatorToolDefinitions, getOperatorToolDefinitions } from "../tool
 /**
  * Public tool catalog.
  *
- * The same 15 tools the PurpleIris agent uses, described once and exposed three
+ * The same 16 tools the PurpleIris agent uses, described once and exposed three
  * ways: to the in-app agent (Anthropic tool definitions), over MCP (`/api/mcp`),
  * and over plain HTTP (`/api/v1/tools`). Every tool is read-only.
  */
@@ -41,6 +41,7 @@ export type PublicTool = {
 
 const TITLES: Record<string, string> = {
   get_onchain_snapshot: "Live on-chain network snapshot",
+  get_validator_onchain: "Live on-chain validator and delegator position",
   get_validator: "Validator profile",
   list_validators: "List validators",
   get_network_health: "Network health",
@@ -59,6 +60,7 @@ const TITLES: Record<string, string> = {
 
 const BACKING: Record<string, PublicTool["backing"]> = {
   get_onchain_snapshot: "chain",
+  get_validator_onchain: "chain",
   estimate_stake_reward: "formula",
 };
 
@@ -90,9 +92,9 @@ export function getPublicToolCatalog(): PublicTool[] {
   }));
 
   // Live chain read first: it is the tool an integrator should reach for by default.
-  tools.sort(
-    (a, b) => Number(b.name === "get_onchain_snapshot") - Number(a.name === "get_onchain_snapshot")
-  );
+  const rank = (t: PublicTool) =>
+    t.name === "get_onchain_snapshot" ? 0 : t.backing === "chain" ? 1 : 2;
+  tools.sort((a, b) => rank(a) - rank(b));
 
   cache = tools;
   return tools;

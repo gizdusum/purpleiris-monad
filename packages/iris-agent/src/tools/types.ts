@@ -96,3 +96,10 @@ export type GetStakingRewardsInput = {
 export type GetOnchainSnapshotInput = {
   top_n?: number;
 };
+
+export type GetValidatorOnchainInput = {
+  /** Numeric validator id, auth address, or moniker. */
+  id: string;
+  /** Optional delegator whose position with this validator should be read. */
+  delegator_address?: string;
+};
