@@ -289,8 +289,12 @@ export default function MethodologyContent() {
             DOCS
           </span>
           <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
+          <Link href="/developers" className="iris-nav-link">
+            API
+          </Link>
+          <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
           <a
-            href="https://github.com/gizdusum"
+            href="https://github.com/gizdusum/purpleiris-monad"
             target="_blank"
             rel="noopener noreferrer"
             className="iris-nav-link"
