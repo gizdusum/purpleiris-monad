@@ -194,7 +194,7 @@ export function getDelegatorToolDefinitions(): Anthropic.Tool[] {
     {
       name: "get_onchain_snapshot",
       description:
-        "LIVE read of the Monad staking precompile, pinned to one block. Returns the current block number and epoch, validator set size, total consensus stake, Nakamoto coefficient, and the top validators by stake, with the block number every value was read at. No database involved, so it is never stale. Use for 'right now' / 'current' / 'live' network questions, for any question about the current epoch or block, and whenever another tool's result carries freshness.stale = true. Class 1 for values read from chain, Class 2 for totals and the Nakamoto coefficient.",
+        "LIVE read of the Monad staking precompile, pinned to one block. Returns the current block number and epoch, validator set size, total consensus stake, Nakamoto coefficient, and the top validators by stake, with the block number every value was read at. No database involved, so it is never stale. Use for 'right now' / 'current' / 'live' network questions, for any question about the current epoch or block, and whenever another tool's result carries freshness.stale = true. Per-validator values, the set size, block and epoch are Class 1 (read from chain). Everything under `totals` and the Nakamoto coefficient is Class 2 (derived).",
       input_schema: {
         type: "object" as const,
         properties: {

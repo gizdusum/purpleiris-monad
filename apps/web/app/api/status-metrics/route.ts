@@ -12,6 +12,8 @@ import {
   getIndexFreshness,
   getDb,
   validators,
+  epochSnapshots,
+  describeFreshness,
   type IndexFreshness,
 } from "@purpleiris/monad-indexer";
 import { sql, and } from "drizzle-orm";
@@ -32,7 +34,18 @@ export type StatusMetrics = {
   validatorCount: number;
   activeValidators: number;
   index: IndexFreshness;
-  sources: { rpc: SourceState; database: SourceState; watchtower: SourceState };
+  /**
+   * Age of the newest per-epoch block-production snapshot. The indexer worker
+   * writes these from the Watchtower feed, so this stays fresh even when this
+   * deployment cannot reach the feed directly.
+   */
+  performance: IndexFreshness;
+  sources: {
+    rpc: SourceState;
+    database: SourceState;
+    /** "ok" when the feed answered this request, or its indexed data is fresh. */
+    watchtower: SourceState;
+  };
   /** ISO-8601 time this measurement was taken. */
   checkedAt: string;
 };
@@ -46,7 +59,7 @@ const UNKNOWN_INDEX: IndexFreshness = { indexedAt: null, ageSeconds: null, stale
 async function fetchMetrics(): Promise<StatusMetrics> {
   const db = getDb();
 
-  const [chainResult, overviewResult, totalResult, activeResult, indexResult] =
+  const [chainResult, overviewResult, totalResult, activeResult, indexResult, perfResult] =
     await Promise.allSettled([
       getChainState(),
       getWatchtowerOverview(),
@@ -56,6 +69,9 @@ async function fetchMetrics(): Promise<StatusMetrics> {
         .from(validators)
         .where(and(sql`${validators.active} = true`, sql`${validators.jailed} = false`)),
       getIndexFreshness(),
+      db
+        .select({ latest: sql<string | null>`MAX(${epochSnapshots.snapshotAt})` })
+        .from(epochSnapshots),
     ]);
 
   const chain = chainResult.status === "fulfilled" ? chainResult.value : null;
@@ -63,6 +79,13 @@ async function fetchMetrics(): Promise<StatusMetrics> {
   const dbOk = totalResult.status === "fulfilled" && activeResult.status === "fulfilled";
 
   const epoch = chain?.epoch ?? overview?.current_epoch ?? 0;
+
+  const perfRaw = perfResult.status === "fulfilled" ? (perfResult.value[0]?.latest ?? null) : null;
+  const performance = describeFreshness(
+    perfRaw
+      ? new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(perfRaw) ? perfRaw : `${perfRaw.replace(" ", "T")}Z`)
+      : null
+  );
 
   return {
     chainHead: chain?.blockNumber ?? 0,
@@ -74,10 +97,11 @@ async function fetchMetrics(): Promise<StatusMetrics> {
     activeValidators:
       activeResult.status === "fulfilled" ? Number(activeResult.value[0]?.count ?? 0) : 0,
     index: indexResult.status === "fulfilled" ? indexResult.value : UNKNOWN_INDEX,
+    performance,
     sources: {
       rpc: chain ? "ok" : "down",
       database: dbOk ? "ok" : "down",
-      watchtower: overview ? "ok" : "down",
+      watchtower: overview || !performance.stale ? "ok" : "down",
     },
     checkedAt: new Date().toISOString(),
   };
@@ -91,6 +115,7 @@ const DOWN: StatusMetrics = {
   validatorCount: 0,
   activeValidators: 0,
   index: UNKNOWN_INDEX,
+  performance: UNKNOWN_INDEX,
   sources: { rpc: "down", database: "down", watchtower: "down" },
   checkedAt: new Date(0).toISOString(),
 };

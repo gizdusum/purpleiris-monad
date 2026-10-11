@@ -2,6 +2,7 @@ import { inArray } from "drizzle-orm";
 import {
   getDb,
   validators,
+  validatorMetadata,
   getLiveSnapshot,
   summarizeSnapshot,
   weiToMon,
@@ -15,16 +16,51 @@ import type { GetOnchainSnapshotInput, ToolResult } from "./types";
 const DEFAULT_TOP_N = 10;
 const MAX_TOP_N = 50;
 
-/** Best-effort moniker lookup. The chain has no names; these come from the indexed registry. */
-async function lookupMonikers(addresses: string[]): Promise<Map<string, string>> {
+const PLACEHOLDER_MONIKER = /^Validator \d+$/;
+
+/**
+ * Best-effort moniker lookup. The chain has no names: they come from the
+ * community registry, which the indexer stores keyed by secp256k1 pubkey
+ * (`validator_metadata`). The `validators` table is the fallback, ignoring its
+ * "Validator N" placeholders.
+ */
+async function lookupMonikers(
+  targets: Array<{ authAddress: string; secpPubkey: string | null }>
+): Promise<Map<string, string>> {
   const out = new Map<string, string>();
-  if (addresses.length === 0) return out;
+  if (targets.length === 0) return out;
   try {
-    const rows = await getDb()
-      .select({ id: validators.id, moniker: validators.moniker })
-      .from(validators)
-      .where(inArray(validators.id, addresses));
-    for (const r of rows) out.set(r.id, r.moniker);
+    const db = getDb();
+    const pubkeys = targets.map((t) => t.secpPubkey).filter((k): k is string => !!k);
+    const [metaRows, validatorRows] = await Promise.all([
+      pubkeys.length
+        ? db
+            .select({ pubkey: validatorMetadata.pubkey, moniker: validatorMetadata.moniker })
+            .from(validatorMetadata)
+            .where(inArray(validatorMetadata.pubkey, pubkeys))
+        : Promise.resolve([]),
+      db
+        .select({ id: validators.id, moniker: validators.moniker })
+        .from(validators)
+        .where(
+          inArray(
+            validators.id,
+            targets.map((t) => t.authAddress)
+          )
+        ),
+    ]);
+
+    const byPubkey = new Map(metaRows.map((r) => [r.pubkey.toLowerCase(), r.moniker]));
+    const byAddress = new Map(validatorRows.map((r) => [r.id, r.moniker]));
+
+    for (const t of targets) {
+      const fromRegistry = t.secpPubkey ? byPubkey.get(t.secpPubkey) : null;
+      const fromIndex = byAddress.get(t.authAddress);
+      const name =
+        fromRegistry?.trim() ||
+        (fromIndex && !PLACEHOLDER_MONIKER.test(fromIndex) ? fromIndex : null);
+      if (name) out.set(t.authAddress, name);
+    }
   } catch {
     // Names are optional enrichment; the on-chain numbers stand on their own.
   }
@@ -84,17 +120,20 @@ export function buildSnapshotPayload(
         }),
 
     // ── Class 2 — derived from the Class 1 values above ──
-    total_consensus_stake_mon: summary.totalConsensusStakeMon,
-    total_stake_mon: summary.totalStakeMon,
+    totals: {
+      data_class: 2,
+      note: "Sums and shares computed from the per-validator values read at as_of_block. Cite as Class 2, derived.",
+      total_consensus_stake_mon: summary.totalConsensusStakeMon,
+      total_stake_mon: summary.totalStakeMon,
+      top_validator_share_pct: summary.topValidatorSharePct,
+      median_commission_bps: summary.medianCommissionBps,
+    },
     nakamoto_coefficient: {
       value: summary.nakamotoCoefficient,
       interpretation: `Minimum ${summary.nakamotoCoefficient} validators hold more than one third of consensus stake`,
       data_class: 2,
       formula: "nakamoto_coefficient v1.0 (see /methodology)",
     },
-    top_validator_share_pct: summary.topValidatorSharePct,
-    median_commission_bps: summary.medianCommissionBps,
-    derived_data_class: 2,
 
     top_validators: top,
     moniker_note:
@@ -121,7 +160,7 @@ export async function getOnchainSnapshotTool(
           : 0
     )
     .slice(0, topN)
-    .map((v) => v.authAddress);
+    .map((v) => ({ authAddress: v.authAddress, secpPubkey: v.secpPubkey }));
   const monikers = await lookupMonikers(ranked);
 
   return makeResult(buildSnapshotPayload(snapshot, monikers, topN), {

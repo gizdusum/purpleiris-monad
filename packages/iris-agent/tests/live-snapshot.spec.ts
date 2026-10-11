@@ -194,7 +194,7 @@ describe("get_onchain_snapshot payload", () => {
       staking_precompile: STAKING_PRECOMPILE,
       validator_set_size: 3,
       complete: true,
-      total_consensus_stake_mon: 100,
+      totals: { data_class: 2, total_consensus_stake_mon: 100 },
     });
     expect(payload.nakamoto_coefficient).toMatchObject({ value: 1, data_class: 2 });
     expect(
