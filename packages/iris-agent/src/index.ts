@@ -18,3 +18,6 @@ export {
   OPERATOR_PLAYBOOK,
   getOperatorSystemPrompt,
 } from "./prompts/operator";
+export * from "./public-api/index";
+export { INDEX_BACKED_TOOLS, toToolFreshness } from "./tools/index";
+export type { ToolFreshness, ToolResult } from "./tools/types";
