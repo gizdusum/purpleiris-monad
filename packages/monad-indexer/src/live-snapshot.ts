@@ -246,44 +246,66 @@ export function summarizeSnapshot(s: LiveSnapshot): SnapshotSummary {
   };
 }
 
-// ── In-memory cache with stale-while-revalidate ──────────────────────────────
+// ── In-memory cache ──────────────────────────────────────────────────────────
 
 const FRESH_MS = 60_000;
+/** How long a cached snapshot may stand in when a re-read fails or is partial. */
 const STALE_MS = 10 * 60_000;
+/** A read that has not settled after this long is abandoned and restarted. */
+const INFLIGHT_MAX_MS = 45_000;
 
 let cached: { value: LiveSnapshot; at: number } | null = null;
-let inflight: Promise<LiveSnapshot> | null = null;
+let inflight: { promise: Promise<LiveSnapshot>; startedAt: number } | null = null;
+
+function usable(now: number): LiveSnapshot | null {
+  return cached && now - cached.at < STALE_MS ? cached.value : null;
+}
 
 function refresh(): Promise<LiveSnapshot> {
-  if (inflight) return inflight;
-  inflight = readLiveSnapshot().then(
-    (value) => {
-      // Never let a partial read replace a complete one that is still usable.
-      const keepOld = cached && cached.value.complete && !value.complete;
-      if (!keepOld) cached = { value, at: Date.now() };
-      inflight = null;
-      return keepOld ? cached!.value : value;
-    },
-    (err: unknown) => {
-      inflight = null;
-      throw err;
-    }
-  );
-  return inflight;
+  // Serverless runtimes freeze a function between requests, so a read that was
+  // in flight when the instance froze may never settle. Do not wait on it.
+  if (inflight && Date.now() - inflight.startedAt < INFLIGHT_MAX_MS) return inflight.promise;
+
+  const entry: { promise: Promise<LiveSnapshot>; startedAt: number } = {
+    startedAt: Date.now(),
+    promise: readLiveSnapshot().then(
+      (value) => {
+        if (inflight === entry) inflight = null;
+        // A partial read does not replace a complete one that is still recent.
+        // Once the complete one is too old, the partial read (flagged
+        // complete: false) is the honest answer.
+        const previous = usable(Date.now());
+        if (!value.complete && previous?.complete) return previous;
+        cached = { value, at: Date.now() };
+        return value;
+      },
+      (err: unknown) => {
+        if (inflight === entry) inflight = null;
+        throw err;
+      }
+    ),
+  };
+  inflight = entry;
+  return entry.promise;
 }
 
 /**
- * Cached snapshot. Fresh for 60s; between 60s and 10min the cached value is
- * returned immediately while a refresh runs in the background.
+ * Cached snapshot. Served from memory for 60s; after that the chain is re-read
+ * before answering. No background refresh: work started after a response is
+ * sent is not guaranteed to finish on a serverless runtime. If the re-read
+ * fails, a cached snapshot younger than 10 minutes is returned instead (its
+ * `readAt` and `blockNumber` still say exactly how old it is).
  */
 export async function getLiveSnapshot(): Promise<LiveSnapshot> {
-  const age = cached ? Date.now() - cached.at : Infinity;
-  if (cached && age < FRESH_MS) return cached.value;
-  if (cached && age < STALE_MS) {
-    refresh().catch(() => {});
-    return cached.value;
+  const now = Date.now();
+  if (cached && now - cached.at < FRESH_MS) return cached.value;
+  try {
+    return await refresh();
+  } catch (err) {
+    const previous = usable(Date.now());
+    if (previous) return previous;
+    throw err;
   }
-  return refresh();
 }
 
 /** Test hook: drop the in-memory cache. */
