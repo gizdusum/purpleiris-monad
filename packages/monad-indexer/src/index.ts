@@ -9,3 +9,5 @@ export * from "./db/client";
 export * from "./chain-state";
 export * from "./live-snapshot";
 export * from "./sync";
+export * from "./validator-flags";
+export * from "./live-validator";

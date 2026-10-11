@@ -2,6 +2,7 @@ import { sql, notInArray, and, eq } from "drizzle-orm";
 import { getDb } from "./db/client";
 import { validators } from "./db/schema";
 import { getLiveSnapshot, type LiveSnapshot } from "./live-snapshot";
+import { decodeValidatorFlags } from "./validator-flags";
 import { getValidatorMeta } from "./validators";
 import { toSlugFromValidator } from "./slug";
 
@@ -135,7 +136,8 @@ async function runSync(opts: SyncOptions): Promise<SyncResult> {
       moniker,
       website: m?.website ?? "",
       commissionBps: v.commissionBps,
-      jailed: false,
+      // The chain has no "jailed" state; the closest signal is the double-sign flag.
+      jailed: decodeValidatorFlags(v.flags).doubleSign,
       active: true, // present in the execution set
       stakedAmount: v.consensusStakeWei.toString(),
       region: m?.region ?? null,

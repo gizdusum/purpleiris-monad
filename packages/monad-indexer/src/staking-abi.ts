@@ -32,6 +32,24 @@ export const STAKING_ABI = [
   },
   {
     type: "function",
+    name: "getDelegator",
+    inputs: [
+      { name: "validatorId", type: "uint64" },
+      { name: "delegator", type: "address" },
+    ],
+    outputs: [
+      { name: "stake", type: "uint256" },
+      { name: "accRewardPerToken", type: "uint256" },
+      { name: "unclaimedRewards", type: "uint256" },
+      { name: "deltaStake", type: "uint256" },
+      { name: "nextDeltaStake", type: "uint256" },
+      { name: "deltaEpoch", type: "uint64" },
+      { name: "nextDeltaEpoch", type: "uint64" },
+    ],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "getEpoch",
     inputs: [],
     outputs: [

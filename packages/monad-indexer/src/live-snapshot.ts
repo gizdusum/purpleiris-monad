@@ -24,7 +24,11 @@ export type LiveValidator = {
   stakeWei: bigint;
   /** Stake active in consensus for the current epoch, in wei. */
   consensusStakeWei: bigint;
-  /** Pending, unclaimed commission in wei. Resets when the validator claims. */
+  /**
+   * Unclaimed rewards held in this validator's pool for ALL of its delegators,
+   * in wei. This is not the operator's commission: commission is credited to
+   * the auth address as a delegator (see `getDelegator(id, authAddress)`).
+   */
   unclaimedRewardsWei: bigint;
   /** Raw validator flags bitfield as returned by the precompile. */
   flags: bigint;

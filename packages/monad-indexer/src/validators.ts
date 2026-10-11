@@ -2,6 +2,7 @@ import type { OnChainValidator, NetworkStats } from "@purpleiris/shared-types";
 import { getPublicClient } from "./client";
 import { STAKING_PRECOMPILE } from "./config";
 import { STAKING_ABI } from "./staking-abi";
+import { decodeValidatorFlags } from "./validator-flags";
 
 // Validator-info community registry
 // https://github.com/monad-developers/validator-info
@@ -107,7 +108,7 @@ export async function getValidatorsFromChain(): Promise<OnChainValidator[]> {
 
           const [
             authAddress,
-            ,
+            flags,
             ,
             ,
             commission,
@@ -139,7 +140,8 @@ export async function getValidatorsFromChain(): Promise<OnChainValidator[]> {
             moniker: meta?.name ?? `Validator ${valId}`,
             website: meta?.website ?? "",
             commissionBps,
-            jailed: false, // TODO post-launch: derive from flags bit pattern
+            // The chain has no "jailed" state; the closest signal is the double-sign flag.
+            jailed: decodeValidatorFlags(flags).doubleSign,
             active: true, // present in execution set => active
             stakedAmount: consensusStake, // current-epoch active stake
             validatorId: valId,
