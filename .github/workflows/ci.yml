@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Type check, lint, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm -r run type-check
+
+      - name: Lint
+        run: pnpm --filter @purpleiris/iris-agent --filter @purpleiris/monad-indexer run lint
+
+      # The 30-prompt accuracy suite needs ANTHROPIC_API_KEY and skips itself without it.
+      # The public API, MCP and on-chain snapshot suites run with no network.
+      - name: Test
+        run: pnpm --filter @purpleiris/iris-agent run test
+
+  build:
+    name: Build web
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @purpleiris/web run build
+        env:
+          NEXT_PUBLIC_APP_URL: https://purpleiris.live
