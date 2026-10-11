@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from "react";
 import Link from "next/link";
 import type { CSSProperties } from "react";
+import type { StatusMetrics } from "@/app/api/status-metrics/route";
 
 export type CardDef = {
   id: string;
@@ -53,47 +54,62 @@ export default function ModeCard({ card }: { card: CardDef }) {
   // Tilt — direct DOM via CSS custom props, zero React re-renders on mousemove
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // Telemetry — stable initial values (no randomness → no hydration mismatch)
+  // Telemetry — real values from /api/status-metrics. Placeholder text until the
+  // first response, and a plain "unavailable" when a source cannot be reached.
   const [tickLine, setTickLine] = useState(
     vizType === "mesh"
-      ? "net · 202 validators online"
+      ? "net · reading validator index…"
       : vizType === "osc"
-        ? "node · uptime 99.97% · 77.21M blk"
+        ? "chain · reading head…"
         : "calibrating projection engine"
   );
   const [vizRead, setVizRead] = useState(
-    vizType === "mesh" ? "scanning" : vizType === "osc" ? "● rec" : "locked"
+    vizType === "mesh" ? "…" : vizType === "osc" ? "…" : "locked"
   );
 
-  // Telemetry — randomized only after mount (client only)
   useEffect(() => {
     if (vizType === "forecast") return;
-    const blkRef = { v: 77211650 };
-    const ids: ReturnType<typeof setInterval>[] = [];
-    if (vizType === "mesh") {
-      const states = ["scanning", "synced", "indexing"] as const;
-      ids.push(
-        setInterval(() => {
-          setTickLine(`net · ${200 + Math.floor(Math.random() * 4)} validators online`);
-          setVizRead(states[Math.floor(Math.random() * 3)]!);
-        }, 1400)
-      );
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const res = await fetch("/api/status-metrics");
+        if (!res.ok) throw new Error(String(res.status));
+        const m = (await res.json()) as StatusMetrics;
+        if (cancelled) return;
+
+        if (vizType === "mesh") {
+          if (m.sources.database === "ok") {
+            setTickLine(`net · ${m.activeValidators} validators in index`);
+            setVizRead(m.index.stale ? "index stale" : "synced");
+          } else {
+            setTickLine("net · validator index unavailable");
+            setVizRead("offline");
+          }
+        } else {
+          if (m.sources.rpc === "ok") {
+            setTickLine(
+              `chain · block ${(m.chainHead / 1e6).toFixed(2)}M · epoch ${m.epoch.toLocaleString("en-US")}`
+            );
+            setVizRead("● live");
+          } else {
+            setTickLine("chain · rpc unavailable");
+            setVizRead("offline");
+          }
+        }
+      } catch {
+        if (cancelled) return;
+        setTickLine(vizType === "mesh" ? "net · status unavailable" : "chain · status unavailable");
+        setVizRead("offline");
+      }
     }
-    if (vizType === "osc") {
-      ids.push(
-        setInterval(() => {
-          setTickLine(
-            `node · uptime ${(99.93 + Math.random() * 0.06).toFixed(2)}% · ${(blkRef.v / 1e6).toFixed(2)}M blk`
-          );
-        }, 1400)
-      );
-      ids.push(
-        setInterval(() => {
-          blkRef.v += Math.floor(Math.random() * 6 + 2);
-        }, 900)
-      );
-    }
-    return () => ids.forEach(clearInterval);
+
+    void load();
+    const id = setInterval(() => void load(), 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, [vizType]);
 
   // Canvas animation — rAF loop with cleanup; skipped if prefers-reduced-motion

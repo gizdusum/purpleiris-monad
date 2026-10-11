@@ -1,61 +1,99 @@
 // READ-ONLY public endpoint — no LLM/agent calls, no user data.
-// Sources: validators table (DB) for counts, getWatchtowerOverview for epoch, getPublicClient.getBlockNumber()
-// All from @purpleiris/monad-indexer; iris-agent is NOT touched.
+//
+// Every field is measured at request time (30s cache). Nothing is simulated:
+//   chainHead, epoch      staking precompile + eth_blockNumber, via RPC (with public fallback)
+//   validator counts      indexer's `validators` table
+//   index                 age of that table (MAX(updated_at))
+//   sources               whether each upstream answered this request
 
 import {
+  getChainState,
   getWatchtowerOverview,
-  getPublicClient,
+  getIndexFreshness,
   getDb,
   validators,
+  type IndexFreshness,
 } from "@purpleiris/monad-indexer";
 import { sql, and } from "drizzle-orm";
 
 // force-dynamic so Next.js doesn't replace our Cache-Control with max-age=0
 export const dynamic = "force-dynamic";
 
+export type SourceState = "ok" | "down";
+
 export type StatusMetrics = {
+  /** Latest Monad mainnet block seen. 0 when the RPC could not be reached. */
   chainHead: number;
+  /** Staking epoch from getEpoch() on the precompile. 0 when unavailable. */
+  epoch: number;
+  /** Where `epoch` came from. */
+  epochSource: "staking-precompile" | "watchtower" | null;
+  inEpochDelayPeriod: boolean | null;
   validatorCount: number;
   activeValidators: number;
-  epoch: number;
+  index: IndexFreshness;
+  sources: { rpc: SourceState; database: SourceState; watchtower: SourceState };
+  /** ISO-8601 time this measurement was taken. */
+  checkedAt: string;
 };
 
 type CacheEntry = { data: StatusMetrics; fetchedAt: number };
 const CACHE_MS = 30_000;
 let cached: CacheEntry | null = null;
 
+const UNKNOWN_INDEX: IndexFreshness = { indexedAt: null, ageSeconds: null, stale: true };
+
 async function fetchMetrics(): Promise<StatusMetrics> {
   const db = getDb();
 
-  const [blockResult, overviewResult, totalResult, activeResult] = await Promise.allSettled([
-    getPublicClient().getBlockNumber(),
-    getWatchtowerOverview(),
-    db.select({ count: sql<number>`COUNT(*)` }).from(validators),
-    db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(validators)
-      .where(and(sql`${validators.active} = true`, sql`${validators.jailed} = false`)),
-  ]);
+  const [chainResult, overviewResult, totalResult, activeResult, indexResult] =
+    await Promise.allSettled([
+      getChainState(),
+      getWatchtowerOverview(),
+      db.select({ count: sql<number>`COUNT(*)` }).from(validators),
+      db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(validators)
+        .where(and(sql`${validators.active} = true`, sql`${validators.jailed} = false`)),
+      getIndexFreshness(),
+    ]);
 
-  const chainHead =
-    blockResult.status === "fulfilled" ? Number(blockResult.value) : (cached?.data.chainHead ?? 0);
-
+  const chain = chainResult.status === "fulfilled" ? chainResult.value : null;
   const overview = overviewResult.status === "fulfilled" ? overviewResult.value : null;
+  const dbOk = totalResult.status === "fulfilled" && activeResult.status === "fulfilled";
 
-  const validatorCount =
-    totalResult.status === "fulfilled"
-      ? Number(totalResult.value[0]?.count ?? 0)
-      : (cached?.data.validatorCount ?? 0);
+  const epoch = chain?.epoch ?? overview?.current_epoch ?? 0;
 
-  const activeValidators =
-    activeResult.status === "fulfilled"
-      ? Number(activeResult.value[0]?.count ?? 0)
-      : (cached?.data.activeValidators ?? 0);
-
-  const epoch = overview?.current_epoch ?? cached?.data.epoch ?? 0;
-
-  return { chainHead, validatorCount, activeValidators, epoch };
+  return {
+    chainHead: chain?.blockNumber ?? 0,
+    epoch,
+    epochSource: chain ? "staking-precompile" : overview ? "watchtower" : null,
+    inEpochDelayPeriod: chain?.inEpochDelayPeriod ?? null,
+    validatorCount:
+      totalResult.status === "fulfilled" ? Number(totalResult.value[0]?.count ?? 0) : 0,
+    activeValidators:
+      activeResult.status === "fulfilled" ? Number(activeResult.value[0]?.count ?? 0) : 0,
+    index: indexResult.status === "fulfilled" ? indexResult.value : UNKNOWN_INDEX,
+    sources: {
+      rpc: chain ? "ok" : "down",
+      database: dbOk ? "ok" : "down",
+      watchtower: overview ? "ok" : "down",
+    },
+    checkedAt: new Date().toISOString(),
+  };
 }
+
+const DOWN: StatusMetrics = {
+  chainHead: 0,
+  epoch: 0,
+  epochSource: null,
+  inEpochDelayPeriod: null,
+  validatorCount: 0,
+  activeValidators: 0,
+  index: UNKNOWN_INDEX,
+  sources: { rpc: "down", database: "down", watchtower: "down" },
+  checkedAt: new Date(0).toISOString(),
+};
 
 export async function GET() {
   try {
@@ -73,16 +111,14 @@ export async function GET() {
       headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" },
     });
   } catch {
-    // Never 500 — return last good value or zeros
-    const fallback: StatusMetrics = cached?.data ?? {
-      chainHead: 0,
-      validatorCount: 0,
-      activeValidators: 0,
-      epoch: 0,
-    };
-    return Response.json(fallback, {
-      status: 200,
-      headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30" },
-    });
+    // Never 500. Report every source as down rather than replaying old numbers
+    // as if they were current.
+    return Response.json(
+      { ...DOWN, checkedAt: new Date().toISOString() },
+      {
+        status: 200,
+        headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30" },
+      }
+    );
   }
 }

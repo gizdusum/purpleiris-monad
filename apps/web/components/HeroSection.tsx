@@ -134,7 +134,7 @@ export default function HeroSection() {
         >
           <span>3 MODES</span>
           <span>·</span>
-          <span>200 VALIDATORS</span>
+          <span>15 TOOLS</span>
           <span>·</span>
           <span>MAINNET</span>
         </div>

@@ -4,118 +4,106 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import type { StatusMetrics } from "@/app/api/status-metrics/route";
 
-/* ── Sparkline ── */
-function Sparkline({ base, amp }: { base: number; amp: number }) {
+/* ── Sparkline — plots a real series; renders nothing until it has two points ── */
+function Sparkline({ series }: { series: number[] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    let W = 0,
-      H = 0;
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
-    const data: number[] = [];
-    for (let i = 0; i < 36; i++) data.push(base + (Math.random() - 0.5) * amp);
+    const r = canvas.getBoundingClientRect();
+    canvas.width = r.width * DPR;
+    canvas.height = r.height * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const W = r.width;
+    const H = r.height;
+    ctx.clearRect(0, 0, W, H);
+    if (series.length < 2) return;
 
-    function resize() {
-      if (!canvas) return;
-      const r = canvas.getBoundingClientRect();
-      canvas.width = r.width * DPR;
-      canvas.height = r.height * DPR;
-      ctx!.setTransform(DPR, 0, 0, DPR, 0, 0);
-      W = r.width;
-      H = r.height;
-    }
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(canvas);
-
-    const tickId = setInterval(() => {
-      data.push(base + (Math.random() - 0.5) * amp);
-      if (data.length > 36) data.shift();
-    }, 1000);
-
-    let rafId = 0;
-    function draw() {
-      if (!ctx) return;
-      ctx.clearRect(0, 0, W, H);
-      const min = Math.min(...data),
-        max = Math.max(...data),
-        rng = max - min || 1;
-      ctx.beginPath();
-      data.forEach((v, i) => {
-        const x = (i / (data.length - 1)) * W;
-        const y = H - ((v - min) / rng) * (H - 5) - 2.5;
-        if (i) ctx.lineTo(x, y);
-        else ctx.moveTo(x, y);
-      });
-      const g = ctx.createLinearGradient(0, 0, W, 0);
-      g.addColorStop(0, "rgba(124,92,255,.12)");
-      g.addColorStop(1, "rgba(92,224,168,.55)");
-      ctx.strokeStyle = g;
-      ctx.lineWidth = 1.3;
-      ctx.shadowColor = "rgba(92,224,168,.4)";
-      ctx.shadowBlur = 4;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-      rafId = requestAnimationFrame(draw);
-    }
-    draw();
-
-    return () => {
-      clearInterval(tickId);
-      cancelAnimationFrame(rafId);
-      ro.disconnect();
-    };
-  }, [base, amp]);
+    const min = Math.min(...series);
+    const rng = Math.max(...series) - min || 1;
+    ctx.beginPath();
+    series.forEach((v, i) => {
+      const x = (i / (series.length - 1)) * W;
+      const y = H - ((v - min) / rng) * (H - 5) - 2.5;
+      if (i) ctx.lineTo(x, y);
+      else ctx.moveTo(x, y);
+    });
+    const g = ctx.createLinearGradient(0, 0, W, 0);
+    g.addColorStop(0, "rgba(124,92,255,.12)");
+    g.addColorStop(1, "rgba(92,224,168,.55)");
+    ctx.strokeStyle = g;
+    ctx.lineWidth = 1.3;
+    ctx.stroke();
+  }, [series]);
 
   return (
     <canvas
       ref={canvasRef}
+      aria-hidden="true"
       style={{ display: "block", width: "100%", height: "26px", marginTop: "9px" }}
     />
   );
 }
 
-/* ── Ghost log helpers ── */
+/* ── Event log — one batch of lines per poll, built only from the API response ── */
 type LogLine = { tag: "chain" | "epoch" | "val" | "sys"; msg: string };
+type FeedLine = LogLine & { id: number; ts: string };
 
-function buildLogLines(m: StatusMetrics | null): LogLine[] {
-  const h = m?.chainHead ?? 79_200_000;
-  const ep = m?.epoch ?? 1579;
-  const vc = m?.validatorCount ?? 202;
-  const av = m?.activeValidators ?? 202;
-  const rnd = (lo: number, hi: number) => Math.floor(Math.random() * (hi - lo) + lo);
-  return [
-    { tag: "chain", msg: `block <b>#${h.toLocaleString()}</b> · ${rnd(10, 50)} tx` },
-    {
-      tag: "epoch",
-      msg: `epoch <b>${ep.toLocaleString()}</b> · ${rnd(1400, 1600)}k blocks proposed`,
-    },
-    { tag: "val", msg: `<b>${av}</b>/${vc} validators active · 0 down` },
-    { tag: "chain", msg: `indexer sync · execution-revenue · +${rnd(200, 700)} blk` },
-    { tag: "sys", msg: `watchtower cache · network_health · age ${rnd(0, 28)}s` },
-    { tag: "sys", msg: `health probe · endpoints <b>200</b>` },
-    { tag: "chain", msg: `avg blocktime <b>2.5s</b> · ${rnd(8000, 17000)} blk/hr` },
-    { tag: "val", msg: `validator set scan · reliability index updated` },
-    { tag: "chain", msg: `block <b>#${(h + 3).toLocaleString()}</b> · ${rnd(10, 50)} tx` },
-    { tag: "epoch", msg: `epoch <b>${ep.toLocaleString()}</b> · ~${rnd(1, 4)}h elapsed` },
-    { tag: "sys", msg: `watchtower overview · v_count <b>${vc}</b> synced` },
-    { tag: "chain", msg: `indexer sync · staking-rewards · +${rnd(100, 400)} blk` },
-    {
+const MAX_LOG_LINES = 16;
+
+function formatAge(seconds: number | null): string {
+  if (seconds === null) return "unknown";
+  if (seconds < 90) return `${seconds}s`;
+  if (seconds < 5400) return `${Math.round(seconds / 60)}m`;
+  if (seconds < 172_800) return `${Math.round(seconds / 3600)}h`;
+  return `${Math.round(seconds / 86_400)}d`;
+}
+
+/** Lines for one poll. `prev` is the previous poll, used for real deltas only. */
+function describePoll(m: StatusMetrics, prev: StatusMetrics | null): LogLine[] {
+  const lines: LogLine[] = [];
+
+  if (m.sources.rpc === "ok") {
+    const delta = prev && prev.chainHead > 0 ? m.chainHead - prev.chainHead : null;
+    lines.push({
+      tag: "chain",
+      msg:
+        `block <b>#${m.chainHead.toLocaleString("en-US")}</b>` +
+        (delta !== null && delta > 0 ? ` · +${delta.toLocaleString("en-US")} since last poll` : ""),
+    });
+    if (m.epochSource === "staking-precompile") {
+      lines.push({
+        tag: "epoch",
+        msg:
+          `epoch <b>${m.epoch.toLocaleString("en-US")}</b> · getEpoch() on staking precompile` +
+          (m.inEpochDelayPeriod ? " · in delay period" : ""),
+      });
+    }
+  } else {
+    lines.push({ tag: "chain", msg: "rpc unreachable · chain head unavailable" });
+  }
+
+  if (m.sources.database === "ok") {
+    lines.push({
       tag: "val",
-      msg: `active_validators <b>${av}</b> · uptime ${(99.8 + Math.random() * 0.19).toFixed(2)}%`,
-    },
-    { tag: "sys", msg: `health probe · endpoints <b>200</b> · p50 <b>12ms</b>` },
-    { tag: "chain", msg: `block <b>#${(h + 6).toLocaleString()}</b> · ${rnd(10, 50)} tx` },
-    { tag: "epoch", msg: `epoch boundary · blocks_proposed ${rnd(1400, 1600)}k` },
-    { tag: "val", msg: `validator reliability index · recalculated` },
-    { tag: "chain", msg: `avg blocktime <b>2.5s</b> · chain stable` },
-    { tag: "sys", msg: `cache revalidate · watchtower_overview · bg refresh` },
-    { tag: "chain", msg: `block <b>#${(h + 10).toLocaleString()}</b> · ${rnd(10, 50)} tx` },
-  ];
+      msg:
+        `<b>${m.activeValidators}</b>/${m.validatorCount} validators active in index · ` +
+        `last sync ${formatAge(m.index.ageSeconds)} ago` +
+        (m.index.stale ? " · <b>stale</b>" : ""),
+    });
+  } else {
+    lines.push({ tag: "val", msg: "database unreachable · validator index unavailable" });
+  }
+
+  lines.push({
+    tag: "sys",
+    msg: `sources · rpc <b>${m.sources.rpc}</b> · database <b>${m.sources.database}</b> · watchtower <b>${m.sources.watchtower}</b>`,
+  });
+
+  return lines;
 }
 
 function MsgParts({ msg }: { msg: string }) {
@@ -136,43 +124,20 @@ function MsgParts({ msg }: { msg: string }) {
   );
 }
 
-/* ── Ghost log — JS state-based streaming feed ── */
-const MAX_LOG_LINES = 16;
-type FeedLine = LogLine & { id: number; ts: string };
-
-function GhostLog({ metrics }: { metrics: StatusMetrics | null }) {
-  const [lines, setLines] = useState<FeedLine[]>(() => {
-    const now = new Date().toTimeString().slice(0, 8);
-    return buildLogLines(null)
-      .slice(0, MAX_LOG_LINES)
-      .map((l, i) => ({ ...l, id: i, ts: now }));
-  });
-  const [newestId, setNewestId] = useState(-1);
-  const nextId = useRef(MAX_LOG_LINES);
-  const metricsRef = useRef(metrics);
-
-  useEffect(() => {
-    metricsRef.current = metrics;
-  }, [metrics]);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      const pool = buildLogLines(metricsRef.current);
-      const picked = pool[Math.floor(Math.random() * pool.length)]!;
-      const ts = new Date().toTimeString().slice(0, 8);
-      const newId = nextId.current++;
-      setLines((prev) => [{ ...picked, id: newId, ts }, ...prev].slice(0, MAX_LOG_LINES));
-      setNewestId(newId);
-    }, 1800);
-    return () => clearInterval(id);
-  }, []);
-
+function EventLog({ lines, newestBatch }: { lines: FeedLine[]; newestBatch: number }) {
+  if (lines.length === 0) {
+    return (
+      <div className="ghost-log-line" style={{ padding: "10px 18px 0" }}>
+        waiting for the first measurement…
+      </div>
+    );
+  }
   return (
     <div style={{ padding: "10px 18px 0", display: "flex", flexDirection: "column", gap: "3px" }}>
       {lines.map((line) => (
         <div
           key={line.id}
-          className={"ghost-log-line" + (line.id === newestId ? " ghost-log-line-enter" : "")}
+          className={"ghost-log-line" + (line.id >= newestBatch ? " ghost-log-line-enter" : "")}
         >
           <span className="ghost-log-ts">{line.ts}</span>
           <span className={`ghost-log-tag ghost-log-tag-${line.tag}`}>{line.tag}</span>
@@ -183,17 +148,52 @@ function GhostLog({ metrics }: { metrics: StatusMetrics | null }) {
   );
 }
 
+type Health = { label: string; color: string };
+
+function overallHealth(m: StatusMetrics | null, phase: "loading" | "ok" | "error"): Health {
+  if (!m) {
+    return phase === "error"
+      ? { label: "Status unavailable", color: "#ff6b6b" }
+      : { label: "Checking systems…", color: "#8a84b8" };
+  }
+  const { rpc, database } = m.sources;
+  if (rpc === "down" || database === "down") return { label: "Partial outage", color: "#ff6b6b" };
+  if (m.index.stale) return { label: "Degraded — validator index is behind", color: "#e0b15c" };
+  if (m.sources.watchtower === "down") {
+    return { label: "Degraded — performance feed unreachable", color: "#e0b15c" };
+  }
+  return { label: "All systems operational", color: "#5ce0a8" };
+}
+
 /* ── Main page ── */
 export default function StatusPage() {
   const [metrics, setMetrics] = useState<StatusMetrics | null>(null);
   const [phase, setPhase] = useState<"loading" | "ok" | "error">("loading");
+  const [lines, setLines] = useState<FeedLine[]>([]);
+  const [newestBatch, setNewestBatch] = useState(0);
+  const [headSeries, setHeadSeries] = useState<number[]>([]);
+  const prevRef = useRef<StatusMetrics | null>(null);
+  const nextId = useRef(0);
 
   useEffect(() => {
     async function poll() {
       try {
-        const res = await fetch("/api/status-metrics");
+        const res = await fetch("/api/status-metrics", { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as StatusMetrics;
+        const prev = prevRef.current;
+
+        // The endpoint caches for 30s; only log a measurement once.
+        if (!prev || prev.checkedAt !== data.checkedAt) {
+          const ts = new Date(data.checkedAt).toTimeString().slice(0, 8);
+          const first = nextId.current;
+          const batch = describePoll(data, prev).map((l) => ({ ...l, id: nextId.current++, ts }));
+          setNewestBatch(first);
+          setLines((old) => [...batch, ...old].slice(0, MAX_LOG_LINES));
+          if (data.chainHead > 0) setHeadSeries((old) => [...old, data.chainHead].slice(-36));
+          prevRef.current = data;
+        }
+
         setMetrics(data);
         setPhase("ok");
       } catch {
@@ -205,43 +205,52 @@ export default function StatusPage() {
     return () => clearInterval(id);
   }, []);
 
+  const health = overallHealth(metrics, phase);
+  const dash = phase === "loading" ? "—" : "n/a";
+  const up = (ok: boolean) => (ok ? "#5ce0a8" : "#ff6b6b");
+
   const metricCards = [
     {
       label: "Chain Head",
-      value: metrics?.chainHead
-        ? metrics.chainHead.toLocaleString()
-        : phase === "loading"
-          ? "—"
-          : "0",
+      value: metrics && metrics.chainHead > 0 ? metrics.chainHead.toLocaleString("en-US") : dash,
       unit: "",
-      sub: "Monad mainnet",
-      spark: { base: 55, amp: 30 },
+      sub:
+        metrics?.sources.rpc === "ok"
+          ? "Monad mainnet · eth_blockNumber"
+          : "Monad mainnet · RPC unreachable",
+      dot: up(metrics?.sources.rpc === "ok"),
+      series: headSeries,
     },
     {
       label: "Validators",
-      value:
-        metrics?.activeValidators != null
-          ? String(metrics.activeValidators)
-          : phase === "loading"
-            ? "—"
-            : "0",
-      unit: `/${metrics?.validatorCount ?? 202}`,
-      sub: "0 down · 0 alerts",
-      spark: { base: 60, amp: 6 },
+      value: metrics?.sources.database === "ok" ? String(metrics.activeValidators) : dash,
+      unit: metrics?.sources.database === "ok" ? `/${metrics.validatorCount}` : "",
+      sub: metrics?.index.indexedAt
+        ? `active in index · as of ${metrics.index.indexedAt.slice(0, 10)}`
+        : "active in index",
+      dot: up(metrics?.sources.database === "ok" && !metrics.index.stale),
+      series: [] as number[],
     },
     {
       label: "Epoch",
-      value: metrics?.epoch ? metrics.epoch.toLocaleString() : phase === "loading" ? "—" : "0",
+      value: metrics && metrics.epoch > 0 ? metrics.epoch.toLocaleString("en-US") : dash,
       unit: "",
-      sub: "~3h per epoch",
-      spark: { base: 50, amp: 18 },
+      sub:
+        metrics?.epochSource === "staking-precompile"
+          ? "getEpoch() · staking precompile"
+          : metrics?.epochSource === "watchtower"
+            ? "via watchtower"
+            : "unavailable",
+      dot: up(!!metrics && metrics.epoch > 0),
+      series: [] as number[],
     },
     {
-      label: "Uptime",
-      value: "99.99",
-      unit: "%",
-      sub: "30-day rolling",
-      spark: { base: 72, amp: 5 },
+      label: "Index Age",
+      value: metrics ? formatAge(metrics.index.ageSeconds) : dash,
+      unit: "",
+      sub: metrics?.index.stale ? "validator index is stale" : "since last validator sync",
+      dot: metrics?.index.stale === false ? "#5ce0a8" : "#e0b15c",
+      series: [] as number[],
     },
   ];
 
@@ -266,19 +275,23 @@ export default function StatusPage() {
       >
         <Link
           href="/"
-          className="text-sm tracking-wider uppercase"
+          className="text-sm uppercase tracking-wider"
           style={{ fontWeight: 500, textDecoration: "none" }}
         >
           <span style={{ color: "var(--accent)" }}>|</span>
           <span style={{ color: "var(--text)" }}>PURPLEIRIS</span>
         </Link>
-        <nav className="flex items-center gap-1 text-xs tracking-wider uppercase">
+        <nav className="flex items-center gap-1 text-xs uppercase tracking-wider">
           <Link href="/methodology" className="iris-nav-link">
             DOCS
           </Link>
           <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
+          <Link href="/developers" className="iris-nav-link">
+            API
+          </Link>
+          <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
           <a
-            href="https://github.com/gizdusum"
+            href="https://github.com/gizdusum/purpleiris-monad"
             target="_blank"
             rel="noopener noreferrer"
             className="iris-nav-link"
@@ -340,11 +353,11 @@ export default function StatusPage() {
               style={{
                 width: "11px",
                 height: "11px",
-                background: "#5ce0a8",
-                boxShadow: "0 0 14px #5ce0a8",
+                background: health.color,
+                boxShadow: `0 0 14px ${health.color}`,
               }}
             />
-            All systems operational
+            {health.label}
           </div>
 
           <p
@@ -357,8 +370,9 @@ export default function StatusPage() {
               fontFamily: "var(--font-mono), monospace",
             }}
           >
-            Live public telemetry from the PurpleIris stack — real chain &amp; system data,
-            streaming as a ghost feed. No identities, keys, or personal data.
+            Measured, not simulated. Every value on this page comes from one request to{" "}
+            <code>/api/status-metrics</code>, repeated every few seconds. When a source is
+            unreachable or the validator index is behind, this page says so.
           </p>
 
           {/* 4-column metric cards */}
@@ -404,7 +418,7 @@ export default function StatusPage() {
                 >
                   <span
                     className="live-dot"
-                    style={{ background: "#5ce0a8", boxShadow: "0 0 8px #5ce0a8" }}
+                    style={{ background: m.dot, boxShadow: `0 0 8px ${m.dot}` }}
                   />
                   {m.label}
                 </div>
@@ -441,7 +455,7 @@ export default function StatusPage() {
                 >
                   {m.sub}
                 </div>
-                <Sparkline base={m.spark.base} amp={m.spark.amp} />
+                <Sparkline series={m.series} />
               </div>
             ))}
           </div>
@@ -483,7 +497,7 @@ export default function StatusPage() {
                   className="live-dot"
                   style={{ background: "#5ce0a8", boxShadow: "0 0 8px #5ce0a8" }}
                 />
-                Live System Log · ghost feed
+                Measurement Log
               </div>
               <div
                 style={{
@@ -493,7 +507,9 @@ export default function StatusPage() {
                   fontFamily: "var(--font-mono), monospace",
                 }}
               >
-                ● streaming
+                {metrics
+                  ? `last check ${new Date(metrics.checkedAt).toTimeString().slice(0, 8)}`
+                  : "…"}
               </div>
             </div>
 
@@ -508,7 +524,7 @@ export default function StatusPage() {
                 maskImage: "linear-gradient(180deg, transparent, #000 18%, #000 78%, transparent)",
               }}
             >
-              <GhostLog metrics={metrics} />
+              <EventLog lines={lines} newestBatch={newestBatch} />
             </div>
           </div>
 
@@ -522,8 +538,8 @@ export default function StatusPage() {
               fontFamily: "var(--font-mono), monospace",
             }}
           >
-            Data from <strong style={{ color: "var(--text-dim)" }}>/api/status-metrics</strong>{" "}
-            (real chain & system events only).
+            Data from <strong style={{ color: "var(--text-dim)" }}>/api/status-metrics</strong>:
+            chain head and epoch are read from Monad mainnet, validator counts from the indexer.
             <br />
             <strong style={{ color: "var(--text-dim)" }}>
               No identity / key / API secret / personal data is ever shown.
@@ -543,7 +559,7 @@ export default function StatusPage() {
       >
         <div className="text-xs">
           <div className="flex flex-col items-center gap-2 text-center">
-            <span className="tracking-wider uppercase" style={{ color: "var(--text-mute)" }}>
+            <span className="uppercase tracking-wider" style={{ color: "var(--text-mute)" }}>
               DEV
             </span>
             <div className="flex flex-wrap justify-center gap-x-6 gap-y-1">
@@ -584,7 +600,7 @@ export default function StatusPage() {
             </div>
           </div>
           <div
-            className="flex flex-wrap items-center justify-between gap-4 tracking-wider uppercase"
+            className="flex flex-wrap items-center justify-between gap-4 uppercase tracking-wider"
             style={{ marginTop: "20px" }}
           >
             <span style={{ color: "var(--text-mute)" }}>© 2026 PurpleIris</span>
