@@ -14,7 +14,7 @@ node_modules/
 /coverage
 
 # next.js
-/.next/
+.next/
 /out/
 
 # production
@@ -48,3 +48,9 @@ next-env.d.ts
 # vitest
 **/node_modules/.vite/
 .session-state.md
+
+# build output
+dist/
+
+# os
+**/.DS_Store
