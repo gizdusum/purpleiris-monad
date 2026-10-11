@@ -13,7 +13,12 @@ let inflight: Promise<WatchtowerOverview> | null = null;
 async function fetchFresh(): Promise<WatchtowerOverview> {
   const res = await fetch(`${BASE}/api/overview`, {
     signal: AbortSignal.timeout(8_000),
-    headers: { "User-Agent": "PurpleIris/2.0" },
+    headers: {
+      Accept: "application/json",
+      "User-Agent":
+        process.env["WATCHTOWER_USER_AGENT"] ??
+        "Mozilla/5.0 (compatible; PurpleIris/2.1; +https://purpleiris.live)",
+    },
   });
   if (!res.ok) throw new Error(`Watchtower API ${res.status}`);
   return res.json() as Promise<WatchtowerOverview>;
