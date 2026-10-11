@@ -13,6 +13,8 @@ import { getAssignmentPredictorTool } from "./get-assignment-predictor";
 import { getAnomalyCheckTool } from "./get-anomaly-check";
 import { getExecutionRevenueTool } from "./get-execution-revenue";
 import { getStakingRewardsTool } from "./get-staking-rewards";
+import { getOnchainSnapshotTool } from "./get-onchain-snapshot";
+import { getIndexFreshness } from "@purpleiris/monad-indexer";
 import type {
   GetValidatorInput,
   ListValidatorsInput,
@@ -25,6 +27,8 @@ import type {
   GetAnomalyCheckInput,
   GetExecutionRevenueInput,
   GetStakingRewardsInput,
+  GetOnchainSnapshotInput,
+  ToolFreshness,
   ToolResult,
 } from "./types";
 
@@ -188,6 +192,21 @@ export function getDelegatorToolDefinitions(): Anthropic.Tool[] {
       },
     },
     {
+      name: "get_onchain_snapshot",
+      description:
+        "LIVE read of the Monad staking precompile, pinned to one block. Returns the current block number and epoch, validator set size, total consensus stake, Nakamoto coefficient, and the top validators by stake, with the block number every value was read at. No database involved, so it is never stale. Use for 'right now' / 'current' / 'live' network questions, for any question about the current epoch or block, and whenever another tool's result carries freshness.stale = true. Class 1 for values read from chain, Class 2 for totals and the Nakamoto coefficient.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          top_n: {
+            type: "number",
+            description: "How many top validators by stake to include (default 10, max 50)",
+          },
+        },
+        required: [],
+      },
+    },
+    {
       name: "get_latest_monad_release",
       description:
         "Fetch the latest Monad protocol release from the database (synced from GitHub). Returns the most recent release tag, publication date, summary, and up to 5 previous releases. Use when asked about recent protocol updates, current Monad version, or release history.",
@@ -332,6 +351,9 @@ export async function executeTool(name: string, input: unknown): Promise<string>
       case "get_staking_rewards":
         result = await getStakingRewardsTool(input as GetStakingRewardsInput);
         break;
+      case "get_onchain_snapshot":
+        result = await getOnchainSnapshotTool((input as GetOnchainSnapshotInput) ?? {});
+        break;
       default:
         result = {
           data: { error: `Unknown tool: ${name}` },
@@ -353,5 +375,60 @@ export async function executeTool(name: string, input: unknown): Promise<string>
     };
   }
 
+  if (INDEX_BACKED_TOOLS.has(name)) {
+    const freshness = await readFreshness();
+    if (freshness) result = { ...result, freshness };
+  }
+
   return JSON.stringify(result, (_, v) => (typeof v === "bigint" ? v.toString() : v));
+}
+
+/**
+ * Tools whose answers come from the indexer's tables. Their results carry a
+ * `freshness` block so a stalled indexer shows up in the answer instead of
+ * being presented as current data.
+ */
+export const INDEX_BACKED_TOOLS: ReadonlySet<string> = new Set([
+  "get_validator",
+  "list_validators",
+  "get_network_health",
+  "find_underdogs",
+  "simulate_delegation",
+  "simulate_diversification",
+  "get_recent_assignments",
+  "get_network_overview",
+  "get_latest_monad_release",
+  "get_assignment_predictor",
+  "get_anomaly_check",
+  "get_execution_revenue",
+  "get_staking_rewards",
+]);
+
+export function toToolFreshness(f: {
+  indexedAt: string | null;
+  ageSeconds: number | null;
+  stale: boolean;
+}): ToolFreshness {
+  const ageHours = f.ageSeconds === null ? null : Math.round((f.ageSeconds / 3600) * 10) / 10;
+  const out: ToolFreshness = { indexed_at: f.indexedAt, age_hours: ageHours, stale: f.stale };
+  if (f.stale) {
+    out.note =
+      f.indexedAt === null
+        ? "The age of the indexed data could not be determined. Do not present these values as current."
+        : `Indexed data was last refreshed at ${f.indexedAt} (${describeAge(ageHours ?? 0)} ago). State this date explicitly and do not present these values as current. For live network totals call get_onchain_snapshot.`;
+  }
+  return out;
+}
+
+function describeAge(hours: number): string {
+  if (hours < 48) return `${Math.round(hours)} hours`;
+  return `${Math.round(hours / 24)} days`;
+}
+
+async function readFreshness(): Promise<ToolFreshness | null> {
+  try {
+    return toToolFreshness(await getIndexFreshness());
+  } catch {
+    return null;
+  }
 }

@@ -1,10 +1,24 @@
 import type { DataClass } from "@purpleiris/shared-types";
 
+/**
+ * How old the indexed (database-backed) data behind a tool result is.
+ * Attached by executeTool to every tool that reads the indexer's tables.
+ */
+export type ToolFreshness = {
+  /** ISO-8601 time of the indexer's last successful validator sync, or null if unknown. */
+  indexed_at: string | null;
+  age_hours: number | null;
+  /** True when the index is older than 1.5 indexer cycles, or its age is unknown. */
+  stale: boolean;
+  note?: string;
+};
+
 export type ToolResult = {
   data: unknown;
   data_class: DataClass;
   source: string;
   timestamp: string;
+  freshness?: ToolFreshness;
 };
 
 export function makeResult<T>(
@@ -77,4 +91,8 @@ export type GetExecutionRevenueInput = {
 
 export type GetStakingRewardsInput = {
   validator_identifier: string;
+};
+
+export type GetOnchainSnapshotInput = {
+  top_n?: number;
 };
