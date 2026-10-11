@@ -20,6 +20,7 @@ import { sql, and } from "drizzle-orm";
 
 // force-dynamic so Next.js doesn't replace our Cache-Control with max-age=0
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 export type SourceState = "ok" | "down";
 

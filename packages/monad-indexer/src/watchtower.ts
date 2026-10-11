@@ -1,4 +1,5 @@
 import type { WatchtowerValidator, WatchtowerOverview } from "@purpleiris/shared-types";
+import { NO_STORE } from "./client";
 
 const BASE = "https://monad-watchtower.xyz";
 const FRESH_MS = 30_000;
@@ -12,6 +13,7 @@ let inflight: Promise<WatchtowerOverview> | null = null;
 
 async function fetchFresh(): Promise<WatchtowerOverview> {
   const res = await fetch(`${BASE}/api/overview`, {
+    ...NO_STORE,
     signal: AbortSignal.timeout(8_000),
     headers: {
       Accept: "application/json",

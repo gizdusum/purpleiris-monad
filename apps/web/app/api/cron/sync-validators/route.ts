@@ -10,6 +10,7 @@ import { apiJson } from "@/lib/api-http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 export const maxDuration = 60;
 
 export async function GET() {

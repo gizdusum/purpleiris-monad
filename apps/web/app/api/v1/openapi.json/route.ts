@@ -6,6 +6,7 @@ import { apiJson, preflight, publicBaseUrl } from "@/lib/api-http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 export function GET(req: NextRequest) {
   return apiJson(buildOpenApiDocument(publicBaseUrl(req)), {

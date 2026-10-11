@@ -8,7 +8,8 @@ export function getDb() {
   if (!_db) {
     const url = process.env["DATABASE_URL"];
     if (!url) throw new Error("DATABASE_URL is not set");
-    const sql = neon(url);
+    // Same reason as the RPC client: queries must not be replayed from a fetch cache.
+    const sql = neon(url, { fetchOptions: { cache: "no-store" } });
     _db = drizzle(sql, { schema });
   }
   return _db;

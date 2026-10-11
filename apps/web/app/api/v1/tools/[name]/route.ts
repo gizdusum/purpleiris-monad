@@ -10,6 +10,7 @@ import { apiJson, CORS_HEADERS, preflight, readBody } from "@/lib/api-http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 export const maxDuration = 60;
 
 type Ctx = { params: { name: string } };

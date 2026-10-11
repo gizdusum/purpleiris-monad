@@ -22,6 +22,9 @@ export function getRpcUrls(configured: string = MONAD_MAINNET_RPC_URL): string[]
   return out;
 }
 
+/** `cache` is part of the fetch standard but missing from the Node typings in use here. */
+export const NO_STORE = { cache: "no-store" } as unknown as RequestInit;
+
 let _client: ReturnType<typeof createPublicClient> | null = null;
 
 export function getPublicClient() {
@@ -34,6 +37,10 @@ export function getPublicClient() {
             timeout: 10_000,
             retryCount: 1,
             retryDelay: 500,
+            // Chain reads must never be served from an HTTP or framework cache:
+            // Next.js caches POST fetches made inside GET route handlers unless
+            // told otherwise, which would replay an old block as the current one.
+            fetchOptions: NO_STORE,
           })
         ),
         // Start with the configured endpoint, then let viem re-rank by observed
